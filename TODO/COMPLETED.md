@@ -45,6 +45,74 @@ which a *debug* build would have hidden completely:
   The site's cluster node is the control for "is the site reachable", not for
   which address the set holds.
 
+## Access, and the difference between two kinds of "no" (2026-09-13)
+
+The cluster now grants `anonymous` no roles, so the client puts a login in front
+of everything. `AccessState` has four outcomes and the gate is latched at first
+admission.
+
+**The distinction the whole thing turns on: "the server told us we may not" is
+not "we could not ask".** A refusal is a policy a cluster stated and a sign-in
+may resolve it. Nothing answering means the viewer is away from home, and
+offering them a login is both a lie about what was said and useless, because
+signing in needs a reachable node as much as watching does.
+
+A first version got that wrong and was **written and removed the same day**. It
+derived access from an empty token, which is the same value for both cases, and
+it re-checked on every session notification — and the failed-refresh path
+notifies. A network blip mid-film would have torn down the player and presented
+a login to someone who was watching something. That is the inverse of invisible
+failover.
+
+What replaced it consumes facts rather than inferring them:
+`lastMintFailure.reason` separates refused from unreachable, and core's
+`sessionLockedOut(roles)` takes `undefined` for unknown so the permissive answer
+is structural rather than something a caller must remember. Our own
+`sessionLockedOut` was deleted; core took it because this client and the web
+client had independently written the same rule.
+
+The latch is deliberate: once a viewer is in, a later failure is a connectivity
+problem and belongs on screen as a notice, never as a wall replacing what they
+have. The cost is that a genuine demotion mid-session does not lock anyone out
+until restart, which is degraded rather than an access hole and the better
+trade.
+
+`TvTextInput` came out of this and is the piece Search will reuse: typing goes
+through the television's own keyboard, and `tvFocus.suspend()` exists so the
+focus scorer stops moving selection around behind it.
+
+## Three claims that were inherited rather than measured (2026-09-13)
+
+Worth recording together, because they are the same mistake three times and the
+repo's own standing rule already warned against it — *claims about other
+codebases get read, not remembered*. Reading a peer's code is not the same as
+verifying its premise.
+
+- **`403 anonymous_disabled`** was read as a cluster configuration and a whole
+  lock condition was built on it. It was one moment of a rolling deployment.
+- **`503 {"status":"starting"}`** was read as a role gate on the new liveness
+  route and reported to core as a contradiction of their design. The node was
+  starting.
+- **`MODE_TRANSFORMS`** was carried over from the web client along with its
+  comment claiming the server refuses a bare mode as contradictory, written up
+  here as established, and offered to core as the clearest of six candidates for
+  promotion. **This client never sent that request and never saw that refusal.**
+  Core had investigated it at server 0.34.0 and the server session confirmed
+  against 0.39.1 that naming `mode` clears the per-stream fields first, so the
+  contradiction cannot be assembled. Deleted rather than moved.
+
+The deletion had a better reason than redundancy, and it came from looking at
+the map rather than the argument around it: it **asserted what a mode implies
+per stream**, which is the server's judgement, and a panel built to expose the
+5.1 decision must not quietly pre-state it.
+
+The example first given for that — "a remux can carry transcoded audio" — was
+itself wrong, and core corrected it. `remux` means the container changed and
+every stream was copied; the server refuses a remux with any quality conversion
+by contract. **A 5.1 downmix therefore arrives as `mode: 'transcode', video:
+'copy', audio: 'transcode'`**, and reading the mode alone would call it a video
+re-encode. `ACTIVE.md` §1.2 carries that into the measurement.
+
 ## The D-pad works (2026-09-12/13) — two bugs, neither findable off-device
 
 The client's entire interface is a D-pad, and **no remote key had ever reached

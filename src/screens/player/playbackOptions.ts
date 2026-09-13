@@ -33,10 +33,22 @@ import type {
  *
  * The stronger reason to delete rather than keep it harmlessly: it **asserted
  * what a mode implies per stream**, and that is the server's judgement, not
- * ours. `remux` was mapped to `audio: 'copy'`, but a remux can repackage the
- * container while still transcoding audio — and whether audio was copied or
- * transcoded is the exact question this project exists to measure. A panel
- * built to expose the 5.1 decision must not quietly pre-state it.
+ * ours. A panel built to expose the 5.1 decision must not quietly pre-state it.
+ *
+ * The map's `remux: { audio: 'copy' }` happened to be correct, and the example
+ * first given for why it was not — "a remux can carry transcoded audio" — was
+ * wrong. Core's chooser is explicit (`choosePlaybackInstruction.ts:394-401`):
+ * remux means the container changed and *every* stream was copied, and the
+ * server refuses a remux with any quality conversion, by contract rather than
+ * by capability. Re-encoding one stream makes it a transcode that copies the
+ * video.
+ *
+ * That distinction is the one to carry into §1.2, not this map. **A 5.1 downmix
+ * arrives as `mode: 'transcode', video: 'copy', audio: 'transcode'`** — the
+ * mode says transcode while the video is untouched. Reading the mode alone
+ * would call that a video re-encode. Read `session.transform`, which is the
+ * per-stream answer stated by the node that served it, and which is what
+ * `audioProcessingNote` below already shows.
  *
  * A mode press now sends `{ mode }` alone and lets the server re-derive. If a
  * refusal ever appears, capture the body, status and `code` — the server

@@ -9,37 +9,45 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 ## 0. Where this stands
 
-**It runs.** On 2026-09-12 the client was installed on the TCL, launched,
-rendered Home with real artwork, and reached the cluster at
-`http://10.34.1.50:7438` — `route-success`, health `reachable: 3, known: 5`,
-posters served from the node. Screenshots in
-[`../docs/evidence/`](../docs/evidence/).
+**It runs.** Installed on the TCL and launched; it renders the library and
+reaches the cluster. Screenshots in [`../docs/evidence/`](../docs/evidence/).
 
 **Nothing has been played.** No film has started, no watchdog has fired, no
 failover has happened, and §1.2 — the measurement this project exists to make —
 is still open. Every playback claim in this file is unexercised on hardware.
 
-**There is a build waiting to be installed.** The set is currently running the
-2026-09-12 build, in which the D-pad moves focus in *registration order*
-because the focus scorer never received any geometry. That is fixed, tested and
-committed, but the link to the `10.34` site dropped before it could be
-installed.
+**The set is running an older build.** Everything since — the focus-geometry
+fix, the alphabet strip, player options, volume, and the whole access gate — is
+committed and unverified on the device.
+
+**The cluster now requires an account.** `media_viewer` has been taken off
+`anonymous`, so a session mints with `roles: []` and the client shows its login
+wall. That wall has been seen working on the set; **signing in through it has
+not**, because typing goes through the platform keyboard and that path has never
+run on hardware.
 
 ### The single next action
 
 When the television answers:
 
 ```sh
-cd android && ./gradlew assembleRelease          # the APK on disk may predate src/
-TV=10.34.1.116:5555 ./scripts/verify-on-device.sh install
+cd android && ./gradlew assembleRelease
 ```
 
-The install stage **asserts** that the set is running the APK just built,
-comparing `versionCode` and `versionName` from `dumpsys` against the artifact.
-If it refuses, do not debug against that install.
+```sh
+TV=10.34.1.115:5555 ./scripts/verify-on-device.sh install
+```
 
-Then confirm a Down press from the nav enters the Movies row rather than moving
-sideways along it. That one press is the whole verification of §1.1.
+The install stage asserts the set is running the APK just built, comparing
+`versionCode` and `versionName` against the artifact. If it refuses, do not
+debug against that install.
+
+Then, in order: sign in through the on-screen keyboard (§1.0), confirm a Down
+press enters the Movies row (§1.1), and start a film for §1.2.
+
+**A credential is needed and this session never had one.** Anonymous has no
+roles, so nothing here can drive an authenticated request — that blocked the
+`MODE_TRANSFORMS` test too (§2.3).
 
 ### Reaching the device
 
@@ -85,87 +93,27 @@ sideways along it. That one press is the whole verification of §1.1.
 Ordered by consequence. Nothing here moves until the set answers, and §1.1
 gates the rest because everything else needs a navigable app.
 
-### 1.0b Cluster health, as of core on `develop` (2026-09-13)
+### 1.0 Sign in through the on-screen keyboard
 
-Asked and answered by Macha NPM Core; **nothing here needs changing**, recorded
-so it is not re-investigated.
+**The wall works; the keyboard has never run.** With the cluster granting
+`roles: []`, the login screen appears with the right wording, the username field
+takes default focus, "Browse as guest" is correctly absent and "Server settings"
+is present. Confirmed on the set 2026-09-13.
 
-- **Liveness is now `GET /api/v1/health`, unauthenticated and role-free.**
-  Verified against `10.34.1.50`: `200 {"status":"ok"}` with no session. The old
-  probe (`/api/v1/catalogue/status`) needs `media_viewer`, so under the roles
-  model a session granted nothing would have had **every node marked failed on
-  every cycle, permanently**. That is fixed in core, not here.
-- **Nothing became sticky.** The cooldown ladder is unchanged (500 ms, 2 s,
-  10 s, 30 s, recovery on the next good probe) and a probe failure does not
-  displace the endpoint real traffic prefers. A `401`/`403` now records nothing
-  in either direction — reached, nothing learned — rather than counting as a
-  failure. For this client's link, which drops several times an hour, that is
-  strictly better than before.
-- **Keep the preflight.** Core's liveness asks "is this node serving at all",
-  every ten seconds. `src/player/preflight.ts` asks "can this manifest and its
-  segments actually be read before I promote this standby". A node can be
-  perfectly live with a dead generation, which is the case failover exists for.
-  No overlap, nothing to delete.
-- **If endpoint health ever reaches a screen here, use `EndpointCandidate.ready`,
-  never `health.retryAt`.** `retryAt` is a reading of `machaHost().now()`, a
-  duration clock with an arbitrary origin, so comparing it against `Date.now()`
-  compares two unrelated number lines. The web client's status screen has that
-  bug today.
+What is unverified is everything past that point:
 
-**One thing that is a decision rather than a defect**, raised and left with
-Tom: `discoverClusterEndpoints` reads `/api/v1/status`, which needs
-`view_status`. A no-roles session gets `403`, so it never learns cluster
-membership or the self-reported capacity that rides on it — the failover pool
-stays frozen at the bootstrap list. Harmless for a client that may play
-nothing, except that **this is the login state**: the viewer must reach some
-node to sign in, and liveness is the only grading available until they do.
-
-### 1.0a Reported to core: refused is not unreachable
-
-Raised 2026-09-13, not a task here and **must not be worked around here**.
-`SessionManager` cannot tell "the server refused" from "we could not ask":
-`mintNow`'s catch is bare, so a `403` from a node that answered in 40 ms
-publishes "All configured API endpoints are unreachable", and
-`authorization()` returns `undefined` for both cases.
-
-`mintAnonymousSessionAnyNode` also stops at the first `403` as though it were
-cluster-wide. For a credentialed sign-in that is right; for an **anonymous**
-mint it is a node-level configuration fact, and during the rolling deployment
-on 2026-09-13 one node answered `403 anonymous_disabled` while the others
-minted happily. One stale node can therefore deny a session the cluster was
-willing to grant.
-
-**A gate built on that confusion was written and removed the same day** — see
-the note in `useCurrentSession.ts`. It would have raised a login wall on a
-network blip and killed playback mid-film. The honest UI needs the reason, and
-only core has it.
-
-### 1.0 Verify the login gate against a server that grants nothing
-
-**Added 2026-09-13, and it needs a real server as much as a real set.** The
-client now locks itself when the session carries no roles — the deployment
-where `media_viewer` is taken off `anonymous`. Three things want checking on
-hardware, none of which can be checked here:
-
-- **The keyboard.** `TvTextInput` raises the platform IME and suspends the
-  focus registry while it is open. `tvFocus.suspend()` was written for this and
-  **has never run on a device**; if it leaks a suspension the whole client goes
-  unnavigable with no visible cause.
-- **The escape hatch.** Settings must stay reachable from behind the wall and
-  Back must return to the login. Without it a set whose node stops granting
-  roles is bricked — no address bar, reinstall the only remedy.
-- **That the wall does not flash on a cold start.** `known` is what prevents
-  it, and the window it guards is exactly the one this client's flaky link
-  makes wide.
-- **That an unreachable cluster does *not* raise the wall.** Pull the network
-  mid-session: the viewer should keep what is on screen and see a connectivity
-  notice, never a login. This is the failure the removed gate would have
-  caused, and the only way to know it is gone is to cause it.
-
-**Confirmed working on the set 2026-09-13**: with every node minting
-`roles: []`, the wall appears with the right wording, the username field takes
-default focus, "Browse as guest" is correctly absent and "Server settings" is
-present. Typing through the IME is still unexercised.
+- **Typing.** `TvTextInput` raises the platform IME and suspends the focus
+  registry while it is open. `tvFocus.suspend()` was written for this and has
+  never run on a device. **A leaked suspension makes the whole client
+  unnavigable with no visible cause** — if the D-pad dies after closing the
+  keyboard, that is the first place to look.
+- **Signing in.** Needs a real credential, which this session never had.
+- **The escape hatch.** Settings must be reachable from behind the wall and Back
+  must return to the login.
+- **That an unreachable cluster shows the offline screen and not the wall.**
+  Pull the network: the viewer must see "Can't reach Macha", never a login. This
+  is the failure the first version of the gate would have caused, and the only
+  way to know it is gone is to cause it.
 
 ### 1.1 Install the pending build and confirm the D-pad
 
@@ -192,6 +140,20 @@ clean positional mask points the other way and is worth as much.
 
 Owed to: the NPM session, the site session (it changes a published sentence),
 and this repo's own README premise.
+
+**How to read the instruction, because the mode alone will mislead.** A 5.1
+downmix arrives as **`mode: 'transcode', video: 'copy', audio: 'transcode'`** —
+the mode says transcode while the video is untouched. Core's chooser is
+explicit that `remux` means the container changed and *every* stream was copied
+(`choosePlaybackInstruction.ts:394-401`), and the server refuses a remux with
+any quality conversion by contract, so re-encoding the audio alone necessarily
+reports as a transcode that copies the video.
+
+Read **`session.transform.{video,audio}`**, which is the per-stream answer
+stated by the node that served it. The player chrome already shows both lines,
+and the options panel shows `Server processing: transcode → AAC` when audio is
+being re-encoded — that sentence *is* the failure this project exists to find.
+Judging by `mode` would call a pure audio downmix a video re-encode.
 
 **If the session shows unexplained mid-playback failovers**, there are three
 candidate causes and they are distinguishable: §2.0's missing hold-aware `500`
@@ -383,17 +345,15 @@ raised its severity on that basis: a D-pad *is* the seek affordance —
 this client generates backward seeks as ordinary viewing. Web and phone have
 scrubbers people touch rarely.
 
-### 2.3 Player options — the largest functional gap in the player
+### 2.3 Player options — done 2026-09-13
 
-`PlayerOptions` in the web chrome: audio and subtitle track selection, and mode
-override. The chrome currently displays the chosen instruction but cannot change
-it — and **forcing a mode by hand is how a downmix problem gets isolated**, so
-this is wanted *during* §1.2 rather than after it.
+Mode, quality, audio track, subtitle track and source switching, in a panel with
+its own focus scope. Back closes the panel before the player.
 
-`expo-video` exposes `availableAudioTracks` / `availableSubtitleTracks` with
-selection, so the data side is there.
-
-**This is the best use of a window when the television is unreachable.**
+**Unverified on hardware**, and worth exercising during §1.2: forcing a mode by
+hand is how a downmix gets isolated, and the instruction notes under the mode
+row are the only place on a television where a silently-transcoding library can
+show itself.
 
 ### 2.4 Optional `Player` methods
 
@@ -450,13 +410,15 @@ just not silent byte-level failover.
 
 ### 3.2 Is the GitHub repository public?
 
-Pushed to `git@github.com:tomdionysus/macha-client-rn-android-tv.git` on
-2026-09-13. **Visibility unconfirmed** — `gh` was not available to check.
+Pushed to `git@github.com:tomdionysus/macha-client-rn-android-tv.git`.
+**Visibility still unconfirmed** — `gh` is not available here to check.
 
-This matters beyond tidiness: the site session has **published a statement that
-this repo is not fetchable**, with `macha-ts` and `macha-client` as precedent.
-If it is public that published sentence is now wrong, and it is Macha UI Work's
-to correct rather than ours.
+It matters because the site session has published that this repo is not
+fetchable, with `macha-ts` and `macha-client` as precedent. If it is public that
+sentence is now wrong, and it is Macha UI Work's to correct rather than ours.
+
+**Pushing is Tom's, never this session's.** Commit locally and hand over the
+commands.
 
 ### 3.3 Are `/manage`, `/manage/files` and `/items/:id/edit` TV work at all?
 
@@ -491,7 +453,8 @@ less the `*` catch-all and the two pure redirects, so **28 real destinations**.
 | `/series/:id`, `/series/:id/seasons/:id` | **yes** (season folded in) | `MediaApi` |
 | `/play/:id` player | **yes** | `PlaybackCoordinator`, `PlaybackRuntime` |
 | `/settings` | **partial** — displays, cannot edit | `MachaServerApi`, `connectionConfiguration` |
-| `/login` | **yes** (2026-09-13) | `sessionManager.signIn`, `UsersApi.currentSession` |
+| `/login` | **yes** (2026-09-13) | `sessionManager.signIn`, `sessionLockedOut`, `lastMintFailure` |
+| *(offline gate)* | **yes** — no web equivalent | `lastMintFailure.reason` |
 | `/search` | **no** | `MediaApi.search()` — the query side is done |
 | `/music/*` (7 routes) | **no** | `MediaApi`, `MusicPlaylistStore`, `state/musicPlaylist` |
 | `/status`, `/status/client`, `/status/connectivity`, `/status/nodes/:id` | **no** | `ClusterStatusApi`, `ClusterStatusRouter` |
@@ -519,7 +482,7 @@ buffered range.
 
 Missing:
 
-- **Options** — §2.3, the largest functional gap.
+- ~~Options~~ — **done 2026-09-13**, §2.3.
 - **Previous / next** — needs `PlaybackQueueStore` (§2.5).
 - ~~Volume and mute~~ — **done 2026-09-13**. Not a slider: the control takes
   left and right while focused, as the scrubber does, since a D-pad is the only
@@ -532,10 +495,16 @@ Missing:
 
 Fullscreen is **not applicable** — a TV app is always fullscreen.
 
-### 4.3 Components — 9 of 21 ported
+### 4.3 Components — 10 of 21 ported
 
 Ported: `MediaCard`, `MediaRow`, `Status`, `PlayerIcons`, `LazyArtwork`,
-`AlphabetIndex`, plus TV-only `Focusable`, `TopBar` and `EpisodeCard`.
+`AlphabetIndex`, `ConnectionForm`-adjacent `TvTextInput`, plus TV-only
+`Focusable`, `TopBar` and `EpisodeCard`.
+
+**`TvTextInput` is the one to reuse.** It raises the platform IME and suspends
+the focus registry while it is open, which is the integration point Search needs
+and the reason `tvFocus.suspend()` exists. Built for the login screen; Search
+should not write a second one.
 
 Missing, in the order they matter on a D-pad:
 
