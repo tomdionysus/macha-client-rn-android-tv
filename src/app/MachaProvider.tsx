@@ -6,11 +6,9 @@ import {
   createMachaServices,
   EndpointHealthMonitor,
   EndpointRegistry,
-  memoryStorage,
   sessionManager,
   ContinueWatchingStore,
   PlaybackQueueStore,
-  VolumeStore,
   type MachaServices,
 } from '@macha/core';
 import {
@@ -20,6 +18,7 @@ import {
   getDiscoveredEndpoints,
 } from '../state/client';
 import { nativeStorage } from '../state/storage';
+import { VolumeStore } from '../state/volumeStore';
 
 /**
  * Brings up the core once, in the order it requires.
@@ -62,8 +61,18 @@ export function configureHost(): void {
   hostConfigured = true;
   configureMachaHost({
     storage: nativeStorage,
-    // Only has to survive one run, and persisting it would defeat its purpose.
-    ephemeralStorage: memoryStorage(),
+    // `ephemeralStorage` was removed in core 0.10.0. `SessionManager` was its
+    // only reader, and the session is now deliberately persisted rather than
+    // held for one run — Tom's "permanent until logout". Nothing here replaces
+    // it, so the key is simply gone.
+    //
+    // **Not yet supplied: `secureStorage`.** Core 0.10.0 takes an optional
+    // `StorageLike` and puts the token in it when present. `expo-secure-store`
+    // runs on Android TV and would make that Keystore-backed; until it is
+    // wired, the session token lives in app-private `AsyncStorage`, which is
+    // what the rest of this client's state uses. Recorded rather than assumed,
+    // because core's own note is that it cannot make a platform safer than it
+    // is — only use what the host offers.
     origin: clientConfiguration.serverUrl(),
   });
 }

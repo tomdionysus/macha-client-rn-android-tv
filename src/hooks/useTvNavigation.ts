@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { BackHandler, type View, type LayoutChangeEvent } from 'react-native';
+import { BackHandler, Keyboard, type View, type LayoutChangeEvent } from 'react-native';
 import { tvFocus, type TvCommand, type TvDirection } from './tvFocus';
 import { addTvKeyListener } from '../../modules/macha-player/tvInput';
 
@@ -60,7 +60,22 @@ export function useTvNavigation(options: TvNavigationOptions = {}): void {
         // Something else owns the remote — the platform IME, typically. Every
         // key belongs to it, including the transport keys, which would
         // otherwise act on playback the viewer cannot see behind it.
-        if (tvFocus.suspended) return;
+        //
+        // **Unless nothing actually owns it.** A suspension whose holder went
+        // away cannot be released by anyone, and the symptom is a television
+        // whose remote has stopped working entirely with nothing on screen to
+        // explain it — which is what 0.3.0 did after the first time anybody
+        // typed. So the claim is checked against the platform rather than
+        // trusted: if we are suspended and there is demonstrably no keyboard
+        // on screen, the suspension is stale and this key is ours.
+        //
+        // Asked here, at the one place the consequence shows up, and only on a
+        // key we would otherwise have dropped — so a correct suspension costs
+        // nothing and a leaked one costs a single ignored press.
+        if (tvFocus.suspended) {
+          if (Keyboard.isVisible()) return;
+          tvFocus.resumeAll();
+        }
 
         switch (event.eventType) {
           case 'playPause':
