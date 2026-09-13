@@ -58,6 +58,37 @@ install)
     echo "$PKG not present after install — refusing to remove the existing app." >&2
     exit 1
   fi
+
+  # Present is not the same as *replaced*. `versionCode` is the only thing the
+  # package manager compares, and every build before 2026-09-13 shipped 1, so
+  # five different APKs were installed over each other indistinguishably in a
+  # single session. `install -r` hides a failed replace completely: the risk was
+  # never the install, it was reading new source while the set ran old bytecode.
+  #
+  # So assert rather than report — compare what the device now holds against
+  # what this APK actually declares. Raised by the phone client, which reads
+  # versionName back after installing; comparing both values against the
+  # artifact is the stronger form of the same check.
+  say "Confirming the device is running THIS build"
+  aapt2="$(ls "${ANDROID_HOME:-$HOME/Library/Android/sdk}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)"
+  if [ -z "$aapt2" ]; then
+    echo "  aapt2 not found — cannot verify what landed. Continuing, unverified." >&2
+  else
+    apk_line="$("$aapt2" dump badging "$APK" 2>/dev/null | grep -m1 "^package:")"
+    apk_code="$(printf '%s' "$apk_line" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p")"
+    apk_name="$(printf '%s' "$apk_line" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")"
+    dev="$("$ADB" -s "$TV" shell "dumpsys package $PKG" | tr -d '\r')"
+    dev_code="$(printf '%s' "$dev" | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -1)"
+    dev_name="$(printf '%s' "$dev" | sed -n 's/.*versionName=\([^ ]*\).*/\1/p' | head -1)"
+    echo "  apk:    versionCode=$apk_code versionName=$apk_name"
+    echo "  device: versionCode=$dev_code versionName=$dev_name"
+    if [ "$apk_code" != "$dev_code" ] || [ "$apk_name" != "$dev_name" ]; then
+      echo "MISMATCH — the set is not running the APK just built." >&2
+      echo "Nothing removed. Do not debug against this install." >&2
+      exit 1
+    fi
+    echo "  match"
+  fi
   echo "  $PKG present"
 
   say "Removing other Macha apps"
