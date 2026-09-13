@@ -14,11 +14,12 @@ presentation: core already ships the search, music, status and alphabet-index
 logic those screens would sit on.
 [`TODO/ACTIVE.md`](TODO/ACTIVE.md) §4 is the complete parity list.
 
-> **Status: builds; not yet installed or run on the television.** The APK is
-> produced and statically verified, and the hardware facts below were measured
-> off the device and the cluster — but no screen has been rendered and nothing
-> has been played. Treat behaviour as unproven. [`docs/HISTORY.md`](docs/HISTORY.md)
-> distinguishes what was measured from what is merely asserted.
+> **Status: it runs.** Installed on the TCL on 2026-09-12, it renders the
+> library and reaches the cluster. **Nothing has been played yet** — no film has
+> started, no watchdog has fired, no failover has happened, and the 5.1 downmix
+> measurement this project exists to make is still open. Treat playback
+> behaviour as unproven. [`docs/HISTORY.md`](docs/HISTORY.md) distinguishes what
+> was measured from what is merely asserted.
 
 ## Where this sits
 
@@ -112,10 +113,16 @@ unreachable, since it is fed only by the optional `subscribeDegradation`.
 in `modules/macha-player`. That engine is complete and has never been run, and
 the shortest path to the 5.1 measurement this project exists to make is the
 component the phone client has already proven. It is Media3 underneath, so the
-hardware-decoder premise above is unaffected — but it builds its
-`OkHttpDataSource.Factory` internally with no injection point, so seamless
-failover is not available while it stands. `ExoPlayerAdapter` and
-`PlayerEngine.kt` remain in the tree for the revisit.
+hardware-decoder premise above is unaffected.
+
+It does build its `OkHttpDataSource.Factory` internally with no injection point,
+which costs per-request control and HTTP status reporting — but **not seamless
+failover**, which an earlier version of this paragraph claimed. Handover does
+not live in the transport: `VideoView`'s player setter checks
+`hasSentFirstFrameForCurrentMediaItem` on the incoming player and holds the
+shutter open for a pre-warmed one, so a second `VideoPlayer` can be primed and
+promoted. `ExoPlayerAdapter` and `PlayerEngine.kt` remain in the tree for the
+revisit once the 5.1 answer is in.
 
 **Capabilities did not move with it.** `expo-video` exposes no codec enumeration
 at all, so `MediaCodecList` is still read through the native module. Answering

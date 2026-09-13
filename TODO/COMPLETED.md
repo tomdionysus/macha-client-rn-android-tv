@@ -45,6 +45,159 @@ which a *debug* build would have hidden completely:
   The site's cluster node is the control for "is the site reachable", not for
   which address the set holds.
 
+## The D-pad works (2026-09-12/13) — two bugs, neither findable off-device
+
+The client's entire interface is a D-pad, and **no remote key had ever reached
+JavaScript**. Fixing it took two independent findings, the second only visible
+once the first was fixed.
+
+### One: React Native cannot deliver TV key events in a bridgeless build
+
+Verified in `react-native-tvos@0.86.2-0`'s own Android source, not inferred:
+
+- The app runs bridgeless (`newArchEnabled=true`). Key events go
+  `ReactSurfaceView.dispatchJSKeyEvent` → `JSKeyDispatcher`, which dispatches
+  view-level `KeyDownEvent`/`KeyUpEvent` and **never emits `onHWKeyEvent`**.
+- `useTVEventHandler` listens for `onHWKeyEvent` **only**
+  (`TVEventHandler.js:46`), emitted solely by `ReactAndroidHWInputDeviceHelper`,
+  called only from the **legacy** `ReactRootView` and `ReactModalHostView`.
+- The replacement path is doubly shut: `ReactNativeFeatureFlags.enableKeyEvents`
+  defaults to **false**, and `JSKeyDispatcher.handleKeyEvent` opens with
+  `if (focusedViewTag == View.NO_ID) return` — with no natively-focused view it
+  discards everything. `Focusable` renders a plain `View` and never takes
+  Android focus, so even with the flag on nothing would arrive.
+
+**The fix is ours: `MachaTvInputModule.kt`**, a Kotlin bridge wrapping
+`Window.Callback`. Same reasoning that keeps `Capabilities.kt` — own the native
+seam where React Native's abstraction does not serve a television.
+
+It wraps the window callback rather than overriding `dispatchKeyEvent` on
+`MainActivity` because the activity is generated under `android/`, which a
+prebuild regenerates. That is the third time this project has had to route
+around generated-tree loss.
+
+Two things fixed in passing:
+
+- **The double-fire.** The legacy helper emitted on both `ACTION_DOWN` and
+  `ACTION_UP`, and `useTvNavigation` never read `eventKeyAction` — so every
+  press would have moved focus **twice** had that path ever run. The bridge
+  emits on down only and consumes up.
+- **Back moved to `BackHandler`**, which is a correctness fix rather than
+  plumbing: `hardwareBackPress` is synchronous, so it can tell the platform
+  whether the app consumed the press. A bridge emitting into JavaScript cannot
+  answer in time, and guessing would either trap the viewer in the app or drop
+  them out of it.
+
+### Two: every measured rectangle was thrown away
+
+Only visible once keys worked. The registry reported **`registered=46
+measured=0`** while all 46 `measureInWindow` callbacks fired with correct
+rectangles.
+
+`measure()` delegated to `update()`, which returns silently for an unknown id —
+right for an arbitrary patch, catastrophic for geometry. And the id was
+**always** unknown, because registration lost a race it loses every time:
+registration was a `useEffect`, a passive effect React defers, while Fabric
+dispatches `onLayout` from native the moment layout commits.
+
+**So the ported scorer had never once chosen a candidate on this device.** Every
+move came from `sequentialCandidate` — registration order — which is exactly
+what the set showed: Down from a nav item went *sideways* to the next nav item,
+because that was next in mount order.
+
+Three holes closed: `measure()` holds an early rectangle in `pendingRects`
+rather than dropping it; `register()` preserves geometry **and order** across a
+re-registration (it rebuilt the entry from scratch, so any prop change silently
+dropped that element back to sequential navigation — the same bug a second
+time); and registration is now a `useLayoutEffect` so it stops losing the race
+at all.
+
+**The existing 13 focus tests passed throughout**, because every one called
+`register()` then `measure()` in the tidy order. Nothing exercised the order the
+platform actually delivers, so a green suite sat on top of a focus model that
+could not navigate. Five tests now encode the real order, two named for the
+television's own symptom; reverting `measure()` fails them.
+
+**Still unverified on hardware** — the fix was committed after the link to the
+site dropped. `ACTIVE.md` §1.1.
+
+## Alphabet jump (2026-09-13)
+
+`AlphabetIndex` + `useAlphabetIndex`, which §4.3 names as the component that
+matters most on this platform: a pointer makes a long library a scrollbar drag,
+a remote makes it one focus step per card.
+
+Core owns the bucketing, ordering and folding — `alphabetIndexKey` knows about
+leading articles, combining marks and numeric titles. Nothing is re-derived.
+
+**It parts company with the web client in the way that matters on a
+television.** There, jumping calls `scrollIntoView` and stops. Here it moves
+*focus* to the first title in the bucket and lets the library's existing
+scroll-on-focus do the revealing — because scrolling without moving focus would
+leave the next D-pad press scrolling straight back, so the jump would appear to
+undo itself. Letters with nothing behind them are unfocusable, so the D-pad
+skips them rather than making the viewer press through dead entries.
+
+That is why focusables can now be addressed by a stable id: the strip has to
+select a specific card by name.
+
+## Versioning, branching and install verification (2026-09-13)
+
+**`versionCode` is the only number Android compares.** It ignores `versionName`
+entirely, so two builds sharing a code are the same build to the package
+manager. Nothing set `android.versionCode`, so every APK this client ever built
+shipped the Expo default of **1**.
+
+Five genuinely different builds went onto the television in one afternoon —
+native key bridge, focus fix, three instrumented variants — and the device could
+not tell them apart. `install -r` hid it completely. The install was never the
+risk: the risk was that the whole session was on-device debugging, and a build
+that silently failed to replace would have had someone reading new source while
+watching old bytecode, with no signal on either end.
+
+Raised by the phone client, which hit the same thing. Its derivation adopted
+unchanged so both Android clients read alike:
+
+    major * 10000 + minor * 100 + patch        0.1.0 -> 100
+
+Enforced by `npm run version:check` from `pretest`. Both failure modes — absent,
+and stale at 1 — were confirmed to fail the check before it was wired in.
+
+**`verify-on-device.sh install` now asserts what landed**, comparing
+`versionCode` and `versionName` from `dumpsys` against what the APK declares,
+refusing to remove anything and telling the operator not to debug against the
+install when they disagree. The technique is the phone client's; comparing
+against the artifact is the stronger form, since it catches a stale APK as well
+as a failed replace.
+
+**Branching convention adopted** (Tom, project-wide, relayed by the phone
+client): work on `develop`, releases tagged on `main`, tags bare annotated
+semver, version bump inside the release commit, and **never name a branch after
+a version**. This repo had already made that mistake — `0.2.0` renamed to
+`develop` hours after creating it. Recorded in `AGENTS.md`.
+
+`0.1.0` is tagged at the commit that shipped `versionCode 1`, and the tag body
+says so. The tag records what ran on the television; correcting it retroactively
+would make it a lie. The phone client amended theirs instead, correctly — theirs
+had never been built from, so there was nothing to preserve.
+
+## Decisions taken
+
+- **Focus-scoring duplication (Tom, 2026-09-12): accept it. No `@macha/tv`.**
+  The two scorers were compared that day and are identical line for line —
+  `../macha-client/src/hooks/useTvNavigation.ts:87-108` against
+  `src/hooks/tvFocus.ts:71-95`: same `±1` deadzone, same `secondary * 0.2`, same
+  `laneGap * 6`, matching `sequentialCandidate`. **The asymmetry to know:** all
+  three constants are pinned by named tests here, but the web client's
+  `scoreTvCandidate` is module-private and not directly unit-tested, so a drift
+  is loud on this side and quiet on theirs — **this repo's tests are the shared
+  guard**. Revisit if a third TV surface appears or the weights need to diverge
+  per platform.
+- **This is now a git repository** (2026-09-13), pushed to
+  `git@github.com:tomdionysus/macha-client-rn-android-tv.git`. Visibility
+  unconfirmed — see `ACTIVE.md` §3.2, which matters because the site session has
+  published that this repo is not fetchable.
+
 ## Project and build
 
 - **Scaffolded as an Android TV app**, not a phone app that tolerates a TV:
