@@ -12,19 +12,26 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 **It runs.** Installed on the TCL and launched; it renders the library and
 reaches the cluster. Screenshots in [`../docs/evidence/`](../docs/evidence/).
 
-**Nothing has been played.** No film has started, no watchdog has fired, no
-failover has happened, and §1.2 — the measurement this project exists to make —
-is still open. Every playback claim in this file is unexercised on hardware.
+**A film has played, and §1.2 is answered.** On 2026-09-13, 0.3.2 on the TCL:
+*28 Years Later*, `matroska / direct / video copy / audio copy`, running past
+7 minutes, with an **active 6-channel AudioTrack on a positional `0x0000003F`
+mask** — not the `0x8000003F` index mask. **The premise holds: this panel
+direct-plays surround and folds down correctly.** Full reading in §1.2.
 
-**The set is running an older build.** Everything since — the focus-geometry
-fix, the alphabet strip, player options, volume, and the whole access gate — is
-committed and unverified on the device.
+Still unexercised: no watchdog has fired and no failover has happened, so
+every *failover* claim in this file remains unproven.
 
-**The cluster now requires an account.** `media_viewer` has been taken off
-`anonymous`, so a session mints with `roles: []` and the client shows its login
-wall. That wall has been seen working on the set; **signing in through it has
-not**, because typing goes through the platform keyboard and that path has never
-run on hardware.
+**The set is running 0.3.2**, installed and version-asserted 2026-09-13.
+Verified on it: the login wall, signing in through the platform IME, D-pad
+navigation, the library, detail pages, Settings, and playback.
+
+**The cluster requires an account**, and signing in **works**. `media_viewer`
+is off `anonymous`, a session mints with `roles: []`, the wall appears, and
+`tvtest` signs in through the platform IME to a full library. Confirmed on the
+set 2026-09-13.
+
+Getting there cost a P0: **the first version of `TvTextInput` bricked the
+remote.** See §1.0.
 
 ### The single next action
 
@@ -93,84 +100,110 @@ roles, so nothing here can drive an authenticated request — that blocked the
 Ordered by consequence. Nothing here moves until the set answers, and §1.1
 gates the rest because everything else needs a navigable app.
 
-### 1.0 Sign in through the on-screen keyboard
+### 1.0 Sign in through the on-screen keyboard — done 2026-09-13
 
-**The wall works; the keyboard has never run.** With the cluster granting
-`roles: []`, the login screen appears with the right wording, the username field
-takes default focus, "Browse as guest" is correctly absent and "Server settings"
-is present. Confirmed on the set 2026-09-13.
+**Works, and finding out cost a P0.** `tvtest` signs in through the platform
+IME to a full library. Typing, the focus suspension, and the return to
+navigation are all exercised on hardware.
 
-What is unverified is everything past that point:
+**The P0, because it will be tempting to write this code again.** `TvTextInput`
+took a `tvFocus.suspend()` on `TextInput.onFocus` and released it on `onBlur`.
+On Android TV **`onBlur` never fires**: the leanback IME closes as its own
+window while the `ReactEditText` underneath keeps native focus. Measured on the
+set: `mInputShown=false` with `mServedView` still pointing at the field. So the
+suspension was held for the life of the process, `useTvNavigation` returned
+early on every key, and **after typing once the D-pad did nothing at all** — on
+a screen whose only other control is a second text field. Nothing on screen
+said why; only restarting the app cleared it.
 
-- **Typing.** `TvTextInput` raises the platform IME and suspends the focus
-  registry while it is open. `tvFocus.suspend()` was written for this and has
-  never run on a device. **A leaked suspension makes the whole client
-  unnavigable with no visible cause** — if the D-pad dies after closing the
-  keyboard, that is the first place to look.
-- **Signing in.** Needs a real credential, which this session never had.
-- **The escape hatch.** Settings must be reachable from behind the wall and Back
-  must return to the login.
-- **That an unreachable cluster shows the offline screen and not the wall.**
-  Pull the network: the viewer must see "Can't reach Macha", never a login. This
-  is the failure the first version of the gate would have caused, and the only
-  way to know it is gone is to cause it.
+Fixed in 0.3.1, three ways, because the consequence is out of all proportion to
+the cause:
 
-### 1.1 Install the pending build and confirm the D-pad
+- release on `keyboardDidHide` and blur the field, since `onBlur` will not come;
+- release on unmount — the token lives in a ref, so nothing else can ever reach it;
+- **a backstop in the key path**: if the registry is suspended while
+  `Keyboard.isVisible()` is false, the suspension is stale, so `resumeAll()`
+  clears it and the key is handled. Reference counting cannot recover from a
+  lost token by construction, and the failure is a television whose remote has
+  stopped working.
 
-The focus-geometry fix is committed and unit-tested but has never run on
-hardware. Until a Down press is seen entering the Movies row, the ported scorer
-remains **unproven on this device** — it has never once chosen a candidate
-there.
+Still unverified: **Back from the login returning from Settings**, and **that an
+unreachable cluster shows the offline screen and not the wall.** The second is
+still the one worth causing deliberately.
 
-Both D-pad bugs and their causes are in `COMPLETED.md`; this item is purely the
-verification.
+### 1.1 D-pad navigation — done 2026-09-13
 
-### 1.2 The 5.1 downmix measurement — the one that tests the premise
+**The ported scorer has now chosen candidates on this panel.** Down enters the
+Movies row, Up returns to the nav bar, Left/Right move along both, the row
+scrolls the focused card into view, and the player controls take focus. Tom
+confirms the physical remote navigates the set.
 
-`verify-on-device.sh audio`, with a film playing. Criteria are fixed in advance
-in `HISTORY.md` so the standard cannot be set after seeing the result. Three
-things must hold: a platform E-AC-3/AC-3 decoder (not AAC), 6 channels reaching
-AudioTrack, and a **positional** channel mask rather than the `0x8000003F`
-index mask.
+**A second focus defect was found and fixed on the way** (0.3.2), separate from
+§1.0's. `tvFocus.handle()` asked `current()` for a fallback when `selectedId`
+named nothing reachable — after a scope change, or after the screen owning the
+selection unmounted — then computed the move *from* that fallback without ever
+selecting it. So a direction with a candidate silently skipped the first
+element, and **a direction with no candidate returned false, leaving the screen
+with no selection and no focus ring at all.** Reproduced on the library after
+Back from a detail page: no ring anywhere, Up doing nothing however many times
+it was pressed. The first press now reveals focus; the second moves it.
 
-If the first two hold but the mask is an index mask, this client is
-direct-playing correctly and the set still cannot fold down — which is **core's
-speaker-layout gap, not a defect here**. Core wants the answer either way; a
-clean positional mask points the other way and is worth as much.
+**Three navigation faults remain open**, all found on the set and none fixed:
 
-Owed to: the NPM session, the site session (it changes a published sentence),
-and this repo's own README premise.
+- **Settings has no focus-follows-scroll.** The Diagnostics toggle sits below
+  the fold; focus moves to it invisibly, the page never scrolls, and Down and
+  centre then appear dead. The only escapes are Up and Back. `MediaRow` wires
+  `onFocusChange` to scroll and this screen does not — which is why **the
+  failure trail could not be switched on during the first playback session.**
+- **The nav bar does not trap horizontal movement at its ends.** Right from
+  "Settings" escapes into the poster row, because a card further right still
+  scores as a valid candidate. Left from "Home" presumably does the same.
+- **Back from a top-level screen exits the app** rather than returning to the
+  previous route. Conventional on Android TV, but it means a stray Back during
+  a test session drops out to the launcher — and `com.tcl.tv` is `FLAG_SECURE`,
+  so screenshots silently come back empty when it does.
 
-**How to read the instruction, because the mode alone will mislead.** A 5.1
-downmix arrives as **`mode: 'transcode', video: 'copy', audio: 'transcode'`** —
-the mode says transcode while the video is untouched. Core's chooser is
-explicit that `remux` means the container changed and *every* stream was copied
-(`choosePlaybackInstruction.ts:394-401`), and the server refuses a remux with
-any quality conversion by contract, so re-encoding the audio alone necessarily
-reports as a transcode that copies the video.
+### 1.2 The 5.1 downmix measurement — ANSWERED 2026-09-13
 
-Read **`session.transform.{video,audio}`**, which is the per-stream answer
-stated by the node that served it. The player chrome already shows both lines,
-and the options panel shows `Server processing: transcode → AAC` when audio is
-being re-encoded — that sentence *is* the failure this project exists to find.
-Judging by `mode` would call a pure audio downmix a video re-encode.
+**The premise holds.** *28 Years Later* on the TCL, 0.3.2, direct-played:
 
-**If the session shows unexplained mid-playback failovers**, the candidate
-causes are distinguishable and the **failure trail on the player is how**
-(§4.2, done 2026-09-13 — turn it on in Settings before starting). §2.0's
-missing hold-aware `500` retry is **fixed**, so it should no longer be one of
-them; what remains is §2.2b's backward-seek eviction (the tell is a rewind
-immediately before the failover) or a genuine node fault.
+```
+matroska / direct / video copy / audio copy      (the node's own per-stream answer)
 
-A third candidate was raised and **closed the same day**: core read response
-bytes via `response.blob()`, which has never run on React Native, and a host
-unable to read a body would have had every warm standby silently destroyed at
-preflight. Core now tries `arrayBuffer()` first and, more to the point, treats
-*unreadable* as distinct from *empty* — an unreadable body no longer fails a
-preflight, because the node answered and only this package's ability to read
-it did not. So the standby survives either way. **Still worth reporting which
-accessor actually works on this panel**, since nobody knows; it is no longer
-something that can break failover.
+Id 75  Active=yes  Client=2108  Chn mask=0000003F  SRate=48000  FrmRdy=21560  Underruns=0
+Channel count: 6
+Channel mask: 0x0000003f (front-left, front-right, front-center, low freq, back-left, back-right)
+```
+
+PID 2108 is `foundation.macha.client.tv`, so the active track is ours.
+
+Against the three criteria fixed in advance:
+
+| # | Criterion | Result |
+| --- | --- | --- |
+| 1 | platform E-AC-3/AC-3 decoder, not AAC | **inferred, not directly observed** |
+| 2 | 6 channels reaching AudioTrack | **confirmed** |
+| 3 | positional mask, not `0x8000003F` | **confirmed — `0x0000003F`** |
+
+**Criterion 1 is honestly weaker than the other two and should be closed
+properly.** `dumpsys media.codec` returned nothing and logcat had rotated, so
+the instantiated decoder's *name* was never captured. What is known: audio is
+`copy`, so nothing was re-encoded to AAC; six channels reach AudioTrack; and
+the panel carries `OMX.realtek.audio.dolby.eac3.decoder` and
+`OMX.realtek.audio.dolby.ac3.decoder`. Consistent with one story only, but
+inference. Catch the decoder name on the next session.
+
+**A prediction made from the capability panel did not come true, and the
+reasoning is worth keeping.** `HLS AUDIO: aac` (§1.6) says the HLS delivery
+path advertises AAC alone, so any surround title going over HLS *will* be
+transcoded. That remains true — it simply did not apply, because the chooser
+picked `direct` with a Matroska container and never went near HLS. The concern
+is real for the HLS path and was stated too strongly as a prediction about this
+title.
+
+Owed to: the NPM session, the site session, and this repo's README premise.
+**The answer is the good one** — a clean positional mask, so the set folds down
+correctly and this client direct-played it.
 
 ### 1.3 Decoder instance limits
 
@@ -215,25 +248,33 @@ why.
 The phone session was told the *old* claim, flagged as unconfirmed. It is no
 longer this client's position and they should be told so.
 
-### 1.6 First real output from the platform-surface probe
+### 1.6 First real output from the platform-surface probe — partly done
 
-Core's probe has produced no runtime truth on any host. Its first output comes
-from the Settings screen here. A required member reported absent is a finding
-for core, not a defect in this client.
+**The capability panel has produced real numbers from this panel** (Settings,
+0.3.2, 2026-09-13):
 
-**The three `titleIndex` probes are now in core** (added 2026-09-12 on Tom's
-approval, after this client raised it): `Intl.Collator` with sensitivity and
-numeric, `String.prototype.normalize`, and the `\p{M}` escape built at runtime.
-Each asserts a specific answer rather than mere presence, because presence is
-what a partial implementation has.
+```
+VIDEO       av1, h263, h264, hevc, mpeg2, mpeg4, vp8, vp9
+AUDIO       aac, ac3, ac4, amrnb, amrwb, eac3, flac, mp3, opus, pcm, vorbis
+CONTAINERS  mp4, m4v, mov, mkv, matroska, webm, avi, ts, mpegts, ps, mp3, m4a,
+            aac, wav, flac, ogg, oga, opus
+HLS VIDEO   h264, hevc
+HLS AUDIO   aac
+```
 
-This bears directly on §4.3's `AlphabetIndex`, built on
-`sortMediaByIndexedTitle` and `availableAlphabetKeys`. A Hermes `Intl` that
-ignores `numeric`, or a `normalize` that no-ops, degrades into **silently wrong
-sort order** rather than an exception — the strip would index the wrong letters
-and nothing would say so.
+**`HLS AUDIO: aac` is the line that matters.** The panel decodes `eac3` and
+`ac4` natively on the progressive path, but we advertise AAC alone for HLS
+delivery — so any title the chooser sends over HLS will have its surround
+transcoded, while a direct Matroska keeps it (§1.2). Whether that narrowing is
+correct is `MachaPlayerModule.kt`'s claim that ExoPlayer's HLS path is narrower
+than its progressive extractors; it is now worth testing rather than trusting,
+because it decides transcode-or-not for every HLS title.
 
----
+**Still not read: the `checkPlatformSurface` findings themselves.** The Settings
+screen renders them below the capability block, and they were never reached —
+see §1.1's scroll fault. The three `titleIndex` probes core added on this
+client's prompt are in that block, so §4.3's `AlphabetIndex` still has no
+runtime evidence behind it.
 
 ## 2. Player work
 
@@ -408,6 +449,47 @@ Still dead:
 
 ---
 
+### 2.6 Core `0.10.0` — adopted and green, not ported
+
+`@machafoundation/core 0.10.0` is installed and this tree builds and passes
+against it (159 tests, typecheck clean). Nothing resolves a removed or renamed
+symbol: the renames cost nothing because none of them were referenced by name,
+and `MachaHost.ephemeralStorage` was removed with a note left where it was
+decided. **The port itself has not been done.**
+
+Not wired, in the order they matter here:
+
+- **`SessionManager.lastIdentityChange`** — `{ from?, to?, at }`, set when a
+  re-obtained session belongs to a different account than before.
+- **`secureStorage`** — core takes an optional `StorageLike` and puts the token
+  in it. `expo-secure-store` runs on Android TV and would make that
+  Keystore-backed. Until it is supplied the token sits in app-private
+  `AsyncStorage`, like the rest of this client's state.
+- **`signOut()`** now revokes server-side and **throws** on failure rather than
+  swallowing it, and does not mint a replacement.
+- The session key is `macha.session.v1`; use the exported `isMachaStorageKey()`
+  rather than a local prefix test.
+
+**The part with real teeth, and it is worse on this cluster than elsewhere.**
+The session lifetime is 30 days from creation with no sliding expiry and no
+refresh tokens, so core's refresh timer **re-mints** rather than renewing. A
+re-mint presents no credentials, and `anonymous` on Tom's cluster has held no
+roles since 2026-09-13 — so a signed-in viewer degrades to `roles: []`, which
+`accessState()` reads as `{ kind: 'sign-in' }`.
+
+What saves it from being a wall in front of someone mid-film is
+`useAccessLatched`, which admits the client once and never un-admits it. That
+latch was written for a failed *refresh* and happens to cover this. The cost is
+the deferral already documented in `access.ts`: **requests begin failing with
+nothing on screen explaining why, and the viewer lands on the login wall at
+next launch.** An auth event wearing the costume of a UI bug.
+
+`lastIdentityChange` and `sessionLockedOut` are the two facts that tell "your
+session aged out" apart from "this cluster refuses you" — identical to a gate,
+very different to a person. Both belong on the failure trail (§4.2), which
+means **§1.1's Settings scroll fault is ahead of this in the order**: the trail
+is built and shipped and cannot currently be switched on.
+
 ## 3. Decisions for Tom
 
 ### 3.1 `addDirectSourceAlternative` — local proxy, or wait for the engine?
@@ -560,9 +642,17 @@ status screens need it).
 
 ### 4.5 Core stores — 3 constructed, 1 wired
 
-`ContinueWatchingStore` is used. `PlaybackQueueStore` and `VolumeStore` are
-constructed and never read (§2.5). `MusicPlaylistStore` is **not constructed at
-all** and is needed by every music route.
+`ContinueWatchingStore` is used. `PlaybackQueueStore` is constructed and never
+read (§2.5). `MusicPlaylistStore` is **not constructed at all**, is superseded
+by core's `PlaylistStore`, and core says it should be deleted rather than
+extended.
+
+**`VolumeStore` is no longer core's.** Tom ruled on 2026-09-13 that volume is
+player logic — *"Don't second guess the client"* — and it now lives at
+`src/state/volumeStore.ts`, copied with its storage key unchanged so no
+viewer's level resets. Core has deleted its original. `PlaybackRuntime.setVolume`
+stays in core and stays in our path: it *applies* a volume where the store
+*persists* one, and conflating those two is a mistake core made and corrected.
 
 The clearest illustration of rule 1: all four stores are core's, already written
 and tested, and the work here is to render them.

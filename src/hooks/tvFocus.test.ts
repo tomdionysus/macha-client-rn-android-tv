@@ -110,6 +110,21 @@ describe('suspension', () => {
     expect(tvFocus.suspended).toBe(false);
   });
 
+  it('recovers from a suspension whose holder went away', () => {
+    // The 0.3.0 failure, as a test. Android TV keeps a ReactEditText natively
+    // focused after the IME closes, so `onBlur` never fired, the token stayed
+    // in a ref on an unreachable component, and the remote stopped working
+    // entirely with nothing on screen to explain it. Reference counting cannot
+    // recover from a lost token by construction, so there has to be a way out.
+    tvFocus.suspend();
+    tvFocus.suspend();
+    expect(tvFocus.suspended).toBe(true);
+
+    tvFocus.resumeAll();
+
+    expect(tvFocus.suspended).toBe(false);
+  });
+
   it('is idempotent per token, so a double resume cannot lift another suspension', () => {
     const first = tvFocus.suspend();
     const second = tvFocus.suspend();
@@ -205,5 +220,66 @@ describe('geometry arriving out of order', () => {
     navA();
     navB();
     card();
+  });
+});
+
+/**
+ * Revealing focus before moving it.
+ *
+ * `current()` invents an answer when `selectedId` names nothing reachable —
+ * after a scope change, or after the screen that owned the selection
+ * unmounted. Moving *from* that invented element skipped it, and in a
+ * direction with no candidate selected nothing at all, which is a screen whose
+ * D-pad does nothing and shows no focus ring.
+ */
+describe('the first press on a screen with no selection', () => {
+  /** Two focusables side by side, with geometry, in the default scope. */
+  function mountRow(): () => void {
+    const offs = [
+      tvFocus.register({ id: 'left-button', activate: () => undefined }),
+      tvFocus.register({ id: 'right-button', activate: () => undefined }),
+    ];
+    tvFocus.measure('left-button', rect(0, 100));
+    tvFocus.measure('right-button', rect(200, 100));
+    // `register` queues a default focus on a microtask; clear it so these
+    // assert the no-selection case deliberately rather than by accident.
+    tvFocus.select(undefined);
+    return () => { for (const off of offs) off(); };
+  }
+
+  beforeEach(() => {
+    while (tvFocus.suspended) tvFocus.suspend()();
+  });
+
+  it('reveals focus rather than doing nothing, even with no candidate that way', () => {
+    const stop = mountRow();
+    expect(tvFocus.selected()).toBeUndefined();
+
+    // Nothing is above either element. Before the fix this returned false and
+    // left the screen with no selection and no ring.
+    expect(tvFocus.handle('up')).toBe(true);
+    expect(tvFocus.selected()).toBeDefined();
+
+    stop();
+  });
+
+  it('does not skip the first element when a candidate does exist', () => {
+    const stop = mountRow();
+    tvFocus.select(undefined);
+
+    tvFocus.handle('right');
+    expect(tvFocus.selected()).toBe('left-button');
+
+    stop();
+  });
+
+  it('moves normally once something is genuinely selected', () => {
+    const stop = mountRow();
+    tvFocus.select('left-button');
+
+    expect(tvFocus.handle('right')).toBe(true);
+    expect(tvFocus.selected()).toBe('right-button');
+
+    stop();
   });
 });

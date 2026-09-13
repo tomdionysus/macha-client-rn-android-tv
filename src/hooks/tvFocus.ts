@@ -215,6 +215,28 @@ class TvFocusRegistry {
     };
   }
 
+  /**
+   * Drop every outstanding suspension. **A recovery path, never a routine one.**
+   *
+   * Reference counting is correct until a holder disappears without releasing,
+   * and then it is unrecoverable: nothing else knows the token, so the registry
+   * stays suspended for the life of the process and **the entire remote stops
+   * working with nothing on screen to explain it.** That is not hypothetical —
+   * it shipped in 0.3.0 and was found within minutes of a person picking up the
+   * remote (see `TvTextInput`), because Android TV keeps a `ReactEditText`
+   * natively focused after the IME closes, so `onBlur` never fires.
+   *
+   * The individual leak is fixed where it was caused. This exists because the
+   * *consequence* is out of all proportion to the cause: any future holder that
+   * forgets, throws, or is unmounted mid-flight would brick navigation the same
+   * way. Callers must establish that nothing legitimately owns the remote
+   * before calling this — `useTvNavigation` does it by asking the platform
+   * whether a keyboard is actually on screen.
+   */
+  resumeAll(): void {
+    this.suspensions.clear();
+  }
+
   get suspended(): boolean {
     return this.suspensions.size > 0;
   }
@@ -302,6 +324,31 @@ class TvFocusRegistry {
 
     const current = this.current();
     if (!current) return false;
+
+    /**
+     * Nothing is really selected yet: adopt the fallback rather than move from
+     * it.
+     *
+     * `current()` invents an answer when `selectedId` names nothing reachable —
+     * after a scope change, after a screen that owned the selection unmounted,
+     * or on a screen nobody has touched yet. Moving *from* that invented
+     * element has two bad outcomes, and the second is severe: a direction with
+     * a candidate silently skips the fallback and lands two elements away, and
+     * **a direction with no candidate returns false, so nothing is ever
+     * selected and no focus ring is ever drawn.** On a row of controls with no
+     * neighbour above or below, that is a screen where the D-pad does nothing
+     * at all, permanently, with nothing on screen to explain it.
+     *
+     * Seen on the library after Back from a detail page: no ring anywhere, and
+     * Up did nothing however many times it was pressed.
+     *
+     * Consuming the press is the right trade and matches every television UI:
+     * the first press reveals where focus is, the second moves it.
+     */
+    if (this.selectedId !== current.id) {
+      this.select(current.id);
+      return true;
+    }
 
     if (command === 'activate') {
       this.select(current.id);

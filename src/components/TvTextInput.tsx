@@ -1,5 +1,5 @@
-import { useCallback, useRef } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Focusable } from './Focusable';
 import { tvFocus } from '../hooks/tvFocus';
 import { colour, font, radius, rem, type } from '../styles/theme';
@@ -59,6 +59,46 @@ export function TvTextInput({
     resume.current?.();
     resume.current = undefined;
   }, []);
+
+  /**
+   * Release when the keyboard actually goes away, **because `onBlur` does not
+   * fire on this platform.**
+   *
+   * This is the bug that shipped in 0.3.0 and made the login screen
+   * unnavigable. On Android TV the leanback IME closes as its own window while
+   * the `ReactEditText` underneath **keeps native focus** — `mInputShown` goes
+   * false, `mServedView` stays pointed at the field. React Native raises
+   * `onBlur` from the native focus change, so no focus change means no blur,
+   * no release, and a suspension held for the life of the process.
+   *
+   * The consequence was total: `useTvNavigation` returns early on every key
+   * while suspended, so after typing once the D-pad did nothing at all, on a
+   * screen whose only other control is a second text field. Nothing on screen
+   * said why, and only restarting the app cleared it.
+   *
+   * Blurring as well as releasing is deliberate. Leaving the field natively
+   * focused means Android goes on treating it as the key target, and a later
+   * centre press would re-enter the keyboard rather than activating whatever
+   * the viewer had moved to.
+   */
+  useEffect(() => {
+    const subscription = Keyboard.addListener('keyboardDidHide', () => {
+      if (!resume.current) return;
+      input.current?.blur();
+      release();
+    });
+    return () => subscription.remove();
+  }, [release]);
+
+  /**
+   * Release on unmount, which nothing else can do.
+   *
+   * A screen can be replaced while the keyboard is still up — a sign-in that
+   * succeeds and navigates away is the ordinary case here. The token lives in
+   * this component's ref, so once it is gone no other code can ever release
+   * it.
+   */
+  useEffect(() => release, [release]);
 
   return (
     <View style={styles.field}>
