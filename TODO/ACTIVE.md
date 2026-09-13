@@ -155,10 +155,22 @@ and the options panel shows `Server processing: transcode → AAC` when audio is
 being re-encoded — that sentence *is* the failure this project exists to find.
 Judging by `mode` would call a pure audio downmix a video re-encode.
 
-**If the session shows unexplained mid-playback failovers**, there are three
-candidate causes and they are distinguishable: §2.0's missing hold-aware `500`
-retry, §2.2b's backward-seek eviction (the tell is a rewind immediately before
-the failover), or a genuine node fault.
+**If the session shows unexplained mid-playback failovers**, the candidate
+causes are distinguishable and the **failure trail on the player is how**
+(§4.2, done 2026-09-13 — turn it on in Settings before starting). §2.0's
+missing hold-aware `500` retry is **fixed**, so it should no longer be one of
+them; what remains is §2.2b's backward-seek eviction (the tell is a rewind
+immediately before the failover) or a genuine node fault.
+
+A third candidate was raised and **closed the same day**: core read response
+bytes via `response.blob()`, which has never run on React Native, and a host
+unable to read a body would have had every warm standby silently destroyed at
+preflight. Core now tries `arrayBuffer()` first and, more to the point, treats
+*unreadable* as distinct from *empty* — an unreadable body no longer fails a
+preflight, because the node answered and only this package's ability to read
+it did not. So the standby survives either way. **Still worth reporting which
+accessor actually works on this panel**, since nobody knows; it is no longer
+something that can break failover.
 
 ### 1.3 Decoder instance limits
 
@@ -253,16 +265,26 @@ and Dolby Vision the panel decodes natively.
 - **Failure evidence is weaker.** `expo-video` reports no HTTP status, so
   `playbackFailureKindForStatus` cannot be applied and the honest kind is
   `unknown`.
-- **Hold-aware loading is gone, and this is the loss most likely to bite.**
-  `PlayerEngine.kt:450` retried an HTTP `500` on the *same* node with
-  exponential backoff, because `500 segment_not_ready` is the node stating it is
-  already working on a fragment it promised — failing over cannot help, since no
-  other node has it, and the replacement starts a cold generation from nothing.
-  `expo-video` has no such rule. **Expect spurious failovers under load**, and
-  expect them to look like node faults rather than like this decision. The web
-  client solves it in JS (`NATIVE_HLS_FIRST_FRAGMENT_TIMEOUT_MS` and its
-  readiness walk), which is the shape of a fix without returning to the native
-  engine.
+- ~~**Hold-aware loading is gone**~~ — **restored 2026-09-13**, in JS, without
+  returning to the native engine. `src/player/readiness.ts` waits out a
+  `500 segment_not_ready` on the *same* node before the source is ever handed
+  to `expo-video`, because that status is the node stating it is already
+  working on a fragment it promised: failing over cannot help, since no other
+  node has it and the replacement starts a cold generation from nothing.
+
+  The walk itself is **core's `probeHlsReadiness`**, not ours — core absorbed
+  this client's copy and the web client's into `hlsWalk.ts` on 2026-09-13, so
+  `src/player/preflight.ts` is **deleted** and only the retry budget is still
+  local. Which status means "hold" is asked of `playbackFailureKindForStatus`
+  rather than hardcoded, so a change in core reaches here without an edit.
+
+  **The ordering is the fragile part.** `FIRST_FRAGMENT_TIMEOUT_MS` is 30 s and
+  `MEDIA_START_STARVATION_MS` is 20 s, so the walk must finish *before* the
+  start watchdog is armed. Arming first and then waiting puts the watchdog
+  mid-walk and reports a spurious `stream` failure against a node behaving
+  exactly as the protocol says — the very bug this removes, reintroduced by
+  ordering alone. `ExpoVideoAdapter.startWatchdogs()` exists to keep that
+  explicit, and a test pins it.
 - **Ducking mutates user volume** — the phone client's known behaviour, now
   inherited. See §1.5.
 
@@ -488,8 +510,12 @@ Missing:
   left and right while focused, as the scrubber does, since a D-pad is the only
   input and a separate slider would be two controls where one will do.
 - **Mini player** and its minimise/expand pair.
-- **Failure trail** (`screens/player/failureTrail.ts`) — worth more on a
-  television than on the web, since there is no console to inspect.
+- ~~**Failure trail**~~ — **done 2026-09-13**. `screens/player/failureTrail.ts`
+  prints the last dozen warnings and errors under the failure message on the
+  player. Off by default; the switch is the first editable control on the
+  Settings screen. This client had never called core's `createClientLogger` at
+  all, so the buffer it reads had to be wired too
+  (`diagnostics/playbackLog.ts`, configured at `warn`).
 - **Seek acceleration** (`screens/player/seekAcceleration.ts`) — the native key
   bridge already passes `repeatCount` through, so the input side is done.
 

@@ -3,6 +3,7 @@ import {
   MediaStallWatchdog,
   MediaStartWatchdog,
   PlaybackSourceError,
+  preflightHlsSource,
   type PlaybackEvent,
   type PlaybackHost,
   type PlaybackSource,
@@ -10,7 +11,8 @@ import {
   type Player,
 } from '@macha/core';
 import { createWatchdogEnvironment } from './watchdogEnvironment';
-import { preflightHlsSource } from './preflight';
+import { awaitFirstFragment } from './readiness';
+import { playbackLog } from '../diagnostics/playbackLog';
 
 /**
  * Core's `Player`, implemented over `expo-video`.
@@ -81,6 +83,18 @@ export class ExpoVideoAdapter implements Player {
 
   /** A player a promotion replaced, awaiting presentation letting go of it. */
   private retired?: VideoPlayer;
+
+  /**
+   * Which `play()` call is the current one.
+   *
+   * Needed only because `play()` can now await: the readiness walk can run
+   * for up to five server holds, and core is free to call `play()` again in
+   * the meantime — a failover, a quality change, or the viewer picking
+   * something else. Without this, the older walk would finish afterwards and
+   * hand the player a source two generations stale, silently replacing what
+   * the viewer is actually watching.
+   */
+  private sourceGeneration = 0;
 
   private readonly startWatchdog: MediaStartWatchdog;
   private readonly stallWatchdog: MediaStallWatchdog;
@@ -199,12 +213,96 @@ export class ExpoVideoAdapter implements Player {
    *
    * Waiting for buffering here would stall the coordinator's failover timing,
    * which is the machinery that moves a viewer off an unhealthy node.
+   *
+   * **The one wait that is allowed is the readiness walk**, and it is allowed
+   * because it is not waiting for buffering — it is waiting for the node to
+   * stop saying `500 segment_not_ready`, which is the node stating it is
+   * working. Failing over during that answer is not faster; it is a cold
+   * start on a node that does not have the fragment either. See
+   * `readiness.ts`.
    */
   async play(source: PlaybackSource, positionMs = 0, startPaused = false): Promise<boolean> {
+    const generation = ++this.sourceGeneration;
     this.ended = false;
     this.seeking = false;
     this.video.keepScreenOnWhilePlaying = true;
 
+    // A promotion arrives as an ordinary `play()` carrying the source we were
+    // asked to preflight, so this is where a warm standby is cashed in. It
+    // does everything the cold path below does, against a player that has
+    // already buffered.
+    //
+    // Checked before the readiness walk, not after: a standby has already
+    // been preflighted and is holding bytes, so walking its manifest again
+    // would spend up to five server holds re-answering a question that was
+    // settled when it was primed — in front of a viewer whose picture has
+    // just frozen, which is the worst possible moment to spend it.
+    if (this.promoteStandby(source, positionMs, startPaused)) {
+      this.startWatchdogs();
+      return true;
+    }
+
+    // Any standby still held is for a source core is no longer asking for.
+    this.discardStandby();
+
+    if (source.isManifest && !(await this.nodeWillServe(source, generation))) return false;
+    // Core asked for something else while we waited. The newer call owns the
+    // player now, and finishing this one would overwrite it.
+    if (generation !== this.sourceGeneration) return false;
+
+    this.startWatchdogs();
+    this.active.replace(this.videoSourceFor(source));
+    if (positionMs > 0) this.active.currentTime = positionMs / 1_000;
+    if (startPaused) this.active.pause();
+    else this.active.play();
+    return true;
+  }
+
+  /**
+   * Wait out a node's holds before handing `expo-video` the source.
+   *
+   * Reports its own failure and answers `false` when the node will not serve,
+   * so the coordinator fails over on real evidence rather than on the node
+   * having said "not yet".
+   */
+  private async nodeWillServe(source: PlaybackSource, generation: number): Promise<boolean> {
+    const readiness = await awaitFirstFragment(source, {
+      superseded: () => generation !== this.sourceGeneration,
+    });
+    if (generation !== this.sourceGeneration) return false;
+
+    // Warned rather than logged when it actually had to wait, because a wait
+    // is the node at its production frontier and that is worth seeing on the
+    // failure trail. A first-attempt success is routine and stays below the
+    // buffer's level.
+    if (readiness.attempts > 1) {
+      playbackLog.warn('first-fragment-held', { url: source.url, ...readiness });
+    } else {
+      playbackLog.info('first-fragment', { url: source.url, ...readiness });
+    }
+
+    if (readiness.ready) return true;
+    this.reportFailure(
+      new PlaybackSourceError(
+        `The node did not serve the first fragment: ${readiness.reason}`,
+        'stream',
+      ),
+    );
+    return false;
+  }
+
+  /**
+   * Arm both watchdogs.
+   *
+   * **Called only once the player has actually been given a source**, which
+   * is the ordering the readiness walk depends on:
+   * `MEDIA_START_STARVATION_MS` is 20 s and `FIRST_FRAGMENT_TIMEOUT_MS` is
+   * 30 s, so arming these first and then waiting would have the start
+   * watchdog fire mid-walk and report a `stream` failure against a node that
+   * was answering the protocol correctly — the exact spurious failover the
+   * walk was written to remove.
+   */
+  private startWatchdogs(): void {
     // A node that accepts the source and then sends nothing is reported as a
     // `stream` failure so the coordinator recovers onto another node. Nothing
     // else would ever notice: no player raises an error for a source it
@@ -218,25 +316,11 @@ export class ExpoVideoAdapter implements Player {
     // A stall goes to the degradation channel rather than the failure channel:
     // the buffered source may still play, and core prepares a standby.
     this.stallWatchdog.watch((detail) => {
+      playbackLog.warn('stalled', { positionMs: Math.round(detail.positionMs) });
       for (const listener of this.degradationListeners) {
         listener(new Error(`Playback stalled at ${Math.round(detail.positionMs)}ms`));
       }
     });
-
-    // A promotion arrives as an ordinary `play()` carrying the source we were
-    // asked to preflight, so this is where a warm standby is cashed in. It
-    // does everything the cold path below does, against a player that has
-    // already buffered.
-    if (this.promoteStandby(source, positionMs, startPaused)) return true;
-
-    // Any standby still held is for a source core is no longer asking for.
-    this.discardStandby();
-
-    this.active.replace(this.videoSourceFor(source));
-    if (positionMs > 0) this.active.currentTime = positionMs / 1_000;
-    if (startPaused) this.active.pause();
-    else this.active.play();
-    return true;
   }
 
   pause(): void {
@@ -298,7 +382,7 @@ export class ExpoVideoAdapter implements Player {
    * re-implementation of the web client's version rather than a copy of it.
    */
   async preflightSource(source: PlaybackSource): Promise<boolean> {
-    const servable = await preflightHlsSource(source);
+    const servable = await preflightHlsSource(source, { fetch });
     if (servable) this.primeStandby(source);
     return servable;
   }
@@ -347,6 +431,14 @@ export class ExpoVideoAdapter implements Player {
     const standby = this.standby;
     if (!standby || standby.url !== source.url) return false;
     this.standby = undefined;
+
+    // A successful promotion is logged at `warn` on purpose, against the
+    // usual rule that a warning means something went wrong. It did: a
+    // promotion only ever happens because the previous node stopped being
+    // usable, and the trail is filtered to warnings and errors. An `info`
+    // here would be dropped by the buffer's level and the failover would
+    // appear on screen as a gap with no explanation between two failures.
+    playbackLog.warn('standby-promoted', { url: source.url });
 
     const previous = this.active;
     for (const subscription of this.subscriptions) subscription.remove();
@@ -416,6 +508,10 @@ export class ExpoVideoAdapter implements Player {
 
   /** One route for terminal evidence, so a watchdog and the player agree. */
   private reportFailure(error: PlaybackSourceError): void {
+    // Logged here rather than at each origin precisely because this is the
+    // one route: a failure that reaches core without appearing on the trail
+    // would be a failure nobody standing at the television can account for.
+    playbackLog.error('failure', { message: error.message, kind: error.kind });
     this.startWatchdog.stop();
     this.stallWatchdog.stop();
     for (const listener of this.failureListeners) listener(error);

@@ -10,6 +10,8 @@ import { VideoView } from 'expo-video';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
+import { playbackFailureTrail } from './player/failureTrail';
+import { failureTrailEnabled } from '../diagnostics/failureTrailSetting';
 import { usePlayerVolume } from '../hooks/usePlayerVolume';
 import { volumePercent } from '../player/volume';
 import { useMacha } from '../app/MachaProvider';
@@ -59,6 +61,18 @@ export function PlayerScreen({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const volume = usePlayerVolume(runtime, useMacha().volume);
   const [scrubPosition, setScrubPosition] = useState<number | undefined>();
+  /**
+   * Read at the moment a failure lands, not subscribed to.
+   *
+   * Keyed on the failure itself so it is snapshotted once per failure rather
+   * than on every render — the buffer keeps filling while the overlay is up
+   * (a retry, a second node refusing), and a trail that reshuffled underneath
+   * someone reading it would be worse than no trail.
+   */
+  const trail = useMemo(
+    () => (playback?.fatalError && failureTrailEnabled() ? playbackFailureTrail() : []),
+    [playback?.fatalError],
+  );
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hostToken = useRef({}).current;
@@ -222,6 +236,22 @@ export function PlayerScreen({
         <View style={styles.fatalError}>
           <Text style={styles.fatalTitle}>Playback failed</Text>
           <Text style={styles.fatalMessage}>{playback.fatalError.message}</Text>
+          {trail.map((entry) => (
+            <View key={`${entry.atMs}-${entry.event}`} style={styles.trailRow}>
+              <Text style={styles.trailTime}>{(entry.atMs / 1_000).toFixed(1)}s</Text>
+              <Text
+                style={[styles.trailEvent, entry.level === 'error' && styles.trailError]}
+                numberOfLines={1}
+              >
+                {entry.event}
+              </Text>
+              {entry.detail ? (
+                <Text style={styles.trailDetail} numberOfLines={1}>
+                  {entry.detail}
+                </Text>
+              ) : null}
+            </View>
+          ))}
         </View>
       ) : null}
 
@@ -557,5 +587,39 @@ const styles = StyleSheet.create({
   fatalMessage: {
     color: colour.error,
     textAlign: 'center',
+  },
+  /**
+   * One trail entry.
+   *
+   * Left-aligned and full width against the centred message above it: these
+   * are read as a column of times, and centring them would make the eye
+   * re-find the start of every line.
+   */
+  trailRow: {
+    flexDirection: 'row',
+    alignSelf: 'stretch',
+    alignItems: 'baseline',
+    gap: rem(0.5),
+  },
+  trailTime: {
+    width: rem(3.2),
+    textAlign: 'right',
+    color: '#7a7a83',
+    fontSize: type.small,
+    fontVariant: ['tabular-nums'],
+  },
+  trailEvent: {
+    color: '#c8c8cb',
+    fontSize: type.small,
+  },
+  trailError: {
+    color: colour.error,
+  },
+  // Takes the remaining width and truncates, so one long line cannot push the
+  // older entries — usually the causal ones — off the bottom of the overlay.
+  trailDetail: {
+    flexShrink: 1,
+    color: '#7a7a83',
+    fontSize: type.small,
   },
 });
