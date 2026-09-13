@@ -1,0 +1,34 @@
+// `expo-module-gradle-plugin` applies the Android library and Kotlin plugins
+// itself and wires the publishing component, so they are not applied here —
+// applying them by hand configures publishing before the `release` component
+// exists and the build fails looking for it.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'foundation.macha.player'
+version = '0.1.0'
+
+// Matches the version the phone client already ships, so the two Macha native
+// clients fail and get fixed together rather than diverging on ExoPlayer bugs.
+def media3Version = '1.8.0'
+
+android {
+  namespace 'foundation.macha.player'
+  defaultConfig {
+    // Both are required: expo-autolinking reads versionName while configuring
+    // the module, and omitting it fails the whole autolinking plugin.
+    versionCode 1
+    versionName '0.1.0'
+    minSdkVersion 24
+  }
+}
+
+dependencies {
+  implementation "androidx.media3:media3-exoplayer:${media3Version}"
+  implementation "androidx.media3:media3-exoplayer-hls:${media3Version}"
+  implementation "androidx.media3:media3-exoplayer-dash:${media3Version}"
+  implementation "androidx.media3:media3-ui:${media3Version}"
+  implementation "androidx.media3:media3-common:${media3Version}"
+}

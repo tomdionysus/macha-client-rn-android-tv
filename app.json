@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Macha",
+    "slug": "macha-client-rn-tv",
+    "version": "0.1.0",
+    "orientation": "landscape",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0e0e0f",
+    "scheme": "macha",
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "foundation.macha.client.tv",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      [
+        "@react-native-tvos/config-tv",
+        {
+          "isTV": true,
+          "showVerboseWarnings": false,
+          "androidTVBanner": "./assets/tv-banner.png"
+        }
+      ],
+      "./plugins/withAndroidTvOnly",
+      "./plugins/withArmV7aOnly",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "36.0.0",
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "machaEndpoints": [
+        "http://10.34.1.50:7438",
+        "http://10.44.1.50:7438",
+        "http://10.44.1.51:7438"
+      ]
+    }
+  }
+}

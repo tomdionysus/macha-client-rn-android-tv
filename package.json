@@ -1,0 +1,39 @@
+{
+  "name": "macha-client-rn-tv",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "description": "React Native Android TV client for Macha.",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "android": "expo run:android",
+    "start": "expo start",
+    "prebuild": "expo prebuild --platform android",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "pretest": "cd ../macha-ts && npm run dist:check"
+  },
+  "dependencies": {
+    "@macha/core": "file:../macha-ts",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~57.0.20",
+    "expo-build-properties": "~57.0.17",
+    "expo-constants": "~57.0.17",
+    "expo-image": "~57.0.4",
+    "expo-keep-awake": "~57.0.1",
+    "expo-splash-screen": "~57.0.8",
+    "expo-system-ui": "~57.0.3",
+    "expo-video": "~57.0.3",
+    "react": "19.2.3",
+    "react-native": "npm:react-native-tvos@0.86.2-0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4"
+  },
+  "devDependencies": {
+    "@react-native-tvos/config-tv": "^0.1.6",
+    "@types/react": "~19.2.2",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

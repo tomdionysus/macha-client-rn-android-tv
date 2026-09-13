@@ -1,0 +1,11 @@
+{
+  "platforms": [
+    "android"
+  ],
+  "android": {
+    "modules": [
+      "foundation.macha.player.MachaPlayerModule",
+      "foundation.macha.tvinput.MachaTvInputModule"
+    ]
+  }
+}

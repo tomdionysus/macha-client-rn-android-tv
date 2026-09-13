@@ -1,0 +1,463 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import {
+  formatPlaybackTime,
+  type MediaSummary,
+  type PlaybackCoordinatorSnapshot,
+  type PlaybackRuntime,
+} from '@macha/core';
+import { VideoView } from 'expo-video';
+import { androidTvPlatform } from '../platform/AndroidTvPlatform';
+import { Focusable } from '../components/Focusable';
+import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
+import { tvFocus } from '../hooks/tvFocus';
+import { attachPlaybackHost } from '../app/usePlaybackRuntime';
+import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
+
+/**
+ * How long the chrome stays up after the last button press.
+ *
+ * A presentation choice, not a protocol one, and unrelated to any server or
+ * network deadline: it is long enough to read the stream-status line — the
+ * container, the node and the per-stream transforms — and short enough not to
+ * sit over the picture. Nothing in core reads it.
+ */
+const CHROME_HIDE_MS = 4_000;
+
+/**
+ * How long a scrub preview waits before it is committed as a seek.
+ *
+ * Calibrated against the D-pad's own auto-repeat rather than the network: a
+ * held direction on this remote repeats at roughly 60–100 ms, so 400 ms is
+ * comfortably longer than the gap between repeats and a long hold therefore
+ * costs one seek however far it travelled. The web client gets this for free
+ * from key-up, which a TV event stream does not give us.
+ */
+const SCRUB_COMMIT_MS = 400;
+
+/** The focus scope name; while the chrome is up nothing behind it is reachable. */
+const CHROME_SCOPE = 'player-chrome';
+
+
+export function PlayerScreen({
+  media,
+  runtime,
+  onClose,
+}: {
+  media: MediaSummary;
+  runtime: PlaybackRuntime;
+  onClose: () => void;
+}): React.JSX.Element {
+  const [playback, setPlayback] = useState<PlaybackCoordinatorSnapshot | undefined>(() =>
+    runtime.getPlaybackSnapshot(),
+  );
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const [scrubPosition, setScrubPosition] = useState<number | undefined>();
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hostToken = useRef({}).current;
+
+  useEffect(() => runtime.subscribePlayback(setPlayback), [runtime]);
+
+  // Binding the surface is `attach`, not `play` — it must not create a session.
+  useEffect(() => attachPlaybackHost(runtime, hostToken), [runtime, hostToken]);
+
+  // Presentation only. Core carries no surface handle, so the platform holds
+  // it; the runtime constructor has already created the player by the time
+  // this screen can mount.
+  //
+  // Held in state and resubscribed rather than read once: promoting a warm
+  // standby swaps in a different `VideoPlayer`, and a captured instance would
+  // leave this rendering the player that was just released.
+  const [video, setVideo] = useState(() => androidTvPlatform.videoPlayer());
+  useEffect(() => androidTvPlatform.subscribePlayerChange(setVideo), []);
+  // Runs after commit, so by here `VideoView` holds the promoted player and the
+  // one it replaced can be destroyed. Doing this in the swap itself would
+  // release a player still attached to a live surface.
+  useEffect(() => androidTvPlatform.releaseRetiredPlayer(), [video]);
+
+  const showChrome = useCallback(() => {
+    setChromeVisible(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setChromeVisible(false), CHROME_HIDE_MS);
+  }, []);
+
+  useEffect(() => {
+    showChrome();
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+    };
+  }, [showChrome]);
+
+  /**
+   * Any button brings the controls back.
+   *
+   * While the chrome is hidden every focusable is out of scope, so the focus
+   * registry has no candidate and would swallow the press. Waking on the
+   * command itself is what makes the first press of a direction feel like it
+   * did something, which is the behaviour the web client gets from its chrome
+   * never leaving the DOM.
+   */
+  useEffect(() => tvFocus.onCommand(() => showChrome()), [showChrome]);
+
+  // While the chrome is up it owns the D-pad entirely, mirroring the web
+  // client scoping its candidate query to `.player-chrome.visible`.
+  useEffect(() => {
+    if (!chromeVisible) {
+      tvFocus.popScope(CHROME_SCOPE);
+      return undefined;
+    }
+    tvFocus.pushScope(CHROME_SCOPE);
+    return () => tvFocus.popScope(CHROME_SCOPE);
+  }, [chromeVisible]);
+
+  const event = playback?.event;
+  const duration = event?.durationMs ?? media.durationMs ?? 0;
+  const position = scrubPosition ?? event?.positionMs ?? 0;
+  const paused = playback?.intent.paused ?? false;
+  const buffered = event?.bufferedRangesMs?.[0]?.endMs ?? 0;
+
+  const commitScrub = useCallback(
+    (target: number) => {
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+      commitTimer.current = setTimeout(() => {
+        runtime.seek(target);
+        setScrubPosition(undefined);
+      }, SCRUB_COMMIT_MS);
+    },
+    [runtime],
+  );
+
+  const nudge = useCallback(
+    (deltaMs: number) => {
+      const base = scrubPosition ?? event?.positionMs ?? 0;
+      const next = Math.max(0, Math.min(duration || Number.MAX_SAFE_INTEGER, base + deltaMs));
+      setScrubPosition(next);
+      showChrome();
+      commitScrub(next);
+    },
+    [scrubPosition, event?.positionMs, duration, showChrome, commitScrub],
+  );
+
+  const streamStatus = useMemo(() => {
+    const instruction = playback?.instruction;
+    const session = playback?.session;
+    if (!instruction && !session) return [];
+
+    const lines: string[] = [];
+    const container = instruction?.servedContainer ?? instruction?.container;
+    const endpoint = event?.streamOrigin?.replace(/^https?:\/\//, '');
+    // Either half is omitted rather than defaulted when absent: this is the one
+    // place a container the client asked for and did not get can show, and a
+    // default would read as an answer.
+    if (container || endpoint) lines.push([container, endpoint].filter(Boolean).join(' : '));
+    if (instruction) {
+      lines.push(`${instruction.mode}${instruction.withoutFacts ? ' (no facts)' : ''}`);
+      if (instruction.video) lines.push(`video ${instruction.video}`);
+      if (instruction.audio) lines.push(`audio ${instruction.audio}`);
+    }
+    return lines;
+  }, [playback?.instruction, playback?.session, event?.streamOrigin]);
+
+  const playedPercent = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
+  const bufferedPercent = duration > 0 ? Math.min(100, (buffered / duration) * 100) : 0;
+
+  return (
+    <View style={styles.page}>
+      {/* `.player-host` — the video surface, behind everything. */}
+      {video ? (
+        <VideoView
+          player={video}
+          style={styles.host}
+          // The chrome in this file is the only chrome. expo-video's own
+          // controls are pointer-shaped and would take D-pad focus away from
+          // the focus scorer, which is the one thing this client must own.
+          nativeControls={false}
+          contentFit="contain"
+        />
+      ) : (
+        <View style={styles.host} />
+      )}
+
+      {playback?.fatalError ? (
+        <View style={styles.fatalError}>
+          <Text style={styles.fatalTitle}>Playback failed</Text>
+          <Text style={styles.fatalMessage}>{playback.fatalError.message}</Text>
+        </View>
+      ) : null}
+
+      {chromeVisible || playback?.fatalError ? (
+        <View style={styles.chrome}>
+          {/* `.player-titlebar` */}
+          <View style={styles.titlebar}>
+            <View style={styles.titleCopy}>
+              <Text style={styles.title} numberOfLines={1}>
+                {media.title}
+              </Text>
+              {media.subtitle ? (
+                <Text style={styles.subtitle} numberOfLines={1}>
+                  {media.subtitle}
+                </Text>
+              ) : null}
+            </View>
+            <View style={styles.streamStatus}>
+              {playback?.notice ? (
+                <Text style={styles.streamLine}>{playback.notice}</Text>
+              ) : playback?.preparingSource ? (
+                // The one moment the client is moving between nodes, and
+                // "which node" is the only question worth asking about it.
+                <Text style={styles.streamLine}>Preparing new stream…</Text>
+              ) : (
+                streamStatus.map((line) => (
+                  <Text key={line} style={styles.streamLine}>
+                    {line}
+                  </Text>
+                ))
+              )}
+            </View>
+          </View>
+
+          {/* `.player-scrubber-row { grid-template-columns: 4.5rem 1fr 4.5rem }` */}
+          <View style={styles.scrubberRow}>
+            <Text style={styles.timeLabel}>{formatPlaybackTime(position)}</Text>
+            <Focusable
+              ring={false}
+              scope={CHROME_SCOPE}
+              style={styles.scrubberShell}
+              ownsDirection={(direction) => direction === 'left' || direction === 'right'}
+              onDirection={(direction) => nudge(direction === 'left' ? -10_000 : 10_000)}
+            >
+              {({ focused }) => (
+                <View style={styles.scrubberVisual}>
+                  <View style={[styles.scrubberBuffered, { width: `${bufferedPercent}%` }]} />
+                  <View style={[styles.scrubberPlayed, { width: `${playedPercent}%` }]} />
+                  <View
+                    style={[
+                      styles.scrubberThumb,
+                      { left: `${playedPercent}%` },
+                      focused && styles.scrubberThumbFocused,
+                    ]}
+                  />
+                </View>
+              )}
+            </Focusable>
+            <Text style={[styles.timeLabel, styles.timeLabelEnd]}>{formatPlaybackTime(duration)}</Text>
+          </View>
+
+          {/* `.player-button-row` */}
+          <View style={styles.buttonRow}>
+            <ChromeButton icon="restart" onSelect={() => { runtime.seek(0); showChrome(); }} />
+            <ChromeButton icon="rewind" onSelect={() => { runtime.seekBy(-10_000); showChrome(); }} />
+            <ChromeButton
+              icon={paused ? 'play' : 'pause'}
+              defaultFocus
+              onSelect={() => { runtime.setPaused(!paused); showChrome(); }}
+            />
+            <ChromeButton icon="forward" onSelect={() => { runtime.seekBy(10_000); showChrome(); }} />
+            <ChromeButton icon="close" onSelect={onClose} />
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** `.player-button-row button { width/height: 3.25rem; border-radius: 50% }` */
+function ChromeButton({
+  icon,
+  onSelect,
+  defaultFocus,
+}: {
+  icon: PlayerIconName;
+  onSelect: () => void;
+  defaultFocus?: boolean;
+}): React.JSX.Element {
+  return (
+    <Focusable
+      ring={false}
+      scope={CHROME_SCOPE}
+      defaultFocus={defaultFocus}
+      onSelect={onSelect}
+      style={styles.chromeButton}
+      focusedStyle={styles.chromeButtonFocused}
+    >
+      <PlayerIcon name={icon} />
+    </Focusable>
+  );
+}
+
+const BUTTON = rem(3.25);
+
+const styles = StyleSheet.create({
+  // `.player-page { background: #050506 }` + `.player-presentation-full { inset: 0 }`
+  page: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#050506',
+  },
+  // `.player-host { position: absolute; inset: 0; background: black }`
+  host: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#000000',
+  },
+  // `.player-chrome { left/right/bottom: 0; padding: 1.35rem 3vw 1.25rem; background: #0505069c }`
+  chrome: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: rem(1.35),
+    paddingBottom: rem(1.25),
+    paddingHorizontal: pageGutter,
+    backgroundColor: '#0505069c',
+  },
+  // `.player-titlebar { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin-bottom: 1.3rem }`
+  titlebar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: rem(2),
+    marginBottom: rem(1.3),
+  },
+  titleCopy: {
+    flexShrink: 1,
+  },
+  // `.player-titlebar strong { font-size: clamp(1.3rem,2.2vw,2rem); color: #dedee2 }`
+  title: {
+    fontSize: type.playerTitle,
+    color: colour.heading,
+    fontWeight: font.weightMedium,
+  },
+  // `.player-titlebar span { margin-top: .2rem; color: #c8c8cb }`
+  subtitle: {
+    marginTop: rem(0.2),
+    color: '#c8c8cb',
+    fontSize: type.body,
+  },
+  // `.player-stream-status { justify-items: end; gap: .18rem; color: #9b9ba3; text-align: right }`
+  streamStatus: {
+    alignItems: 'flex-end',
+    gap: rem(0.18),
+  },
+  streamLine: {
+    color: '#9b9ba3',
+    fontSize: type.small,
+    textAlign: 'right',
+  },
+  scrubberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rem(1),
+  },
+  // `.player-scrubber-row span { font-size: .82rem; font-variant-numeric: tabular-nums }`
+  timeLabel: {
+    width: rem(4.5),
+    color: '#c8c8cb',
+    fontSize: type.small,
+    fontVariant: ['tabular-nums'],
+  },
+  timeLabelEnd: {
+    textAlign: 'right',
+  },
+  // `.player-scrubber-shell { height: 1.1rem }`
+  scrubberShell: {
+    flex: 1,
+    height: rem(1.1),
+    justifyContent: 'center',
+  },
+  // `.player-scrubber-visual { height: 4px; border-radius: 99px; background: #e7e7ea }`
+  scrubberVisual: {
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colour.scrubberTrack,
+    justifyContent: 'center',
+  },
+  // `.player-scrubber-buffered { background: #d7a3af }`
+  scrubberBuffered: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: colour.scrubberBuffered,
+  },
+  // `.player-scrubber-played { background: #620014; opacity: .84 }`
+  scrubberPlayed: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: colour.scrubberPlayed,
+    opacity: 0.84,
+  },
+  // `.player-scrubber::-webkit-slider-thumb { width/height: 14px; border-radius: 50%; background: var(--red-400) }`
+  scrubberThumb: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    marginLeft: -7,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#ffffffa8',
+    backgroundColor: colour.red400,
+  },
+  scrubberThumbFocused: {
+    borderColor: colour.text,
+    transform: [{ scale: 1.25 }],
+  },
+  // `.player-button-row { justify-content: center; gap: .7rem; margin-top: 1.25rem }`
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: rem(0.7),
+    marginTop: rem(1.25),
+  },
+  // `.player-button-row button { width/height: 3.25rem; border: 1px solid #48484f; border-radius: 50%; background: #080809d6 }`
+  chromeButton: {
+    width: BUTTON,
+    height: BUTTON,
+    borderRadius: BUTTON / 2,
+    borderWidth: 1,
+    borderColor: '#48484f',
+    backgroundColor: '#080809d6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // `:hover/:focus-visible { background: #160004e8; border-color: #620014 }`
+  chromeButtonFocused: {
+    backgroundColor: '#160004e8',
+    borderColor: '#620014',
+  },
+  // `.player-fatal-error { top: 42%; border-radius: .7rem; background: #09090be8 }`
+  fatalError: {
+    position: 'absolute',
+    left: '10%',
+    right: '10%',
+    top: '38%',
+    gap: rem(0.45),
+    paddingVertical: rem(1.1),
+    paddingHorizontal: rem(1.25),
+    borderWidth: 1,
+    borderColor: '#ffffff16',
+    borderRadius: rem(0.7),
+    backgroundColor: '#09090be8',
+    alignItems: 'center',
+  },
+  fatalTitle: {
+    color: colour.heading,
+    fontSize: rem(1.05),
+    fontWeight: font.weightSemibold,
+  },
+  fatalMessage: {
+    color: colour.error,
+    textAlign: 'center',
+  },
+});
