@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { BackHandler, StyleSheet, Text, View } from 'react-native';
 import {
   formatPlaybackTime,
   type MediaSummary,
@@ -9,6 +9,7 @@ import {
 import { VideoView } from 'expo-video';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';
+import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
@@ -52,6 +53,7 @@ export function PlayerScreen({
     runtime.getPlaybackSnapshot(),
   );
   const [chromeVisible, setChromeVisible] = useState(true);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [scrubPosition, setScrubPosition] = useState<number | undefined>();
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -111,6 +113,38 @@ export function PlayerScreen({
     tvFocus.pushScope(CHROME_SCOPE);
     return () => tvFocus.popScope(CHROME_SCOPE);
   }, [chromeVisible]);
+
+  // The options panel takes the D-pad outright while it is open, so the
+  // transport behind it cannot be reached by pressing through the panel.
+  useEffect(() => {
+    if (!optionsOpen) return undefined;
+    tvFocus.pushScope(OPTIONS_SCOPE);
+    return () => tvFocus.popScope(OPTIONS_SCOPE);
+  }, [optionsOpen]);
+
+  // The panel holds the chrome open under it: letting the auto-hide run would
+  // unmount the scope the viewer is currently navigating.
+  useEffect(() => {
+    if (optionsOpen && hideTimer.current) clearTimeout(hideTimer.current);
+  }, [optionsOpen]);
+
+  /**
+   * Back closes the panel before it closes the player.
+   *
+   * Registered here rather than folded into the app-level handler because
+   * `BackHandler` invokes listeners in reverse registration order, and this
+   * screen mounts after the root — so this runs first and can consume the press
+   * while the panel is open. Without it, Back would close the whole player out
+   * from under a viewer who only meant to dismiss the options.
+   */
+  useEffect(() => {
+    if (!optionsOpen) return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setOptionsOpen(false);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [optionsOpen]);
 
   const event = playback?.event;
   const duration = event?.durationMs ?? media.durationMs ?? 0;
@@ -187,6 +221,18 @@ export function PlayerScreen({
         </View>
       ) : null}
 
+      {optionsOpen && playback?.session ? (
+        <PlayerOptions
+          session={playback.session}
+          pendingPreferences={playback.pendingPreferences}
+          instruction={playback.instruction}
+          onApply={(update) => {
+            runtime.update(update);
+            showChrome();
+          }}
+        />
+      ) : null}
+
       {chromeVisible || playback?.fatalError ? (
         <View style={styles.chrome}>
           {/* `.player-titlebar` */}
@@ -255,6 +301,9 @@ export function PlayerScreen({
               onSelect={() => { runtime.setPaused(!paused); showChrome(); }}
             />
             <ChromeButton icon="forward" onSelect={() => { runtime.seekBy(10_000); showChrome(); }} />
+            {playback?.session ? (
+              <ChromeButton icon="options" onSelect={() => setOptionsOpen(true)} />
+            ) : null}
             <ChromeButton icon="close" onSelect={onClose} />
           </View>
         </View>
