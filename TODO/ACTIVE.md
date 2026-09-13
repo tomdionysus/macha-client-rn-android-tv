@@ -85,6 +85,41 @@ sideways along it. That one press is the whole verification of §1.1.
 Ordered by consequence. Nothing here moves until the set answers, and §1.1
 gates the rest because everything else needs a navigable app.
 
+### 1.0b Cluster health, as of core on `develop` (2026-09-13)
+
+Asked and answered by Macha NPM Core; **nothing here needs changing**, recorded
+so it is not re-investigated.
+
+- **Liveness is now `GET /api/v1/health`, unauthenticated and role-free.**
+  Verified against `10.34.1.50`: `200 {"status":"ok"}` with no session. The old
+  probe (`/api/v1/catalogue/status`) needs `media_viewer`, so under the roles
+  model a session granted nothing would have had **every node marked failed on
+  every cycle, permanently**. That is fixed in core, not here.
+- **Nothing became sticky.** The cooldown ladder is unchanged (500 ms, 2 s,
+  10 s, 30 s, recovery on the next good probe) and a probe failure does not
+  displace the endpoint real traffic prefers. A `401`/`403` now records nothing
+  in either direction — reached, nothing learned — rather than counting as a
+  failure. For this client's link, which drops several times an hour, that is
+  strictly better than before.
+- **Keep the preflight.** Core's liveness asks "is this node serving at all",
+  every ten seconds. `src/player/preflight.ts` asks "can this manifest and its
+  segments actually be read before I promote this standby". A node can be
+  perfectly live with a dead generation, which is the case failover exists for.
+  No overlap, nothing to delete.
+- **If endpoint health ever reaches a screen here, use `EndpointCandidate.ready`,
+  never `health.retryAt`.** `retryAt` is a reading of `machaHost().now()`, a
+  duration clock with an arbitrary origin, so comparing it against `Date.now()`
+  compares two unrelated number lines. The web client's status screen has that
+  bug today.
+
+**One thing that is a decision rather than a defect**, raised and left with
+Tom: `discoverClusterEndpoints` reads `/api/v1/status`, which needs
+`view_status`. A no-roles session gets `403`, so it never learns cluster
+membership or the self-reported capacity that rides on it — the failover pool
+stays frozen at the bootstrap list. Harmless for a client that may play
+nothing, except that **this is the login state**: the viewer must reach some
+node to sign in, and liveness is the only grading available until they do.
+
 ### 1.0a Reported to core: refused is not unreachable
 
 Raised 2026-09-13, not a task here and **must not be worked around here**.
