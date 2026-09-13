@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlaybackSource } from '@macha/core';
+import { FIRST_FRAGMENT_TIMEOUT_MS, HOLD_RETRY_CEILING_MS } from './timingBudgets';
 
 /**
  * A stand-in for `expo-video`'s `VideoPlayer`.
@@ -77,10 +78,45 @@ function source(overrides: Partial<PlaybackSource> = {}): PlaybackSource {
   } as PlaybackSource;
 }
 
+/**
+ * A node that serves: a playlist, then bytes for anything else.
+ *
+ * Module-scoped because `play()` now walks the manifest before handing the
+ * source to the player, so *every* test that plays a manifest needs a node
+ * that answers — not only the standby tests that stub it explicitly. The walk
+ * is left real and only the transport is stubbed, so these tests still cover
+ * the integration rather than mocking out the thing that was just added.
+ */
+function servable(): typeof fetch {
+  const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
+  return (async (url: string) => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => null },
+    text: async () => playlist,
+    // Core's preflight reads bytes through `blob()` when the body cannot be
+    // streamed, which is the normal path on React Native.
+    blob: async () => ({ size: url.endsWith('.m3u8') ? playlist.length : 4096 }),
+    arrayBuffer: async () => new ArrayBuffer(url.endsWith('.m3u8') ? playlist.length : 4096),
+    body: null,
+  })) as unknown as typeof fetch;
+}
+
+/** A node holding every fragment it was asked for: the `500 segment_not_ready` case. */
+function holding(): typeof fetch {
+  const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
+  return (async (url: string) => (url.endsWith('.m3u8')
+    ? { ok: true, status: 200, headers: { get: () => null }, text: async () => playlist }
+    : { ok: false, status: 500, headers: { get: () => null } })) as unknown as typeof fetch;
+}
+
 beforeEach(() => {
   fake = new FakeVideoPlayer();
   created = [];
+  vi.stubGlobal('fetch', servable());
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('the source stated to the player', () => {
   it('declares HLS for a manifest rather than letting the player sniff it', async () => {
@@ -241,17 +277,6 @@ describe('teardown', () => {
 describe('the warm standby', () => {
   const alternate = () => source({ url: 'https://node-b.test/generation/index.m3u8' });
 
-  /** A preflight that passes without going near the network. */
-  function servable(): typeof fetch {
-    const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
-    return (async (url: string) => ({
-      ok: true,
-      text: async () => playlist,
-      arrayBuffer: async () => new ArrayBuffer(url.endsWith('.m3u8') ? playlist.length : 4096),
-      body: null,
-    })) as unknown as typeof fetch;
-  }
-
   async function withStandby(): Promise<InstanceType<typeof ExpoVideoAdapter>> {
     const adapter = new ExpoVideoAdapter();
     await adapter.play(source());
@@ -391,5 +416,153 @@ describe('the warm standby', () => {
     const adapter = await withStandby();
     await adapter.preflightSource(alternate());
     expect(created).toHaveLength(2);
+  });
+});
+
+/**
+ * The hold-aware readiness walk.
+ *
+ * This is the behaviour lost when playback moved from the native engine to
+ * `expo-video`: `PlayerEngine.kt:450` retried a `500` on the same node, and
+ * `expo-video` has no such rule and no injection point to give it one. These
+ * assert the replacement, because the failure it prevents — a spurious
+ * failover that looks exactly like a node fault — is the one most likely to
+ * be misread during the 5.1 downmix measurement.
+ */
+describe('waiting for the node to serve the first fragment', () => {
+  it('does not hand the player a source until the node serves it', async () => {
+    const adapter = new ExpoVideoAdapter();
+    await adapter.play(source());
+    expect(fake.calls).toContain('replace');
+  });
+
+  it('reports a failure and plays nothing when the node holds past the budget', async () => {
+    // A node holding forever is, eventually, evidence — but it is reported
+    // once the budget is spent rather than on the first refusal. Driven on
+    // fake timers because the budget is five server holds of real time.
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', holding());
+      const adapter = new ExpoVideoAdapter();
+      const failures: Error[] = [];
+      adapter.subscribeFailure((error) => failures.push(error));
+
+      const playing = adapter.play(source());
+      await vi.advanceTimersByTimeAsync(FIRST_FRAGMENT_TIMEOUT_MS + HOLD_RETRY_CEILING_MS);
+
+      await expect(playing).resolves.toBe(false);
+      expect(fake.calls).not.toContain('replace');
+      expect(failures).toHaveLength(1);
+      expect(failures[0]?.message).toContain('did not serve the first fragment');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries the same node rather than failing over on a hold', async () => {
+    // The whole point. The next node is producing a different generation and
+    // does not have that fragment either, so a failover here buys a cold
+    // start in place of the tail of a warm one.
+    vi.useFakeTimers();
+    try {
+      const asked: string[] = [];
+      let fragmentAttempts = 0;
+      const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
+      vi.stubGlobal('fetch', (async (url: string) => {
+        asked.push(url);
+        if (url.endsWith('.m3u8')) {
+          return { ok: true, status: 200, headers: { get: () => null }, text: async () => playlist };
+        }
+        fragmentAttempts += 1;
+        return fragmentAttempts < 3
+          ? { ok: false, status: 500, headers: { get: () => null } }
+          : { ok: true, status: 206, headers: { get: () => null }, blob: async () => ({ size: 16 }), arrayBuffer: async () => new ArrayBuffer(16), body: null };
+      }) as unknown as typeof fetch);
+
+      const adapter = new ExpoVideoAdapter();
+      const failures: Error[] = [];
+      adapter.subscribeFailure((error) => failures.push(error));
+
+      const playing = adapter.play(source());
+      // Only as far as the two holds need. Core falls back to one
+      // `SERVER_SEGMENT_HOLD_MS` per hold where the node sent no
+      // `Retry-After`, so two holds is twelve seconds.
+      //
+      // Deliberately short of the whole budget: advancing that far would run
+      // past `MEDIA_START_STARVATION_MS` *after* the walk had succeeded, and
+      // the start watchdog would correctly report a player that was handed a
+      // source and never given a byte by this fake.
+      await vi.advanceTimersByTimeAsync(HOLD_RETRY_CEILING_MS * 2);
+
+      await expect(playing).resolves.toBe(true);
+      // Every request went to the node we were given, never to another.
+      for (const url of asked) expect(url).toContain('node-a.test');
+      expect(failures).toHaveLength(0);
+      expect(fake.calls).toContain('replace');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('walks nothing for a source that is not a manifest', async () => {
+    // A progressive byte source has no playlist to walk, and asking would
+    // range-request the film itself.
+    const fetchImpl = vi.fn(servable());
+    vi.stubGlobal('fetch', fetchImpl);
+    const adapter = new ExpoVideoAdapter();
+
+    await adapter.play(source({ url: 'https://node-a.test/file.mkv', isManifest: false, mode: 'direct' }));
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(fake.calls).toContain('replace');
+  });
+
+  it('does not re-walk a standby that was already preflighted', async () => {
+    // A promotion happens because the picture has just frozen. Spending five
+    // server holds re-answering a settled question is the worst possible use
+    // of that moment.
+    const adapter = new ExpoVideoAdapter();
+    await adapter.play(source());
+    const alternate = source({ url: 'https://node-b.test/generation/index.m3u8' });
+    await adapter.preflightSource(alternate);
+
+    const fetchImpl = vi.fn(servable());
+    vi.stubGlobal('fetch', fetchImpl);
+    await adapter.play(alternate);
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('abandons a walk core has superseded, without touching the player', async () => {
+    // `play()` can now await, so core is free to ask for something else while
+    // it does. Finishing afterwards would overwrite what the viewer is on.
+    vi.useFakeTimers();
+    try {
+      const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
+      vi.stubGlobal('fetch', (async (url: string) => {
+        if (url.endsWith('.m3u8')) {
+          return { ok: true, status: 200, headers: { get: () => null }, text: async () => playlist };
+        }
+        // node-a holds forever; anything else serves immediately.
+        return url.includes('node-a.test')
+          ? { ok: false, status: 500, headers: { get: () => null } }
+          : { ok: true, status: 206, headers: { get: () => null }, blob: async () => ({ size: 16 }), arrayBuffer: async () => new ArrayBuffer(16), body: null };
+      }) as unknown as typeof fetch);
+
+      const adapter = new ExpoVideoAdapter();
+      const stale = adapter.play(source());
+      const fresh = adapter.play(source({ url: 'https://node-c.test/generation/index.m3u8' }));
+
+      await vi.advanceTimersByTimeAsync(FIRST_FRAGMENT_TIMEOUT_MS);
+
+      await expect(stale).resolves.toBe(false);
+      await expect(fresh).resolves.toBe(true);
+      // The abandoned source must never reach the player, at any point.
+      for (const replaced of fake.replaced) {
+        expect(replaced).not.toMatchObject({ uri: 'https://node-a.test/generation/index.m3u8' });
+      }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

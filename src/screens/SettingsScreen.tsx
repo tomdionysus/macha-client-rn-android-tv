@@ -3,8 +3,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { checkPlatformSurface, type PlaybackCapabilities } from '@macha/core';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { getBootstrapEndpoints, getDiscoveredEndpoints } from '../state/client';
+import { Focusable } from '../components/Focusable';
+import { failureTrailEnabled, setFailureTrailEnabled } from '../diagnostics/failureTrailSetting';
 import { PageTitle } from '../components/Status';
-import { colour, font, pageGutter, rem, type } from '../styles/theme';
+import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
 
 /**
  * Settings, and the place the decoder evidence is made visible.
@@ -19,6 +21,9 @@ import { colour, font, pageGutter, rem, type } from '../styles/theme';
 export function SettingsScreen(): React.JSX.Element {
   const [capabilities, setCapabilities] = useState<PlaybackCapabilities | undefined>();
   const [error, setError] = useState<Error | undefined>();
+  // Seeded from storage once. The setting is only ever changed from this
+  // control, so there is nothing to subscribe to.
+  const [trailEnabled, setTrailEnabled] = useState(failureTrailEnabled);
   // Probed once: the answer cannot change while the app is running.
   const surface = useMemo(() => checkPlatformSurface(), []);
 
@@ -120,6 +125,40 @@ export function SettingsScreen(): React.JSX.Element {
           are handled by core's own guards.
         </Text>
       </View>
+
+      {/*
+        The first editable control on this screen.
+
+        It is here rather than behind a build flag because the person who
+        needs it is standing in front of the television with a remote, and a
+        flag would mean a rebuild, a reinstall and a lost repro. It is off by
+        default because the trail is for whoever is debugging, not for
+        whoever is watching.
+      */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Diagnostics</Text>
+        <Focusable
+          onSelect={() => {
+            const next = !trailEnabled;
+            setFailureTrailEnabled(next);
+            setTrailEnabled(next);
+          }}
+          style={styles.toggle}
+          focusedStyle={styles.toggleFocused}
+        >
+          <View style={styles.toggleRow}>
+            <Text style={styles.value}>Show evidence when playback fails</Text>
+            <Text style={[styles.toggleState, trailEnabled && styles.toggleStateOn]}>
+              {trailEnabled ? 'On' : 'Off'}
+            </Text>
+          </View>
+        </Focusable>
+        <Text style={styles.note}>
+          Prints the last warnings and errors under the failure message on the player. A television
+          has no console, so without this a failover and a dead node look identical from across the
+          room.
+        </Text>
+      </View>
     </ScrollView>
   );
 }
@@ -186,5 +225,35 @@ const styles = StyleSheet.create({
   error: {
     color: colour.error,
     fontWeight: font.weightMedium,
+  },
+  /**
+   * The border is always present and only its colour changes on focus, as
+   * `Focusable` documents: the focus scorer reads these rectangles, so a
+   * control that resized when focused would move the targets around it.
+   */
+  toggle: {
+    alignSelf: 'flex-start',
+    minWidth: rem(24),
+    paddingVertical: rem(0.6),
+    paddingHorizontal: rem(0.9),
+    borderRadius: radius.control,
+    backgroundColor: colour.surface2,
+  },
+  toggleFocused: {
+    backgroundColor: colour.surface3,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: rem(1.5),
+  },
+  toggleState: {
+    color: colour.textFaint,
+    fontSize: type.body,
+    fontWeight: font.weightMedium,
+  },
+  toggleStateOn: {
+    color: colour.focus,
   },
 });

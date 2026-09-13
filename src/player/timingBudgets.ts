@@ -45,3 +45,27 @@ export const HOLD_RETRY_BASE_MS = 1_000;
 
 /** Ceiling of the exponential backoff after a hold, in `PlayerEngine.kt`. */
 export const HOLD_RETRY_CEILING_MS = 8_000;
+
+/**
+ * How long a node is given to produce the first fragment of a fresh
+ * generation before the wait becomes evidence against it.
+ *
+ * Generous deliberately, and expressed as a multiple of the hold rather than
+ * as a round number. A `500 segment_not_ready` is the node stating it is
+ * already working on a fragment it promised; abandoning it costs more than
+ * waiting does, because the replacement node starts its own generation from
+ * nothing and the viewer waits out a cold start instead of the tail of a warm
+ * one. Five holds is long enough for a node at its production frontier and
+ * short enough that a genuinely dead one is still caught.
+ *
+ * **It is deliberately larger than `MEDIA_START_STARVATION_MS` (20 s), and
+ * that is only safe because of where it runs.** The wait happens in
+ * `ExpoVideoAdapter.play()` *before* the start watchdog is armed, so the two
+ * budgets never overlap: the watchdog measures "no bytes ever arrived after
+ * the player was given the source", which cannot begin until this has
+ * finished. Arming the watchdog first and then waiting here would have the
+ * watchdog fire at 20 s and report a spurious `stream` failure against a node
+ * that was behaving exactly as the protocol says it should — which is the
+ * precise bug this walk exists to remove, reintroduced by ordering.
+ */
+export const FIRST_FRAGMENT_TIMEOUT_MS = SERVER_SEGMENT_HOLD_MS * 5;
