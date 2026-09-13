@@ -4,7 +4,6 @@ import {
   assumptionNote,
   audioProcessingNote,
   instructionNote,
-  MODE_TRANSFORMS,
   noteIsWarning,
   streamLabel,
 } from './playbackOptions';
@@ -20,37 +19,18 @@ function report(overrides: Partial<PlaybackInstructionReport> = {}): PlaybackIns
   } as PlaybackInstructionReport;
 }
 
-/**
- * A mode press states the whole transform, never the shorthand.
+/*
+ * The `MODE_TRANSFORMS` tests that were here are gone with the map. They pinned
+ * a rule this client inherited from the web client and never observed: that a
+ * bare mode is judged against the previous instruction's per-stream transforms
+ * and refused. The server clears those fields the moment `mode` is named, so
+ * the contradiction cannot be assembled — confirmed in core at 0.34.0 and in
+ * the server source at 0.39.1.
  *
- * The session being amended already carries per-stream transforms from whatever
- * instruction created it. Naming only the mode leaves those in place, the
- * server reads the result as a contradiction, and it refuses the entire update
- * — so the viewer presses one button and gets an error about a request they
- * did not make.
+ * Four tests passed against a rule that should not have existed, which is worth
+ * remembering: they tested that the map said what it said, never that the
+ * server needed it to.
  */
-describe('what a mode press sends', () => {
-  it('copies both streams for direct, by definition', () => {
-    expect(MODE_TRANSFORMS.direct).toEqual({ video: 'copy', audio: 'copy' });
-  });
-
-  it('copies both streams for remux, by definition', () => {
-    expect(MODE_TRANSFORMS.remux).toEqual({ video: 'copy', audio: 'copy' });
-  });
-
-  it('re-encodes both streams for transcode, rather than whatever was left alone', () => {
-    // A viewer choosing transcode means re-encode. Inheriting "video: copy"
-    // from the previous instruction would be a different request than the one
-    // the button claims to make.
-    expect(MODE_TRANSFORMS.transcode).toEqual({ video: 'transcode', audio: 'transcode' });
-  });
-
-  it('states a transform for every mode core can offer', () => {
-    // A mode with no entry here would send an unqualified preference and be
-    // refused; this fails the day core adds a fourth.
-    expect(Object.keys(MODE_TRANSFORMS).sort()).toEqual(['direct', 'remux', 'transcode']);
-  });
-});
 
 /**
  * The chooser's worst failure has no symptom without these notes: a facts

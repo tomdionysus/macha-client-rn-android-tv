@@ -17,7 +17,9 @@ import { SeriesScreen, SeasonScreen } from './screens/SeriesScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { LoginScreen } from './screens/LoginScreen';
-import { useCurrentSession, sessionLockedOut } from './app/useCurrentSession';
+import { OfflineScreen } from './screens/OfflineScreen';
+import { useCurrentSession } from './app/useCurrentSession';
+import { accessState, useAccessLatched, useSessionFacts } from './app/access';
 import { colour, screenSize } from './styles/theme';
 
 const NAV: NavItem[] = [
@@ -54,14 +56,16 @@ function routeForMedia(media: MediaSummary): Route {
 
 function Shell(): React.JSX.Element {
   const { services, continueWatching, sessionReady } = useMacha();
-  // Roles are resolved by the server when a session is minted, so this is the
-  // only place they can come from. Not asked until the session exists.
-  const { session, known: sessionKnown, refresh: refreshSession } =
-    useCurrentSession(services.usersApi, sessionReady);
-  // Locked only on an authoritative refusal: the server minted a session and
-  // granted it nothing. An unreachable cluster is *not* this — see
-  // `useCurrentSession` for the gate that was removed for confusing the two.
-  const locked = sessionLockedOut(session, sessionKnown);
+  // Identity, for display only. The gate below does not consult it: roles now
+  // arrive with the token, so there is no whoami race to get wrong.
+  const { refresh: refreshSession } = useCurrentSession(services.usersApi, sessionReady);
+  // Three outcomes, not two: the server said no, nothing answered, or the
+  // question is still open. Every input is a fact core states — nothing here
+  // infers access from an absent token, which is the mistake that put a login
+  // wall in front of a network blip. Latched, so a failed refresh mid-film can
+  // never replace the player.
+  const { failure, roles } = useSessionFacts();
+  const access = useAccessLatched(accessState(sessionReady, failure, roles));
   const [settingsWhileLocked, setSettingsWhileLocked] = useState(false);
   /**
    * A stack, so Back unwinds season → series → library rather than jumping to
@@ -212,7 +216,29 @@ function Shell(): React.JSX.Element {
    * reachable for the same reason, after 0.13.0 shipped exactly that lockout
    * and needed a release to escape.
    */
-  if (locked) {
+  /**
+   * Nothing answered. **This is not an access problem and must not look like
+   * one.** Offering a sign-in here would be a lie — the viewer is away from
+   * home, not unauthorised — and it would also be useless, because signing in
+   * needs a reachable node as much as watching does.
+   *
+   * Settings stays reachable, because pointing the set at a different cluster
+   * is the one action that can actually help, and a television has no address
+   * bar to do it any other way.
+   */
+  if (access.kind === 'offline') {
+    return (
+      <View style={styles.shell}>
+        {settingsWhileLocked ? (
+          <LockedSettings onBack={() => setSettingsWhileLocked(false)} />
+        ) : (
+          <OfflineScreen onOpenSettings={() => setSettingsWhileLocked(true)} />
+        )}
+      </View>
+    );
+  }
+
+  if (access.kind === 'sign-in') {
     return (
       <View style={styles.shell}>
         {settingsWhileLocked ? (

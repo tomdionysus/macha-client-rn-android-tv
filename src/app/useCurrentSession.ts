@@ -87,26 +87,19 @@ export function useCurrentSession(api: UsersApi, enabled: boolean): CurrentSessi
   return { ...state, refresh };
 }
 
-/**
- * Whether this session may use the client at all.
+/*
+ * `sessionLockedOut` used to live here, and it is core's now
+ * (`sessionLockedOut(roles)`). It moved because this client and the web client
+ * had written the same one-line rule independently, which was the argument that
+ * carried it.
  *
- * The deployment this exists for is the one where only registered users see
- * media: take `media_viewer` off the `anonymous` account and an
- * unauthenticated viewer's session arrives holding an empty role list. An empty
- * list is the server being explicit — it granted nothing — and the only honest
- * response is to stop asking and put a login in front of them.
- *
- * **`known` is load-bearing and not a formality.** An unanswered whoami is not
- * an answer of "none": there is a window after the cold-start mint where roles
- * have simply not arrived. Treating that as no-roles would flash the login wall
- * on every start before the real answer lands, and would put one in front of a
- * viewer whose only problem was an unreachable node — which on this client is
- * the normal operating condition rather than an edge case, given how the link
- * to the set behaves.
+ * Core's shape is better than the one it replaced: unknown is `undefined`
+ * rather than a separate `known` argument, so a caller holding roles it has not
+ * fetched gets the permissive answer by construction and cannot forget the
+ * case. Roles also arrive with the token on every path now, so the whoami race
+ * this file was built around no longer exists for access decisions — see
+ * `access.ts`. What remains here is identity, for display only.
  */
-export function sessionLockedOut(session: CurrentSession | undefined, known: boolean): boolean {
-  return known && (session?.roles?.length ?? 0) === 0;
-}
 
 /*
  * There was a `useHasSession` here, locking the client whenever

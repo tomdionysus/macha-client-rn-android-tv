@@ -15,26 +15,34 @@ import type {
  * the chooser's worst failure into no symptom at all.
  */
 
-/**
- * What each mode means per stream, in the server's own terms.
+/*
+ * `MODE_TRANSFORMS` lived here and has been **deleted**, not moved to core.
  *
- * **A mode press must state the whole transform, not the shorthand for it.**
- * The session being amended already carries per-stream transforms from whatever
- * instruction created it, and naming only the mode leaves those in place. The
- * server then reads the result as a contradiction and refuses the entire
- * update — the viewer pressed one button and gets an error about a request they
- * did not make.
+ * It restated `video`/`audio` alongside `mode` on every mode press, justified
+ * by a comment carried over from the web client: that the session keeps the
+ * previous instruction's per-stream transforms, so a bare mode is judged
+ * against them and refused as contradictory.
  *
- * Direct and remux copy both streams by definition; transcode as a viewer's
- * explicit choice means re-encode, not re-encode whatever the last instruction
- * happened to leave alone. Saying so outright leaves nothing to be merged with
- * and nothing to disagree about.
+ * **That was inherited, not observed.** This client never sent such a PATCH and
+ * never saw the refusal. Two independent readings say the guard is unnecessary:
+ * core investigated it at server 0.34.0 and concluded the fields should be left
+ * to clear, and the server session has since confirmed against 0.39.1 that
+ * `parse_preferences` resets `video`, `audio`, `max_height` and `max_bitrate`
+ * the moment `mode` is named, before reading the rest of the object. The
+ * contradiction it guarded against cannot be assembled.
+ *
+ * The stronger reason to delete rather than keep it harmlessly: it **asserted
+ * what a mode implies per stream**, and that is the server's judgement, not
+ * ours. `remux` was mapped to `audio: 'copy'`, but a remux can repackage the
+ * container while still transcoding audio — and whether audio was copied or
+ * transcoded is the exact question this project exists to measure. A panel
+ * built to expose the 5.1 decision must not quietly pre-state it.
+ *
+ * A mode press now sends `{ mode }` alone and lets the server re-derive. If a
+ * refusal ever appears, capture the body, status and `code` — the server
+ * session wants them, and it would be a genuine regression rather than a
+ * reason to restore this.
  */
-export const MODE_TRANSFORMS: Record<PlaybackMode, { video: 'copy' | 'transcode'; audio: 'copy' | 'transcode' }> = {
-  direct: { video: 'copy', audio: 'copy' },
-  remux: { video: 'copy', audio: 'copy' },
-  transcode: { video: 'transcode', audio: 'transcode' },
-};
 
 export const MODE_LABELS: Record<PlaybackMode, string> = {
   direct: 'Direct',

@@ -13,7 +13,6 @@ import {
   audioProcessingNote,
   instructionNote,
   MODE_LABELS,
-  MODE_TRANSFORMS,
   noteIsWarning,
   streamLabel,
 } from './playbackOptions';
@@ -61,11 +60,12 @@ export function PlayerOptions({
    * thing mid-playback as it does at the start. An absent mode would leave the
    * server on whatever it was already doing, and the control would highlight
    * while changing nothing.
+   *
+   * The mode is sent **alone**. Naming it clears the per-stream transforms and
+   * the quality caps server-side, which is what lets the chooser re-derive them
+   * — see `playbackOptions.ts` for why restating them here was wrong.
    */
-  const applyMode = (value: PlaybackMode | 'choose') =>
-    onApply({
-      preferences: value === 'choose' ? { mode: value } : { mode: value, ...MODE_TRANSFORMS[value] },
-    });
+  const applyMode = (value: PlaybackMode | 'choose') => onApply({ preferences: { mode: value } });
   const chosenByViewer = effective.mode !== undefined && effective.mode !== 'choose';
   const applyPreferences = (update: PlaybackPreferencesUpdate) => onApply({ preferences: update });
 
