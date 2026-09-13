@@ -5,6 +5,8 @@ import type { TvDirection } from '../hooks/tvFocus';
 import { colour, radius } from '../styles/theme';
 
 export interface FocusableProps {
+  /** A stable id, when something else moves focus here by name. See `useFocusable`. */
+  focusId?: string;
   children: ReactNode | ((state: { focused: boolean }) => ReactNode);
   onSelect?: () => void;
   disabled?: boolean;
@@ -44,6 +46,7 @@ export interface FocusableProps {
 export const Focusable = forwardRef<View, FocusableProps>(function Focusable(
   {
     children,
+    focusId,
     onSelect,
     disabled,
     defaultFocus,
@@ -58,6 +61,7 @@ export const Focusable = forwardRef<View, FocusableProps>(function Focusable(
   _forwardedRef,
 ) {
   const { focused, onLayout, ref } = useFocusable({
+    id: focusId,
     onSelect,
     disabled,
     defaultFocus,

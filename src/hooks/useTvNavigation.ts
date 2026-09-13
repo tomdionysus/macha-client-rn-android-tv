@@ -105,6 +105,16 @@ export function useTvNavigation(options: TvNavigationOptions = {}): void {
 }
 
 export interface UseFocusableOptions {
+  /**
+   * A stable id, when something else needs to move focus here by name.
+   *
+   * Defaults to React's generated id, which is fine for a focusable nobody
+   * addresses. The alphabet strip is the case that needs this: jumping to a
+   * letter means *selecting* that title's card, not merely scrolling to it —
+   * on a D-pad, scrolling without moving focus leaves the next press jumping
+   * straight back to wherever focus actually was.
+   */
+  id?: string;
   /** Called on D-pad centre. The web client's `element.click()`. */
   onSelect?: () => void;
   disabled?: boolean;
@@ -131,7 +141,8 @@ export interface UseFocusableResult {
  * incomparable — which shows up as focus jumping to the wrong row.
  */
 export function useFocusable(options: UseFocusableOptions = {}): UseFocusableResult {
-  const id = useId();
+  const generated = useId();
+  const id = options.id ?? generated;
   const ref = useRef<View | null>(null);
   const [focused, setFocused] = useState(false);
   const latest = useRef(options);
