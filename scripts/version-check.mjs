@@ -24,7 +24,7 @@
  *
  * Run by `pretest`, so a mismatch fails before anything is built.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -60,9 +60,45 @@ if (actual === undefined) {
   problems.push(`android.versionCode is ${actual}, expected ${expected} for ${expo.version}`);
 }
 
+/**
+ * The generated tree is what actually builds, and it does not follow `app.json`
+ * on its own.
+ *
+ * `android/` is produced by `expo prebuild` and gitignored, so a version bump in
+ * `app.json` reaches an APK only after a regeneration. On 2026-09-13 that gap
+ * shipped an APK carrying `versionCode 1` while `app.json` said 100 — and this
+ * script passed, because it only ever compared two config files to each other.
+ * It verified intent and never the artifact.
+ *
+ * The install-time assertion does not catch it either: the APK and the device
+ * would both read the stale number and agree.
+ *
+ * Skipped rather than failed when `android/` is absent, since a clean checkout
+ * has not prebuilt yet and that is not an error.
+ */
+const gradle = join(root, 'android', 'app', 'build.gradle');
+if (existsSync(gradle)) {
+  const source = readFileSync(gradle, 'utf8');
+  const code = /^\s*versionCode\s+(\d+)/m.exec(source)?.[1];
+  const name = /^\s*versionName\s+"([^"]+)"/m.exec(source)?.[1];
+  if (code === undefined || name === undefined) {
+    problems.push('android/app/build.gradle states no versionCode/versionName to check');
+  } else {
+    if (Number(code) !== expected) {
+      problems.push(
+        `android/app/build.gradle has versionCode ${code}, expected ${expected}`
+        + ' — run `npx expo prebuild --platform android` so the generated tree follows app.json',
+      );
+    }
+    if (name !== expo.version) {
+      problems.push(`android/app/build.gradle has versionName ${name}, expected ${expo.version}`);
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error('version-check: inconsistent version\n  ' + problems.join('\n  '));
   process.exit(1);
 }
 
-console.log(`version-check: ${expo.version} (versionCode ${expected}) consistent.`);
+console.log(`version-check: ${expo.version} (versionCode ${expected}) consistent, config and generated tree.`);
