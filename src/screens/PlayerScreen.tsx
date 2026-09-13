@@ -10,6 +10,9 @@ import { VideoView } from 'expo-video';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
+import { usePlayerVolume } from '../hooks/usePlayerVolume';
+import { volumePercent } from '../player/volume';
+import { useMacha } from '../app/MachaProvider';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
@@ -54,6 +57,7 @@ export function PlayerScreen({
   );
   const [chromeVisible, setChromeVisible] = useState(true);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const volume = usePlayerVolume(runtime, useMacha().volume);
   const [scrubPosition, setScrubPosition] = useState<number | undefined>();
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -301,6 +305,33 @@ export function PlayerScreen({
               onSelect={() => { runtime.setPaused(!paused); showChrome(); }}
             />
             <ChromeButton icon="forward" onSelect={() => { runtime.seekBy(10_000); showChrome(); }} />
+            {/*
+              * Volume takes left and right while focused, exactly as the
+              * scrubber does — a slider a viewer has to travel to and then
+              * scrub is two controls where one will do, and the D-pad is
+              * already the only input.
+              */}
+            <Focusable
+              ring={false}
+              scope={CHROME_SCOPE}
+              style={styles.volumeControl}
+              focusedStyle={styles.volumeControlFocused}
+              onSelect={() => { volume.toggleMute(); showChrome(); }}
+              ownsDirection={(direction) => direction === 'left' || direction === 'right'}
+              onDirection={(direction) => {
+                volume.step(direction === 'right' ? 'up' : 'down');
+                showChrome();
+              }}
+            >
+              {() => (
+                <>
+                  <PlayerIcon name={volume.muted ? 'mute' : 'volume'} size={20} />
+                  <Text style={styles.volumeLevel}>
+                    {volume.muted ? 'Muted' : `${volumePercent(volume)}%`}
+                  </Text>
+                </>
+              )}
+            </Focusable>
             {playback?.session ? (
               <ChromeButton icon="options" onSelect={() => setOptionsOpen(true)} />
             ) : null}
@@ -462,6 +493,24 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.25 }],
   },
   // `.player-button-row { justify-content: center; gap: .7rem; margin-top: 1.25rem }`
+  /** Sits in the button row but is wider, because it carries a readable level. */
+  volumeControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rem(0.4),
+    paddingHorizontal: rem(0.7),
+    height: rem(3.25),
+    borderRadius: radius.pill,
+    backgroundColor: colour.surface2,
+  },
+  volumeControlFocused: {
+    backgroundColor: colour.accent,
+  },
+  volumeLevel: {
+    color: colour.text,
+    fontSize: type.small,
+    minWidth: rem(2.6),
+  },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'center',

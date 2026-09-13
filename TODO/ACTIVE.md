@@ -54,6 +54,18 @@ sideways along it. That one press is the whole verification of §1.1.
   never read a single failure as the set being off.
 - Confirm the device before installing: `getprop ro.product.manufacturer` must
   say TCL. It is `armeabi-v7a` only.
+- **To find it when the address has moved**, sweep and then try adb:
+
+  ```sh
+  for i in $(seq 100 140); do (ping -c 1 -W 900 10.34.1.$i >/dev/null 2>&1 \
+    && echo "10.34.1.$i alive") & done; wait
+  ```
+
+  On 2026-09-13 that found `.103`, `.115` and `.132` alive; `.103` and `.132`
+  actively refused `5555` so they are other devices, and `.115` timed out rather
+  than refusing — which is the shape of the set with adb not yet listening, or
+  of the link dropping mid-attempt. Unresolved: the site went down again during
+  the check.
 - The set's screensaver takes the foreground while idling. Wake, foreground the
   app and act in one pass rather than leaving gaps.
 
@@ -318,17 +330,17 @@ clearing it. Whether core ever hands us such a URL is untested.
 
 ### 2.5 Stores constructed but unused
 
-`PlaybackQueueStore` and `VolumeStore` are built in `MachaProvider.tsx:94-95`
-and never read. Dead wiring until:
+**`VolumeStore` is now wired** (2026-09-13) — volume and mute in the chrome,
+persisted across sessions. See `COMPLETED.md` for the one decision in it that
+was not obvious.
 
-- **queue** — episode-to-episode continuation, next/previous in the chrome;
-- **volume** — there is no volume affordance in the player chrome at all, though
-  `PlayerIcons.tsx` already carries the unused `volume` and `mute` icons.
+Still dead:
 
-`MusicPlaylistStore` is the third of core's stores and is **not constructed at
-all**. Full accounting in §4.5.
-
-Small, self-contained, needs no hardware.
+- **`PlaybackQueueStore`**, built in `MachaProvider.tsx` and read by nothing.
+  Needs episode-to-episode continuation and next/previous in the chrome, which
+  means threading queue context through `App.tsx` rather than a local change.
+- **`MusicPlaylistStore`** is **not constructed at all** and is needed by every
+  music route. Full accounting in §4.5.
 
 ---
 
@@ -426,7 +438,9 @@ Missing:
 
 - **Options** — §2.3, the largest functional gap.
 - **Previous / next** — needs `PlaybackQueueStore` (§2.5).
-- **Volume slider and mute** — needs `VolumeStore` (§2.5); icons already exist.
+- ~~Volume and mute~~ — **done 2026-09-13**. Not a slider: the control takes
+  left and right while focused, as the scrubber does, since a D-pad is the only
+  input and a separate slider would be two controls where one will do.
 - **Mini player** and its minimise/expand pair.
 - **Failure trail** (`screens/player/failureTrail.ts`) — worth more on a
   television than on the web, since there is no console to inspect.
