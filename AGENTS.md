@@ -73,6 +73,42 @@ and the fix that mattered came from a log rather than from reasoning.
 - Expo's synchronous `Function` has no `runOnQueue`; only `AsyncFunction` does.
   `PlayerEngine` marshals onto ExoPlayer's looper itself.
 
+## Branching and releases
+
+Tom's convention, project-wide across every Macha repository. Relayed by the
+phone client 2026-09-13 and confirmed by Tom the same day.
+
+- Work happens on **`develop`**, a long-lived generic branch. Releases live on
+  **`main`**, and a release is a **tag on `main`**.
+- Tags are **bare semver** — `0.1.0`, never `v0.1.0` — and **annotated**, so
+  `git describe` and `--sort=v:refname` behave. One tag per release commit.
+- **Do not name branches after versions.** The phone client created
+  `release/0.5.0` before knowing what the next version would be, and it ended
+  up carrying a patch — which a version-named branch cannot do. This repo made
+  the same mistake on its first day and renamed `0.2.0` to `develop`.
+- **Put the version bump inside the release commit**, so the tag points at a
+  tree that is exactly what ships rather than at one commit before it.
+
+### `versionCode` is the number Android actually compares
+
+It ignores `versionName` entirely, so **two builds sharing a code are the same
+build** as far as the package manager is concerned.
+
+Every APK this client produced before 2026-09-13 shipped `versionCode 1`,
+because nothing set `android.versionCode` and the Expo default is 1. Five
+genuinely different builds went onto the television in one afternoon and the
+device could not tell them apart. `install -r` hid it completely; the cost of
+it not being hidden would have been a build that failed to replace and hours
+spent debugging bytecode that was no longer the source on screen.
+
+Derived, so it is monotonic and reads back as the version it came from:
+
+    major * 10000 + minor * 100 + patch        0.1.0 -> 100, 0.4.1 -> 401
+
+`npm run version:check` enforces it and runs from `pretest`, so a mismatch
+fails before anything is built. The derivation is the phone client's, kept
+identical so the two Android clients read alike.
+
 ## Verifying
 
 ```sh

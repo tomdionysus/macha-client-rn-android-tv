@@ -10,6 +10,7 @@
     "assetBundlePatterns": ["**/*"],
     "android": {
       "package": "foundation.macha.client.tv",
+      "versionCode": 100,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",

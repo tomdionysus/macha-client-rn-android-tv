@@ -11,7 +11,8 @@
     "prebuild": "expo prebuild --platform android",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "pretest": "cd ../macha-ts && npm run dist:check"
+    "pretest": "npm run version:check && cd ../macha-ts && npm run dist:check",
+    "version:check": "node scripts/version-check.mjs"
   },
   "dependencies": {
     "@macha/core": "file:../macha-ts",

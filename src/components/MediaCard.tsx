@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@macha/core';
 import { Focusable } from './Focusable';
 import { LazyArtwork } from './LazyArtwork';
+import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { useMacha } from '../app/MachaProvider';
 import { colour, font, layout, radius, rem, type } from '../styles/theme';
 
@@ -19,10 +20,20 @@ export function MediaCard({
   defaultFocus,
   progress,
   onFocusChange,
+  addressable = false,
 }: {
   media: MediaSummary;
   onSelect?: () => void;
   defaultFocus?: boolean;
+  /**
+   * Give this card a focus id derived from its media id, so something else can
+   * move focus to it by name — the alphabet strip jumping to a letter.
+   *
+   * Off by default: two rows showing the same title (Continue Watching and a
+   * library row, say) would otherwise register the same id twice and the
+   * registry would keep only one of them.
+   */
+  addressable?: boolean;
   /** 0–1, drawn as `.progress-track` / `.progress-value` across the poster foot. */
   progress?: number;
   onFocusChange?: (focused: boolean) => void;
@@ -35,6 +46,7 @@ export function MediaCard({
   return (
     <Focusable
       ring={false}
+      {...(addressable ? { focusId: mediaFocusId(media.id) } : {})}
       onSelect={onSelect}
       defaultFocus={defaultFocus}
       onFocusChange={onFocusChange}

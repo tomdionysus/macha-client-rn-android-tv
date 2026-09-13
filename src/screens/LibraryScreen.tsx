@@ -4,6 +4,8 @@ import { sortMediaByIndexedTitle, type MediaApi, type MediaSummary } from '@mach
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaCard } from '../components/MediaCard';
+import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
+import { useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { layout, pageGutter, rem, screenSize } from '../styles/theme';
 
 /**
@@ -32,9 +34,18 @@ export function LibraryScreen({
   );
   const items = useMemo(() => sortMediaByIndexedTitle(result.value ?? []), [result.value]);
   const scroller = useRef<ScrollView | null>(null);
+  // Jumping moves focus to the first title in the bucket; the grid's existing
+  // scroll-on-focus below does the revealing. See `useAlphabetIndex` for why
+  // scrolling alone is the wrong behaviour on a D-pad.
+  const alphabet = useAlphabetIndex(items);
 
   const title = kind === 'movies' ? 'Movies' : 'TV Shows';
-  const columns = Math.max(1, Math.floor((screenSize.width - pageGutter * 2) / (layout.mediaCardWidth + rem(1))));
+  const columns = Math.max(
+    1,
+    Math.floor(
+      (screenSize.width - pageGutter * 2 - alphabetStripWidth) / (layout.mediaCardWidth + rem(1)),
+    ),
+  );
 
   if (!result.value) {
     return (
@@ -53,25 +64,34 @@ export function LibraryScreen({
   };
 
   return (
-    <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
-      <PageTitle>{title}</PageTitle>
-      {result.error ? <RefreshError error={result.error} /> : null}
-      <View style={styles.grid}>
-        {items.map((item, index) => (
-          <MediaCard
-            key={item.id}
-            media={item}
-            onSelect={() => onOpen(item)}
-            defaultFocus={index === 0}
-            onFocusChange={(focused) => focused && scrollToRow(index)}
-          />
-        ))}
-      </View>
-    </ScrollView>
+    // The strip is a sibling of the scroller, not a child of it: it is pinned
+    // to the screen edge and must not scroll away with the grid.
+    <View style={styles.screen}>
+      <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
+        <PageTitle>{title}</PageTitle>
+        {result.error ? <RefreshError error={result.error} /> : null}
+        <View style={styles.grid}>
+          {items.map((item, index) => (
+            <MediaCard
+              key={item.id}
+              media={item}
+              addressable
+              onSelect={() => onOpen(item)}
+              defaultFocus={index === 0}
+              onFocusChange={(focused) => focused && scrollToRow(index)}
+            />
+          ))}
+        </View>
+      </ScrollView>
+      <AlphabetIndex availableKeys={alphabet.availableKeys} onSelect={alphabet.jumpTo} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   page: {
     paddingTop: rem(1),
     paddingBottom: rem(4),
@@ -82,6 +102,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     rowGap: rem(1.4),
     columnGap: rem(1),
-    paddingHorizontal: pageGutter,
+    paddingLeft: pageGutter,
+    // The alphabet strip is pinned over this edge, so the grid keeps clear of
+    // it rather than laying its last column underneath.
+    paddingRight: pageGutter + alphabetStripWidth,
   },
 });
