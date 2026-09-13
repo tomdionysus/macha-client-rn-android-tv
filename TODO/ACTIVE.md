@@ -449,6 +449,47 @@ Still dead:
 
 ---
 
+### 2.6 Core `0.10.0` — adopted and green, not ported
+
+`@machafoundation/core 0.10.0` is installed and this tree builds and passes
+against it (159 tests, typecheck clean). Nothing resolves a removed or renamed
+symbol: the renames cost nothing because none of them were referenced by name,
+and `MachaHost.ephemeralStorage` was removed with a note left where it was
+decided. **The port itself has not been done.**
+
+Not wired, in the order they matter here:
+
+- **`SessionManager.lastIdentityChange`** — `{ from?, to?, at }`, set when a
+  re-obtained session belongs to a different account than before.
+- **`secureStorage`** — core takes an optional `StorageLike` and puts the token
+  in it. `expo-secure-store` runs on Android TV and would make that
+  Keystore-backed. Until it is supplied the token sits in app-private
+  `AsyncStorage`, like the rest of this client's state.
+- **`signOut()`** now revokes server-side and **throws** on failure rather than
+  swallowing it, and does not mint a replacement.
+- The session key is `macha.session.v1`; use the exported `isMachaStorageKey()`
+  rather than a local prefix test.
+
+**The part with real teeth, and it is worse on this cluster than elsewhere.**
+The session lifetime is 30 days from creation with no sliding expiry and no
+refresh tokens, so core's refresh timer **re-mints** rather than renewing. A
+re-mint presents no credentials, and `anonymous` on Tom's cluster has held no
+roles since 2026-09-13 — so a signed-in viewer degrades to `roles: []`, which
+`accessState()` reads as `{ kind: 'sign-in' }`.
+
+What saves it from being a wall in front of someone mid-film is
+`useAccessLatched`, which admits the client once and never un-admits it. That
+latch was written for a failed *refresh* and happens to cover this. The cost is
+the deferral already documented in `access.ts`: **requests begin failing with
+nothing on screen explaining why, and the viewer lands on the login wall at
+next launch.** An auth event wearing the costume of a UI bug.
+
+`lastIdentityChange` and `sessionLockedOut` are the two facts that tell "your
+session aged out" apart from "this cluster refuses you" — identical to a gate,
+very different to a person. Both belong on the failure trail (§4.2), which
+means **§1.1's Settings scroll fault is ahead of this in the order**: the trail
+is built and shipped and cannot currently be switched on.
+
 ## 3. Decisions for Tom
 
 ### 3.1 `addDirectSourceAlternative` — local proxy, or wait for the engine?
