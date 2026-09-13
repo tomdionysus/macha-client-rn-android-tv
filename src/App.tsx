@@ -58,6 +58,9 @@ function Shell(): React.JSX.Element {
   // only place they can come from. Not asked until the session exists.
   const { session, known: sessionKnown, refresh: refreshSession } =
     useCurrentSession(services.usersApi, sessionReady);
+  // Locked only on an authoritative refusal: the server minted a session and
+  // granted it nothing. An unreachable cluster is *not* this — see
+  // `useCurrentSession` for the gate that was removed for confusing the two.
   const locked = sessionLockedOut(session, sessionKnown);
   const [settingsWhileLocked, setSettingsWhileLocked] = useState(false);
   /**

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CurrentSession, UsersApi } from '@macha/core';
+import { sessionManager, type CurrentSession, type UsersApi } from '@macha/core';
 
 /**
  * Who the viewer is and what the server granted them.
@@ -107,3 +107,32 @@ export function useCurrentSession(api: UsersApi, enabled: boolean): CurrentSessi
 export function sessionLockedOut(session: CurrentSession | undefined, known: boolean): boolean {
   return known && (session?.roles?.length ?? 0) === 0;
 }
+
+/*
+ * There was a `useHasSession` here, locking the client whenever
+ * `sessionManager.authorization()` came back empty. It was **removed the same
+ * day it was written**, and the reason is worth keeping.
+ *
+ * It was built after watching `POST /api/v1/session` answer
+ * `403 anonymous_disabled` on one node — which turned out to be a single
+ * moment of a rolling deployment, not a configuration. The deployed servers
+ * mint anonymously and return `roles: []`, which `sessionLockedOut` already
+ * handles.
+ *
+ * The deeper fault is that it could not tell **"the server told us we may
+ * not"** from **"we could not ask"**. `authorization()` is empty when the
+ * cluster refuses anonymous *and* when no node could be reached at all, so a
+ * network blip would have raised a login wall reading "this server requires an
+ * account" — a sentence no server said — and told the viewer to do the one
+ * thing that also cannot work without a reachable node.
+ *
+ * Worse, it re-checked on every `sessionManager` notification, and a failed
+ * token refresh notifies. A blip **mid-film** would have flipped the whole
+ * shell to a login screen and killed playback. That is the exact inverse of
+ * what this project is for: invisible failover, and no component assuming any
+ * other is healthy.
+ *
+ * An unreachable cluster is a connectivity condition. Core already publishes
+ * it (`reportClusterUnreachable`), and the honest response is a notice over
+ * what we already have, not a wall in front of it.
+ */

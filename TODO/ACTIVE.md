@@ -85,6 +85,26 @@ sideways along it. That one press is the whole verification of §1.1.
 Ordered by consequence. Nothing here moves until the set answers, and §1.1
 gates the rest because everything else needs a navigable app.
 
+### 1.0a Reported to core: refused is not unreachable
+
+Raised 2026-09-13, not a task here and **must not be worked around here**.
+`SessionManager` cannot tell "the server refused" from "we could not ask":
+`mintNow`'s catch is bare, so a `403` from a node that answered in 40 ms
+publishes "All configured API endpoints are unreachable", and
+`authorization()` returns `undefined` for both cases.
+
+`mintAnonymousSessionAnyNode` also stops at the first `403` as though it were
+cluster-wide. For a credentialed sign-in that is right; for an **anonymous**
+mint it is a node-level configuration fact, and during the rolling deployment
+on 2026-09-13 one node answered `403 anonymous_disabled` while the others
+minted happily. One stale node can therefore deny a session the cluster was
+willing to grant.
+
+**A gate built on that confusion was written and removed the same day** — see
+the note in `useCurrentSession.ts`. It would have raised a login wall on a
+network blip and killed playback mid-film. The honest UI needs the reason, and
+only core has it.
+
 ### 1.0 Verify the login gate against a server that grants nothing
 
 **Added 2026-09-13, and it needs a real server as much as a real set.** The
@@ -102,6 +122,15 @@ hardware, none of which can be checked here:
 - **That the wall does not flash on a cold start.** `known` is what prevents
   it, and the window it guards is exactly the one this client's flaky link
   makes wide.
+- **That an unreachable cluster does *not* raise the wall.** Pull the network
+  mid-session: the viewer should keep what is on screen and see a connectivity
+  notice, never a login. This is the failure the removed gate would have
+  caused, and the only way to know it is gone is to cause it.
+
+**Confirmed working on the set 2026-09-13**: with every node minting
+`roles: []`, the wall appears with the right wording, the username field takes
+default focus, "Browse as guest" is correctly absent and "Server settings" is
+present. Typing through the IME is still unexercised.
 
 ### 1.1 Install the pending build and confirm the D-pad
 
