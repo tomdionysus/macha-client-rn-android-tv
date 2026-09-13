@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
-import { StatusBar, StyleSheet, View } from 'react-native';
-import { progressFor, type MediaSummary, type PlaybackProgress } from '@macha/core';
+import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
+import { progressFor, sessionManager, type MediaSummary, type PlaybackProgress } from '@macha/core';
 import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime } from './app/usePlaybackRuntime';
 import { hydrateStorage } from './state/storage';
@@ -16,6 +16,8 @@ import { DetailScreen } from './screens/DetailScreen';
 import { SeriesScreen, SeasonScreen } from './screens/SeriesScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { LoginScreen } from './screens/LoginScreen';
+import { useCurrentSession, sessionLockedOut } from './app/useCurrentSession';
 import { colour, screenSize } from './styles/theme';
 
 const NAV: NavItem[] = [
@@ -52,6 +54,12 @@ function routeForMedia(media: MediaSummary): Route {
 
 function Shell(): React.JSX.Element {
   const { services, continueWatching, sessionReady } = useMacha();
+  // Roles are resolved by the server when a session is minted, so this is the
+  // only place they can come from. Not asked until the session exists.
+  const { session, known: sessionKnown, refresh: refreshSession } =
+    useCurrentSession(services.usersApi, sessionReady);
+  const locked = sessionLockedOut(session, sessionKnown);
+  const [settingsWhileLocked, setSettingsWhileLocked] = useState(false);
   /**
    * A stack, so Back unwinds season → series → library rather than jumping to
    * Home from three levels deep. The last entry is the visible screen.
@@ -186,6 +194,38 @@ function Shell(): React.JSX.Element {
     />
   ) : null;
 
+  /**
+   * A session the server granted nothing may not use this client at all.
+   *
+   * This replaces the shell rather than rendering inside it: leaving the
+   * navigation up would offer rows that cannot load and a player that cannot
+   * start, which reads as a broken client rather than as a server that
+   * requires an account.
+   *
+   * **Settings stays reachable from behind the wall.** A television has no
+   * address bar, so without it a set whose node stops granting roles can
+   * neither sign in nor be pointed at a different cluster — bricked, with a
+   * reinstall as the only remedy. The web client keeps its connection screen
+   * reachable for the same reason, after 0.13.0 shipped exactly that lockout
+   * and needed a release to escape.
+   */
+  if (locked) {
+    return (
+      <View style={styles.shell}>
+        {settingsWhileLocked ? (
+          <LockedSettings onBack={() => setSettingsWhileLocked(false)} />
+        ) : (
+          <LoginScreen
+            guestAllowed={false}
+            onSignIn={(username, password) => sessionManager.signIn({ username, password })}
+            onSignedIn={refreshSession}
+            onOpenSettings={() => setSettingsWhileLocked(true)}
+          />
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.shell}>
       <Image
@@ -203,6 +243,26 @@ function Shell(): React.JSX.Element {
       <View style={styles.main}>{body}</View>
     </View>
   );
+}
+
+/**
+ * Settings, reached from behind the login wall.
+ *
+ * Wrapped only to give Back a way home: there is no navigation stack here, so
+ * without this the viewer reaches the one screen that can point the set at
+ * another cluster and then cannot leave it.
+ */
+function LockedSettings({ onBack }: { onBack: () => void }): React.JSX.Element {
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (tvFocus.suspended) return false;
+      onBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onBack]);
+
+  return <SettingsScreen />;
 }
 
 export function App(): React.JSX.Element {

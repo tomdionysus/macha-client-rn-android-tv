@@ -85,6 +85,24 @@ sideways along it. That one press is the whole verification of §1.1.
 Ordered by consequence. Nothing here moves until the set answers, and §1.1
 gates the rest because everything else needs a navigable app.
 
+### 1.0 Verify the login gate against a server that grants nothing
+
+**Added 2026-09-13, and it needs a real server as much as a real set.** The
+client now locks itself when the session carries no roles — the deployment
+where `media_viewer` is taken off `anonymous`. Three things want checking on
+hardware, none of which can be checked here:
+
+- **The keyboard.** `TvTextInput` raises the platform IME and suspends the
+  focus registry while it is open. `tvFocus.suspend()` was written for this and
+  **has never run on a device**; if it leaks a suspension the whole client goes
+  unnavigable with no visible cause.
+- **The escape hatch.** Settings must stay reachable from behind the wall and
+  Back must return to the login. Without it a set whose node stops granting
+  roles is bricked — no address bar, reinstall the only remedy.
+- **That the wall does not flash on a cold start.** `known` is what prevents
+  it, and the window it guards is exactly the one this client's flaky link
+  makes wide.
+
 ### 1.1 Install the pending build and confirm the D-pad
 
 The focus-geometry fix is committed and unit-tested but has never run on
@@ -409,6 +427,7 @@ less the `*` catch-all and the two pure redirects, so **28 real destinations**.
 | `/series/:id`, `/series/:id/seasons/:id` | **yes** (season folded in) | `MediaApi` |
 | `/play/:id` player | **yes** | `PlaybackCoordinator`, `PlaybackRuntime` |
 | `/settings` | **partial** — displays, cannot edit | `MachaServerApi`, `connectionConfiguration` |
+| `/login` | **yes** (2026-09-13) | `sessionManager.signIn`, `UsersApi.currentSession` |
 | `/search` | **no** | `MediaApi.search()` — the query side is done |
 | `/music/*` (7 routes) | **no** | `MediaApi`, `MusicPlaylistStore`, `state/musicPlaylist` |
 | `/status`, `/status/client`, `/status/connectivity`, `/status/nodes/:id` | **no** | `ClusterStatusApi`, `ClusterStatusRouter` |
