@@ -4,8 +4,10 @@ What has actually landed, and — following the phone client's convention —
 **the experiments that failed and the theories that were withdrawn**, since
 those are the entries that stop the next person repeating them.
 
-Nothing here has been exercised on the television. "Done" means built,
-typechecked, tested and statically verified; it does not mean observed working.
+**As of 2026-09-13 that is no longer uniformly true.** Entries dated
+2026-09-13 and later marked *verified on the set* were observed working on the
+TCL. Everything else still means built, typechecked, tested and statically
+verified — not observed.
 
 ---
 
@@ -576,3 +578,117 @@ doc comment — **and the check that was supposed to prove that had been broken
 here for some time.** A test suite that runs green while `tsc` fails is the
 reason the two are listed separately in this file; running one and reporting
 both is how the claim got made.
+
+---
+
+## The remote works, and the premise holds (2026-09-13) — verified on the set
+
+The day the television stopped being the blocker. Sign-in, D-pad navigation and
+playback all confirmed on the TCL, and §1.2 — the measurement this repository
+exists to make — has an answer.
+
+### The P0: 0.3.0 shipped a set whose remote died the first time anyone typed
+
+`TvTextInput` took a `tvFocus.suspend()` on `TextInput.onFocus` and released it
+on `onBlur`. **On Android TV `onBlur` never fires.** The leanback IME closes as
+its own window while the `ReactEditText` underneath keeps native focus —
+measured on the set as `mInputShown=false` with `mServedView` still pointing at
+the field. So the suspension was held for the life of the process,
+`useTvNavigation` returned early on every key, and after typing once the D-pad
+did nothing at all, on a screen whose only other control is a second text
+field. Nothing on screen said why; only restarting cleared it.
+
+Fixed three ways in 0.3.1, because the consequence is out of all proportion to
+the cause: release on `keyboardDidHide` (blurring the field, since `onBlur`
+will not come), release on unmount, and a **backstop in the key path** — a
+suspension held while `Keyboard.isVisible()` is false is stale, so `resumeAll()`
+clears it and the key is handled. Reference counting cannot recover from a lost
+token by construction.
+
+**The decisive diagnostic was a restart.** From a clean process the D-pad
+worked, which isolated it to leaked state rather than the registry, the scorer,
+the geometry or the native key bridge.
+
+### The second focus defect, found while verifying the first
+
+`tvFocus.handle()` asked `current()` for a fallback when `selectedId` named
+nothing reachable, then computed the move *from* that fallback without ever
+selecting it. A direction with a candidate silently skipped the first element;
+a direction with **no** candidate returned false, leaving the screen with no
+selection and no focus ring at all. Reproduced on the library after Back from a
+detail page: no ring anywhere, Up doing nothing however many times pressed.
+Fixed in 0.3.2 — the first press reveals focus, the second moves it.
+
+### §1.2 — answered
+
+*28 Years Later*, direct-played:
+
+```
+matroska / direct / video copy / audio copy
+Id 75  Active=yes  Client=2108  Chn mask=0000003F  FrmRdy=21560  Underruns=0
+Channel mask: 0x0000003f (front-left, front-right, front-center, low freq, back-left, back-right)
+```
+
+Six channels on a **positional** mask, not the `0x8000003F` index mask, on an
+active track belonging to this app. The node transcoded nothing.
+
+**Two limits, stated because the measurement is owed to other sessions.**
+Criterion 1 (a platform E-AC-3 decoder in use, not AAC) is *inferred* — the
+instantiated decoder's name was never captured. And the reading is at the
+AudioTrack and mixer layer, not the HAL output, so the panel rendering six
+*discrete* channels downstream is not proven; the same dump showed a
+`Multichannel Downmix To Stereo` effect present. See §1.2 in `ACTIVE.md`.
+
+### Capability output from the panel
+
+```
+VIDEO       av1, h263, h264, hevc, mpeg2, mpeg4, vp8, vp9
+AUDIO       aac, ac3, ac4, amrnb, amrwb, eac3, flac, mp3, opus, pcm, vorbis
+HLS VIDEO   h264, hevc
+HLS AUDIO   aac
+```
+
+`HLS AUDIO: aac` is the line with consequences — this panel decodes `eac3` and
+`ac4` natively, but we advertise AAC alone for HLS delivery.
+
+### A prediction that did not come true
+
+From `HLS AUDIO: aac` this session predicted §1.2 would return an AAC
+transcode. It did not: the chooser picked `direct` with a Matroska container
+and never went near HLS. The reasoning was sound *conditional on HLS being
+chosen* and was stated more strongly than that. The HLS concern stands; it did
+not apply to this title.
+
+### Two readings this session got wrong
+
+- **"No control has a focus ring"** in the transport overlay. The pause
+  button's dark red tint (`#160004e8`) *is* `chromeButtonFocused`. Focus was
+  working; the screenshot was misread.
+- **"The server re-signs artwork URLs on every fetch, churning the cache key."**
+  Measured false by the web client — 836 refs, one `exp`, unmoved across 2.6
+  hours. The real cause was core stamping the preferred node's host onto every
+  artwork URL, so an endpoint swap renamed every poster. Fixed in core with a
+  sticky artwork host and `noteArtworkLoaded`.
+
+### Also landed
+
+- **Hold-aware first-fragment wait** (`readiness.ts`) — restores what
+  `PlayerEngine.kt:450` did before the move to `expo-video`: a `500
+  segment_not_ready` is waited out on the *same* node. The walk itself is
+  core's `probeHlsReadiness`; only the retry budget is local. `preflight.ts`
+  deleted in favour of core's `hlsWalk`.
+- **On-screen failure trail** (`failureTrail.ts`, `playbackLog.ts`) — built and
+  shipped, and **not yet switchable on**; its Settings toggle is unreachable.
+- **`VolumeStore` copied out of core** with its storage key unchanged, after
+  Tom ruled volume is player logic. An empty stored value reads as absent
+  rather than as a deliberate mute, because `Number('')` is `0` and `0` is
+  finite — the one corrupt input that produces the come-up-silent failure.
+- **Adopted core `0.10.0`/`0.11.0`** — builds and passes, not ported.
+
+### Swapping onto a seam finds more than reading it
+
+Three of four defects found in core's new `hlsWalk` came from porting this
+client onto it and running the existing suite, not from reading the code. The
+`blob()` one surfaced only because these test doubles were shaped around
+`arrayBuffer()`. Core has made that a standing practice: land the seam, name it
+to a client, let the client swap, fix what the swap finds, *then* tag.

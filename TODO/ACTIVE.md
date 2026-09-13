@@ -9,201 +9,123 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 ## 0. Where this stands
 
-**It runs.** Installed on the TCL and launched; it renders the library and
-reaches the cluster. Screenshots in [`../docs/evidence/`](../docs/evidence/).
+**It works.** 0.3.3 is on the TCL, installed and version-asserted. The remote
+navigates it, `tvtest` signs in through the platform IME, the library and
+detail screens render, and a film direct-plays with 5.1 intact. Tom confirmed
+the remote on 2026-09-13.
 
-**A film has played, and §1.2 is answered.** On 2026-09-13, 0.3.2 on the TCL:
-*28 Years Later*, `matroska / direct / video copy / audio copy`, running past
-7 minutes, with an **active 6-channel AudioTrack on a positional `0x0000003F`
-mask** — not the `0x8000003F` index mask. **The premise holds: this panel
-direct-plays surround and folds down correctly.** Full reading in §1.2.
+**§1.2 is answered and the premise holds** — `matroska / direct / video copy /
+audio copy`, six channels, positional `0x0000003F`. Full reading and its two
+stated limits in [`COMPLETED.md`](COMPLETED.md) and §1.2 below.
 
-Still unexercised: no watchdog has fired and no failover has happened, so
-every *failover* claim in this file remains unproven.
-
-**The set is running 0.3.2**, installed and version-asserted 2026-09-13.
-Verified on it: the login wall, signing in through the platform IME, D-pad
-navigation, the library, detail pages, Settings, and playback.
-
-**The cluster requires an account**, and signing in **works**. `media_viewer`
-is off `anonymous`, a session mints with `roles: []`, the wall appears, and
-`tvtest` signs in through the platform IME to a full library. Confirmed on the
-set 2026-09-13.
-
-Getting there cost a P0: **the first version of `TvTextInput` bricked the
-remote.** See §1.0.
+**Still never exercised: failover.** No watchdog has fired and no standby has
+been promoted on this set. Every failover claim in this file remains unproven,
+which is the largest block of untested behaviour left.
 
 ### The single next action
 
-When the television answers:
+**Fix the Settings scroll fault (§1.1).** It is small, and it unblocks
+everything diagnostic: the on-screen failure trail is built and shipped and
+*cannot be switched on*, because its toggle sits below the fold where focus
+lands invisibly and the page never scrolls. Every open question below — a
+spurious failover, core's backward-seek eviction, a genuine node fault, a
+session silently re-minting to no roles — is diagnosed from that surface, and
+on a television there is no console to fall back on.
+
+Then, in one device session while the set is up: §1.2's two remaining captures,
+§1.3 decoder instances, §1.4 headers, §1.5 audio focus, and §1.6's unread
+platform-surface findings. They all want the same sitting.
+
+### Getting a build onto the set
 
 ```sh
-cd android && ./gradlew assembleRelease
-```
-
-```sh
+cd android && ./gradlew assembleRelease          # ~4 min cold
 TV=10.34.1.115:5555 ./scripts/verify-on-device.sh install
 ```
 
-The install stage asserts the set is running the APK just built, comparing
-`versionCode` and `versionName` against the artifact. If it refuses, do not
-debug against that install.
-
-Then, in order: sign in through the on-screen keyboard (§1.0), confirm a Down
-press enters the Movies row (§1.1), and start a film for §1.2.
-
-**A credential is needed and this session never had one.** Anonymous has no
-roles, so nothing here can drive an authenticated request — that blocked the
-`MODE_TRANSFORMS` test too (§2.3).
+`npm test` runs `version:check` first, which compares `package.json`,
+`app.json` **and the generated `android/` tree** — bump a version and you must
+`npx expo prebuild --platform android` or it fails. The install stage then
+asserts the device is running the APK just built. If it refuses, do not debug
+against that install.
 
 ### Reaching the device
 
-- The TCL is on `10.34.1.x`, port `5555`. **Its address is DHCP and it moves** —
-  it was `.115`, then `.116`. A moved set and a powered-off set look identical
-  from outside, which cost a wrong conclusion on 2026-09-10.
-- `10.34.1.50` (the site's cluster node, API on `:7438`) is the control for *is
-  the site reachable*, not for which address the set holds. A `401` from
-  `/api/v1/server/info` means the node is alive.
-- **The link to that site is unreliable.** It dropped three times during the
-  2026-09-12 session, twice taking the cluster node with it. Expect to retry;
-  never read a single failure as the set being off.
-- Confirm the device before installing: `getprop ro.product.manufacturer` must
-  say TCL. It is `armeabi-v7a` only.
-- **To find it when the address has moved**, sweep and then try adb:
-
-  ```sh
-  for i in $(seq 100 140); do (ping -c 1 -W 900 10.34.1.$i >/dev/null 2>&1 \
-    && echo "10.34.1.$i alive") & done; wait
-  ```
-
-  On 2026-09-13 that found `.103`, `.115` and `.132` alive; `.103` and `.132`
-  actively refused `5555` so they are other devices, and `.115` timed out rather
-  than refusing — which is the shape of the set with adb not yet listening, or
-  of the link dropping mid-attempt. Unresolved: the site went down again during
-  the check.
-- The set's screensaver takes the foreground while idling. Wake, foreground the
-  app and act in one pass rather than leaving gaps.
+- The TCL answered all of 2026-09-13 at **`10.34.1.115:5555`**, already
+  adb-connected. Its address is DHCP and has moved before (`.115` → `.116`).
+- `getprop ro.product.manufacturer` must say **TCL**; it is `armeabi-v7a` only.
+  A Blackview phone also appears on adb — that is the phone client's device,
+  not this one.
+- The set reaches its cluster node in **0.65 ms**; the laptop's link to the
+  site is the unreliable half and dropped once mid-session. A slow or failed
+  adb call says nothing about the set's own health.
+- **`com.tcl.esticker`** — TCL's in-store demo overlay — took the foreground
+  after ~52 minutes idle and drew over everything. Disabled with
+  `pm disable-user --user 0 com.tcl.esticker`; reverse with
+  `pm enable com.tcl.esticker`. It matters beyond tidiness: if it steals the
+  foreground mid-film, `AppState` goes background and
+  `usePlaybackRuntime` fires `terminateForPageExit()`, killing the session.
+- **Driving the set over adb has two traps.** Back sent when no IME is open
+  exits the app, and `com.tcl.tv` is `FLAG_SECURE` so `screencap` then returns
+  an empty file. And pressing faster than ~2 s during a row scroll scores focus
+  against stale `measureInWindow` rects.
+- The screensaver takes the foreground while idling. Wake, foreground the app
+  and act in one pass.
 
 ### Two standing rules
 
-- **Take everything possible from `@macha/core`.** Anything that is not
-  presentation is already in the NPM module and is to be consumed rather than
-  rewritten. Where this list names a gap, it also names what core provides.
+- **Take everything possible from `@machafoundation/core`.** Anything that is
+  not presentation is already in the NPM module and is to be consumed rather
+  than rewritten. Note this repo installs it under the alias `@macha/core`
+  (`file:../macha-ts`), so imports read `@macha/core` and are correct as
+  written — core has asked Tom whether to align the alias.
 - **Claims about other codebases get read, not remembered.** Every cross-repo
-  assertion here has been wrong at least once — see `COMPLETED.md`. Open the
-  peer before writing "only", "never" or "nowhere else".
+  assertion here has been wrong at least once — including two of this
+  session's, listed in `COMPLETED.md`. Open the peer before writing "only",
+  "never" or "nowhere else".
 
----
+## 1. On the television
 
-## 1. Blocked on the television
+**The set is no longer the blocker.** It runs 0.3.3, navigates, signs in and
+plays. What is left here is measurement and three faults found by using it.
+The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
+verification and the 5.1 measurement — are in
+[`COMPLETED.md`](COMPLETED.md).
 
-Ordered by consequence. Nothing here moves until the set answers, and §1.1
-gates the rest because everything else needs a navigable app.
+### 1.1 Three navigation faults found on hardware
 
-### 1.0 Sign in through the on-screen keyboard — done 2026-09-13
+None of these is fixed. The first is ahead of everything else in this file.
 
-**Works, and finding out cost a P0.** `tvtest` signs in through the platform
-IME to a full library. Typing, the focus suspension, and the return to
-navigation are all exercised on hardware.
-
-**The P0, because it will be tempting to write this code again.** `TvTextInput`
-took a `tvFocus.suspend()` on `TextInput.onFocus` and released it on `onBlur`.
-On Android TV **`onBlur` never fires**: the leanback IME closes as its own
-window while the `ReactEditText` underneath keeps native focus. Measured on the
-set: `mInputShown=false` with `mServedView` still pointing at the field. So the
-suspension was held for the life of the process, `useTvNavigation` returned
-early on every key, and **after typing once the D-pad did nothing at all** — on
-a screen whose only other control is a second text field. Nothing on screen
-said why; only restarting the app cleared it.
-
-Fixed in 0.3.1, three ways, because the consequence is out of all proportion to
-the cause:
-
-- release on `keyboardDidHide` and blur the field, since `onBlur` will not come;
-- release on unmount — the token lives in a ref, so nothing else can ever reach it;
-- **a backstop in the key path**: if the registry is suspended while
-  `Keyboard.isVisible()` is false, the suspension is stale, so `resumeAll()`
-  clears it and the key is handled. Reference counting cannot recover from a
-  lost token by construction, and the failure is a television whose remote has
-  stopped working.
-
-Still unverified: **Back from the login returning from Settings**, and **that an
-unreachable cluster shows the offline screen and not the wall.** The second is
-still the one worth causing deliberately.
-
-### 1.1 D-pad navigation — done 2026-09-13
-
-**The ported scorer has now chosen candidates on this panel.** Down enters the
-Movies row, Up returns to the nav bar, Left/Right move along both, the row
-scrolls the focused card into view, and the player controls take focus. Tom
-confirms the physical remote navigates the set.
-
-**A second focus defect was found and fixed on the way** (0.3.2), separate from
-§1.0's. `tvFocus.handle()` asked `current()` for a fallback when `selectedId`
-named nothing reachable — after a scope change, or after the screen owning the
-selection unmounted — then computed the move *from* that fallback without ever
-selecting it. So a direction with a candidate silently skipped the first
-element, and **a direction with no candidate returned false, leaving the screen
-with no selection and no focus ring at all.** Reproduced on the library after
-Back from a detail page: no ring anywhere, Up doing nothing however many times
-it was pressed. The first press now reveals focus; the second moves it.
-
-**Three navigation faults remain open**, all found on the set and none fixed:
-
-- **Settings has no focus-follows-scroll.** The Diagnostics toggle sits below
-  the fold; focus moves to it invisibly, the page never scrolls, and Down and
-  centre then appear dead. The only escapes are Up and Back. `MediaRow` wires
-  `onFocusChange` to scroll and this screen does not — which is why **the
-  failure trail could not be switched on during the first playback session.**
+- **Settings has no focus-follows-scroll, and it makes the failure trail
+  unreachable.** The Diagnostics toggle sits below the fold; focus moves to it
+  invisibly, the page never scrolls, and Down and centre then appear dead — the
+  only escapes are Up and Back. So the on-screen failure trail is **built,
+  shipped and impossible to switch on**, which is why §1.2 ran without it.
+  `MediaRow` already does the right thing by wiring `onFocusChange` to scroll
+  the focused item into view; `SettingsScreen` does not.
 - **The nav bar does not trap horizontal movement at its ends.** Right from
   "Settings" escapes into the poster row, because a card further right still
   scores as a valid candidate. Left from "Home" presumably does the same.
 - **Back from a top-level screen exits the app** rather than returning to the
-  previous route. Conventional on Android TV, but it means a stray Back during
-  a test session drops out to the launcher — and `com.tcl.tv` is `FLAG_SECURE`,
-  so screenshots silently come back empty when it does.
+  previous route. Conventional on Android TV, so possibly correct — but it
+  means a stray Back drops out to the launcher, and `com.tcl.tv` is
+  `FLAG_SECURE`, so screenshots silently return empty when it does. Worth a
+  decision rather than a fix.
 
-### 1.2 The 5.1 downmix measurement — ANSWERED 2026-09-13
+### 1.2 Close out the 5.1 measurement
 
-**The premise holds.** *28 Years Later* on the TCL, 0.3.2, direct-played:
+§1.2 is answered and the answer is good — direct play, six channels, positional
+`0x0000003F`. Two gaps remain, both cheap and both wanting the same session:
 
-```
-matroska / direct / video copy / audio copy      (the node's own per-stream answer)
-
-Id 75  Active=yes  Client=2108  Chn mask=0000003F  SRate=48000  FrmRdy=21560  Underruns=0
-Channel count: 6
-Channel mask: 0x0000003f (front-left, front-right, front-center, low freq, back-left, back-right)
-```
-
-PID 2108 is `foundation.macha.client.tv`, so the active track is ours.
-
-Against the three criteria fixed in advance:
-
-| # | Criterion | Result |
-| --- | --- | --- |
-| 1 | platform E-AC-3/AC-3 decoder, not AAC | **inferred, not directly observed** |
-| 2 | 6 channels reaching AudioTrack | **confirmed** |
-| 3 | positional mask, not `0x8000003F` | **confirmed — `0x0000003F`** |
-
-**Criterion 1 is honestly weaker than the other two and should be closed
-properly.** `dumpsys media.codec` returned nothing and logcat had rotated, so
-the instantiated decoder's *name* was never captured. What is known: audio is
-`copy`, so nothing was re-encoded to AAC; six channels reach AudioTrack; and
-the panel carries `OMX.realtek.audio.dolby.eac3.decoder` and
-`OMX.realtek.audio.dolby.ac3.decoder`. Consistent with one story only, but
-inference. Catch the decoder name on the next session.
-
-**A prediction made from the capability panel did not come true, and the
-reasoning is worth keeping.** `HLS AUDIO: aac` (§1.6) says the HLS delivery
-path advertises AAC alone, so any surround title going over HLS *will* be
-transcoded. That remains true — it simply did not apply, because the chooser
-picked `direct` with a Matroska container and never went near HLS. The concern
-is real for the HLS path and was stated too strongly as a prediction about this
-title.
-
-Owed to: the NPM session, the site session, and this repo's README premise.
-**The answer is the good one** — a clean positional mask, so the set folds down
-correctly and this client direct-played it.
+- **Criterion 1 is inferred, not observed.** The instantiated decoder's *name*
+  was never captured — `dumpsys media.codec` was empty and logcat had rotated.
+  Catch `OMX.realtek.audio.dolby.eac3.decoder` actually in use.
+- **Whether the panel renders six discrete channels downstream is unproven.**
+  The reading was taken at the AudioTrack and mixer layer, not at the HAL
+  output, and the same dump showed a `Multichannel Downmix To Stereo` effect
+  present in the system. Core has a P1 resting on this distinction
+  (*"speaker layout is not a concept core has"*), so capture the HAL output
+  configuration and the effect chain on the active track.
 
 ### 1.3 Decoder instance limits
 
@@ -237,44 +159,30 @@ tracks this across all four clients.
 
 ### 1.5 Confirm audio focus on hardware
 
-**This item inverted when §2.0 landed.** It used to read "confirm media3 keeps
-ducking as a separate multiplier". We are now *on* `expo-video`, so the thing to
-measure is its known-worse behaviour: `AudioFocusManager.kt:205` halves
-`player.volume` on a transient duck and restores from its own `userVolume`. The
-question is whether repeated ducks compound on this set, and whether a restore
-is ever missed — which would leave a viewer at half volume with no way to tell
-why.
+We are on `expo-video`, so the thing to measure is its known-worse behaviour:
+`AudioFocusManager.kt:205` halves `player.volume` on a transient duck and
+restores from its own `userVolume`. The question is whether repeated ducks
+compound on this set, and whether a restore is ever missed — which would leave
+a viewer at half volume with no way to tell why.
 
-The phone session was told the *old* claim, flagged as unconfirmed. It is no
-longer this client's position and they should be told so.
+Now cheap to test: a film plays, and volume and mute are in the transport
+overlay.
 
-### 1.6 First real output from the platform-surface probe — partly done
+### 1.6 Read the platform-surface findings
 
-**The capability panel has produced real numbers from this panel** (Settings,
-0.3.2, 2026-09-13):
+The capability half is done and recorded in `COMPLETED.md` — including the line
+that matters, **`HLS AUDIO: aac`**: this panel decodes `eac3` and `ac4`
+natively, but we advertise AAC alone for HLS, so any title the chooser sends
+over HLS has its surround transcoded while a direct Matroska keeps it.
+Whether that narrowing is correct is `MachaPlayerModule.kt`'s claim that
+ExoPlayer's HLS path is narrower than its progressive extractors — now worth
+testing rather than trusting, because it decides transcode-or-not for every HLS
+title.
 
-```
-VIDEO       av1, h263, h264, hevc, mpeg2, mpeg4, vp8, vp9
-AUDIO       aac, ac3, ac4, amrnb, amrwb, eac3, flac, mp3, opus, pcm, vorbis
-CONTAINERS  mp4, m4v, mov, mkv, matroska, webm, avi, ts, mpegts, ps, mp3, m4a,
-            aac, wav, flac, ogg, oga, opus
-HLS VIDEO   h264, hevc
-HLS AUDIO   aac
-```
-
-**`HLS AUDIO: aac` is the line that matters.** The panel decodes `eac3` and
-`ac4` natively on the progressive path, but we advertise AAC alone for HLS
-delivery — so any title the chooser sends over HLS will have its surround
-transcoded, while a direct Matroska keeps it (§1.2). Whether that narrowing is
-correct is `MachaPlayerModule.kt`'s claim that ExoPlayer's HLS path is narrower
-than its progressive extractors; it is now worth testing rather than trusting,
-because it decides transcode-or-not for every HLS title.
-
-**Still not read: the `checkPlatformSurface` findings themselves.** The Settings
-screen renders them below the capability block, and they were never reached —
-see §1.1's scroll fault. The three `titleIndex` probes core added on this
-client's prompt are in that block, so §4.3's `AlphabetIndex` still has no
-runtime evidence behind it.
+**Still unread: `checkPlatformSurface`'s own findings.** They render below the
+capability block on the Settings screen and were never reached — see §1.1.
+The three `titleIndex` probes core added on this client's prompt are in that
+block, so §4.3's `AlphabetIndex` still has no runtime evidence behind it.
 
 ## 2. Player work
 
@@ -408,15 +316,15 @@ raised its severity on that basis: a D-pad *is* the seek affordance —
 this client generates backward seeks as ordinary viewing. Web and phone have
 scrubbers people touch rarely.
 
-### 2.3 Player options — done 2026-09-13
+### 2.3 Player options — done, and now exercised
 
-Mode, quality, audio track, subtitle track and source switching, in a panel with
-its own focus scope. Back closes the panel before the player.
+Mode, quality, audio track, subtitle track and source switching, in a panel
+with its own focus scope. Back closes the panel before the player.
 
-**Unverified on hardware**, and worth exercising during §1.2: forcing a mode by
-hand is how a downmix gets isolated, and the instruction notes under the mode
-row are the only place on a television where a silently-transcoding library can
-show itself.
+The panel was not opened during the 2026-09-13 playback session, so its
+contents are still unseen on hardware — but the transport overlay's stream
+lines were, and they are what answered §1.2. Forcing a mode by hand is still
+how a downmix would be isolated if the direct path ever stops being chosen.
 
 ### 2.4 Optional `Player` methods
 
@@ -514,20 +422,38 @@ just not silent byte-level failover.
 
 ### 3.2 Is the GitHub repository public?
 
-Pushed to `git@github.com:tomdionysus/macha-client-rn-android-tv.git`.
-**Visibility still unconfirmed** — `gh` is not available here to check.
+Pushed to `git@github.com:tomdionysus/macha-client-rn-android-tv.git`, and
+`main`, `develop` and tags `0.1.0`–`0.3.3` are all on the remote as of
+2026-09-13. **Visibility still unconfirmed** — `gh` is not available here.
 
 It matters because the site session has published that this repo is not
-fetchable, with `macha-ts` and `macha-client` as precedent. If it is public that
-sentence is now wrong, and it is Macha UI Work's to correct rather than ours.
-
-**Pushing is Tom's, never this session's.** Commit locally and hand over the
-commands.
+fetchable, with `macha-ts` and `macha-client` as precedent. If it is public
+that sentence is now wrong, and it is Macha UI Work's to correct rather than
+ours. Loading the URL while signed out answers it in a second.
 
 ### 3.3 Are `/manage`, `/manage/files` and `/items/:id/edit` TV work at all?
 
 The two remaining **decide** rows in §4.1. A 10-foot UI is a poor place to retag
 a film. `/ingest` and `/sponsor` are already ruled out (Tom, 2026-09-10).
+
+---
+
+### 3.4 The `@macha/core` import alias
+
+`package.json` declares `"@macha/core": "file:../macha-ts"` while the package
+is really `@machafoundation/core`. Every import in this tree reads
+`@macha/core` and resolves correctly, so **this is not a defect** — it is a
+local alias. But the web client uses a different one, and core has asked Tom
+whether to align them. Changing it means a `package.json` edit plus a
+reinstall with a lockfile consequence, so it is one decision rather than two
+tidy-ups.
+
+### 3.5 Is Back from a top-level screen meant to exit the app?
+
+It does today (§1.1). That is conventional Android TV behaviour, so it may be
+correct — but combined with §1.0's requirement that Settings stay reachable
+from behind the login wall, it is worth stating deliberately rather than
+inheriting.
 
 ---
 
@@ -592,12 +518,15 @@ Missing:
   left and right while focused, as the scrubber does, since a D-pad is the only
   input and a separate slider would be two controls where one will do.
 - **Mini player** and its minimise/expand pair.
-- ~~**Failure trail**~~ — **done 2026-09-13**. `screens/player/failureTrail.ts`
-  prints the last dozen warnings and errors under the failure message on the
-  player. Off by default; the switch is the first editable control on the
-  Settings screen. This client had never called core's `createClientLogger` at
-  all, so the buffer it reads had to be wired too
-  (`diagnostics/playbackLog.ts`, configured at `warn`).
+- ~~**Failure trail**~~ — **built 2026-09-13, and currently unreachable.**
+  `screens/player/failureTrail.ts` prints the last dozen warnings and errors
+  under the failure message. Off by default; the switch is the first editable
+  control on the Settings screen — **and that screen cannot scroll to it**
+  (§1.1). The buffer it reads had to be wired too
+  (`diagnostics/playbackLog.ts`, at `warn`), since this client had never
+  called core's `createClientLogger` at all. Note `console` is `__DEV__`-only,
+  so in a release build the trail is the *only* way to read that buffer:
+  `verify-on-device.sh logs` greps `ReactNativeJS` and will show nothing.
 - **Seek acceleration** (`screens/player/seekAcceleration.ts`) — the native key
   bridge already passes `repeatCount` through, so the input side is done.
 
@@ -640,7 +569,7 @@ Missing: **`useArtworkUrl`** / **`useViewportArtworkUrl`** / **`artworkViewport`
 *for* is now covered differently; see §4.3), and **`usePollingTask`** (7 — the
 status screens need it).
 
-### 4.5 Core stores — 3 constructed, 1 wired
+### 4.5 Stores — one wired, one dead, one now ours
 
 `ContinueWatchingStore` is used. `PlaybackQueueStore` is constructed and never
 read (§2.5). `MusicPlaylistStore` is **not constructed at all**, is superseded
