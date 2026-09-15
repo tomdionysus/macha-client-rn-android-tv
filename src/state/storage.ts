@@ -12,7 +12,46 @@ import type { StorageLike } from '@machafoundation/core';
  * through a serialized chain.
  */
 
-const KEY_PREFIX = 'macha.';
+/**
+ * Which keys the startup hydrate must load.
+ *
+ * **Both of core's conventions, deliberately.** Core names state stores with a
+ * dotted `macha.<name>.v<n>` and its runtime and cluster layers with a
+ * hyphenated `macha-<name>`; `MACHA_STORAGE_KEY_PREFIXES` lists both. This
+ * filter was `macha.` alone, which is one convention exactly and the other not
+ * at all — the same filter, and the same fault, core's `storageKeys.ts`
+ * attributes to the phone client.
+ *
+ * **What it cost here is worse than a missing value.** `macha-client-id` is
+ * hyphenated, so it was written on every launch and never read back;
+ * `MachaClientConfiguration.clientId()` cannot tell an unhydrated key from an
+ * absent one and mints a fresh id. Every per-client store — Continue Watching,
+ * volume, playlists, the playback queue — is keyed `…v1.<clientId>`, so those
+ * keys hydrated correctly and were then read under an identity that changed
+ * every cold start. The endpoint registry, the bandwidth evidence the routing
+ * cascade ranks on, and this client's own failure-trail setting went the same
+ * way.
+ *
+ * **A caching host has an obligation a read-through host does not.** Core's
+ * `StorageLike` is synchronous, so on React Native the store must be hydrated
+ * into memory before core reads anything — and core's read-time migrations
+ * (`macha-client-progress:` adopted when the current Continue Watching key is
+ * empty, `macha-server-url` folded into the endpoint list) ask for keys that
+ * a narrow filter never loaded. Core reads `null` and concludes "absent", so
+ * the migration silently does not run. Anything core may read has to be here,
+ * not merely anything core currently writes.
+ *
+ * `isMachaStorageKey` is not sufficient on its own: it answers "is this one of
+ * core's", and `macha-playback-failure-trail-v1` is ours. Matching the bare
+ * word covers both conventions, every key either side owns, and any key added
+ * later — which is the point, since the failure mode is silent.
+ */
+const KEY_PREFIX = 'macha';
+
+/** Exported for the test that pins this against core's own registry. */
+export function shouldHydrate(key: string): boolean {
+  return key.startsWith(KEY_PREFIX);
+}
 
 let cache = new Map<string, string>();
 let hydrated = false;
@@ -29,7 +68,7 @@ let writes: Promise<unknown> = Promise.resolve();
 export async function hydrateStorage(): Promise<void> {
   if (hydrated) return;
   try {
-    const keys = (await AsyncStorage.getAllKeys()).filter((key) => key.startsWith(KEY_PREFIX));
+    const keys = (await AsyncStorage.getAllKeys()).filter(shouldHydrate);
     const entries = keys.length > 0 ? await AsyncStorage.multiGet(keys) : [];
     cache = new Map(entries.filter((entry): entry is [string, string] => entry[1] !== null));
   } catch {
