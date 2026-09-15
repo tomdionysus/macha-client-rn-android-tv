@@ -1,4 +1,4 @@
-import { probeHlsReadiness, type PlaybackSource } from '@macha/core';
+import { probeHlsReadiness, type PlaybackSource } from '@machafoundation/core';
 import {
   FIRST_FRAGMENT_TIMEOUT_MS,
   HOLD_RETRY_BASE_MS,

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Image, type ImageStyle } from 'expo-image';
-import type { ArtworkRef, MediaApi } from '@macha/core';
+import type { ArtworkRef, MediaApi } from '@machafoundation/core';
 import { artworkSources, forgetArtworkUrl, rememberArtworkUrl } from './artworkSources';
 
 /**

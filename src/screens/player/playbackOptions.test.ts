@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaybackInstructionReport, PlaybackStreamInfo } from '@macha/core';
+import type { PlaybackInstructionReport, PlaybackStreamInfo } from '@machafoundation/core';
 import {
   assumptionNote,
   audioProcessingNote,

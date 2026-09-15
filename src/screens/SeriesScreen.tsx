@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { Episode, MediaApi, MediaSummary, SeasonDetails, ShowDetails } from '@macha/core';
+import type { Episode, MediaApi, MediaSummary, SeasonDetails, ShowDetails } from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaRow } from '../components/MediaRow';

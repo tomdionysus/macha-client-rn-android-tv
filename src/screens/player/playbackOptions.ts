@@ -4,7 +4,7 @@ import type {
   PlaybackMode,
   PlaybackStreamInfo,
   PlaybackTransform,
-} from '@macha/core';
+} from '@machafoundation/core';
 
 /**
  * The rules behind the options panel, separated from the panel itself.

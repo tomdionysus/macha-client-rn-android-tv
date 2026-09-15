@@ -1,4 +1,4 @@
-import { machaHost, type ReadWriteStorageLike } from '@macha/core';
+import { machaHost, type ReadWriteStorageLike } from '@machafoundation/core';
 
 /**
  * Where the volume level is remembered, copied out of core.

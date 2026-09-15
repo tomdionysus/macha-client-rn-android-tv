@@ -9,7 +9,7 @@ import {
   type PlaybackSource,
   type PlaybackTimeRange,
   type Player,
-} from '@macha/core';
+} from '@machafoundation/core';
 import { MachaPlayer, type NativePlaybackEvent } from '../../modules/macha-player';
 import { createWatchdogEnvironment } from './watchdogEnvironment';
 

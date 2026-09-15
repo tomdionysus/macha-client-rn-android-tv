@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { MEDIA_STALL_TIMEOUT_MS, playbackFailureKindForStatus } from '@macha/core';
+import { MEDIA_STALL_TIMEOUT_MS, playbackFailureKindForStatus } from '@machafoundation/core';
 import {
   FRAGMENT_READ_TIMEOUT_MS,
   HOLD_RETRY_BASE_MS,

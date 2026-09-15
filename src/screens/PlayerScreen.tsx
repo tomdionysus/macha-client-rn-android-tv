@@ -5,7 +5,7 @@ import {
   type MediaSummary,
   type PlaybackCoordinatorSnapshot,
   type PlaybackRuntime,
-} from '@macha/core';
+} from '@machafoundation/core';
 import { VideoView } from 'expo-video';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';

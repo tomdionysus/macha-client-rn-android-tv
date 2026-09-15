@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlaybackRuntime } from '@macha/core';
+import type { PlaybackRuntime } from '@machafoundation/core';
 import type { VolumeStore } from '../state/volumeStore';
 import {
   adjustVolume,

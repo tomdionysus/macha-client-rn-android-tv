@@ -1,4 +1,4 @@
-import type { ArtworkRef, MediaApi } from '@macha/core';
+import type { ArtworkRef, MediaApi } from '@machafoundation/core';
 
 /**
  * Where artwork can be loaded from, and what has already loaded.

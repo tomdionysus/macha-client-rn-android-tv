@@ -9,7 +9,7 @@ music, search, status or endpoint editing here yet; ingest and the sponsor page
 are deliberately not planned for a television.
 
 Everything that is not presentation is shared with the other clients through
-[`@macha/core`](../macha-ts), and the remaining gap is almost entirely
+[`@machafoundation/core`](https://www.npmjs.com/package/@machafoundation/core), and the remaining gap is almost entirely
 presentation: core already ships the search, music, status and alphabet-index
 logic those screens would sit on.
 [`TODO/ACTIVE.md`](TODO/ACTIVE.md) §4 is the complete parity list.
@@ -28,7 +28,7 @@ distinction most easily got wrong:
 
 | Repo | What it is | Owns |
 | --- | --- | --- |
-| `macha-ts` | `@macha/core` — API, cluster routing, playback coordination, client state | the shared brain |
+| `macha-ts` | `@machafoundation/core` — API, cluster routing, playback coordination, client state | the shared brain |
 | `macha-client` | React web client; also the **Samsung/Tizen** TV app | web + Samsung |
 | `macha-client-rn` | React Native **phone** app | iOS/Android handsets |
 | **`macha-client-rn-tv`** | **this** — React Native **Android TV** | the TCL set |
@@ -79,7 +79,7 @@ anyone to look.
 
 ```
 PlaybackRuntime ── PlaybackCoordinator ── ExoPlayerAdapter ── MachaPlayer ── ExoPlayer
-   (@macha/core)       (@macha/core)        (src/player)      (modules/, Kotlin)
+     (core)              (core)             (src/player)      (modules/, Kotlin)
 ```
 
 **Playback goes through `PlaybackCoordinator`.** Nothing here drives
@@ -180,17 +180,19 @@ Two things that will catch you:
   changes belong in `plugins/withAndroidTvOnly.js` or they vanish on the next
   prebuild — and a plugin added without re-running prebuild silently does
   nothing.
-- **`@macha/core` is a `file:` link and npm will not build it for you.** A stale
-  `dist/` typechecks green and fails at runtime. `npm test` runs core's
-  `dist:check` first to catch it; that check cannot see src that is ahead of its
-  last build, so run `cd ../macha-ts && npm run build` after changing core.
+- **`@machafoundation/core` installs from the registry, not from a sibling
+  checkout.** There is no `file:` link and no `npm link`: the development cycle
+  is deliberately the one a user gets on install, so a local `../macha-ts` has
+  no effect on what this tree compiles against. When core needs this client's
+  eyes on an unreleased change it publishes a prerelease — `npm install
+  @machafoundation/core@next` — rather than being linked in.
 
 ## Checks
 
 ```sh
 npm run typecheck
 npm test                              # focus parity, timing-budget guards
-npx expo export --platform android    # proves @macha/core bundles through Metro
+npx expo export --platform android    # proves core bundles through Metro
 ```
 
 The export is not redundant with the typecheck: it is what proves core's ESM

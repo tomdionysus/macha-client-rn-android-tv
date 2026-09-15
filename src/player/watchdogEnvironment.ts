@@ -1,5 +1,5 @@
 import { AppState } from 'react-native';
-import type { MediaWatchdogEnvironment } from '@macha/core';
+import type { MediaWatchdogEnvironment } from '@machafoundation/core';
 
 /**
  * The host bindings core's media watchdogs need.

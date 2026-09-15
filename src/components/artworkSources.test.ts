@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ArtworkRef, MediaApi } from '@macha/core';
+import type { ArtworkRef, MediaApi } from '@machafoundation/core';
 import {
   artworkSources,
   forgetArtworkUrl,

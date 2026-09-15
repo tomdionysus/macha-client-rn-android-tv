@@ -4,7 +4,7 @@ import {
   sessionManager,
   type SessionMintFailure,
   type UserRole,
-} from '@macha/core';
+} from '@machafoundation/core';
 
 /**
  * Whether this client may be used, and if not, which of the several reasons.

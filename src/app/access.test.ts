@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SessionMintFailure } from '@macha/core';
+import type { SessionMintFailure } from '@machafoundation/core';
 import { accessState } from './access';
 
 const refused: SessionMintFailure = {

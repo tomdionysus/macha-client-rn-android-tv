@@ -1,4 +1,4 @@
-import type { Platform, PlaybackCapabilities, Player } from '@macha/core';
+import type { Platform, PlaybackCapabilities, Player } from '@machafoundation/core';
 import { BackHandler } from 'react-native';
 import type { VideoPlayer } from 'expo-video';
 import { MachaPlayer, type NativeDecoder } from '../../modules/macha-player';

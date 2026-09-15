@@ -5,7 +5,7 @@ import type {
   PlaybackSession,
   PlaybackInstructionReport,
   PlaybackUpdate,
-} from '@macha/core';
+} from '@machafoundation/core';
 import { Focusable } from '../../components/Focusable';
 import { colour, font, radius, rem, type } from '../../styles/theme';
 import {

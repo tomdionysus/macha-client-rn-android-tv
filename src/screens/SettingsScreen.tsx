@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { checkPlatformSurface, type PlaybackCapabilities } from '@macha/core';
+import { checkPlatformSurface, type PlaybackCapabilities } from '@machafoundation/core';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { getBootstrapEndpoints, getDiscoveredEndpoints } from '../state/client';
 import { Focusable } from '../components/Focusable';

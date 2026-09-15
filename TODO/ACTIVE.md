@@ -76,9 +76,8 @@ against that install.
 
 - **Take everything possible from `@machafoundation/core`.** Anything that is
   not presentation is already in the NPM module and is to be consumed rather
-  than rewritten. Note this repo installs it under the alias `@macha/core`
-  (`file:../macha-ts`), so imports read `@macha/core` and are correct as
-  written — core has asked Tom whether to align the alias.
+  than rewritten. It installs from the registry under its real name; there is
+  no alias and no local link, so imports read `@machafoundation/core`.
 - **Claims about other codebases get read, not remembered.** Every cross-repo
   assertion here has been wrong at least once — including two of this
   session's, listed in `COMPLETED.md`. Open the peer before writing "only",
@@ -438,15 +437,33 @@ a film. `/ingest` and `/sponsor` are already ruled out (Tom, 2026-09-10).
 
 ---
 
-### 3.4 The `@macha/core` import alias
+### 3.4 The `@macha/core` import alias — **done, 2026-09-15**
 
-`package.json` declares `"@macha/core": "file:../macha-ts"` while the package
-is really `@machafoundation/core`. Every import in this tree reads
-`@macha/core` and resolves correctly, so **this is not a defect** — it is a
-local alias. But the web client uses a different one, and core has asked Tom
-whether to align them. Changing it means a `package.json` edit plus a
-reinstall with a lockfile consequence, so it is one decision rather than two
-tidy-ups.
+Renamed to `@machafoundation/core@^0.11.1`, resolved from the registry, with
+the `file:../macha-ts` link and the `npm link` option both removed: the
+development cycle is now what a user gets on install (Tom's decision).
+
+The judgement recorded here before — *"this is not a defect"* — was wrong, and
+for a reason worth keeping. The `@macha` scope is **unclaimed on npm**: the
+old key resolved only because its value was a `file:` path. Anyone could have
+registered the scope and published `core` into it, and any install that lost
+the override — a regenerated lockfile, CI, a teammate without the sibling
+checkout — would have fetched a stranger's package and run its install
+scripts. A 404 was the only thing preventing it. An alias that is safe only
+while nobody else claims the name is not a tidy-up.
+
+Two things this cost, both recorded because a green check hid them:
+
+- The lockfile cached the link at **version `0.7.0`** while `../macha-ts` on
+  disk was `0.11.1`. Neither a version string nor a green suite proves what is
+  installed; only the `resolved` URL and an integrity hash do.
+- `pretest` ran core's `dist:check` against a sibling tree. Dropped — it
+  answered a question about a directory this tree no longer compiles against.
+  `version:check` is ours and stays.
+
+Verified by fresh clone with no sibling `macha-ts`, `npm ci`, typecheck, 159
+tests, and `expo export` — the last because Metro resolving core's ESM through
+its `exports` map had only ever been exercised through a link.
 
 ### 3.5 Is Back from a top-level screen meant to exit the app?
 
@@ -467,7 +484,7 @@ less the `*` catch-all and the two pure redirects, so **28 real destinations**.
 **Two rules govern everything below.**
 
 1. **Take it from the NPM module.** Anything not presentation is already in
-   `@macha/core` and must be consumed, not rewritten.
+   `@machafoundation/core` and must be consumed, not rewritten.
 2. **Presentation is the only thing genuinely missing.** There is **no gap below
    that needs a new data layer.** Search, music, status, alphabet jumping and
    endpoint editing all have their logic shipped and tested in core; what is

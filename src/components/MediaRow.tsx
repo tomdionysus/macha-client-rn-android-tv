@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { MediaSummary } from '@macha/core';
+import type { MediaSummary } from '@machafoundation/core';
 import { MediaCard } from './MediaCard';
 import { colour, font, layout, pageGutter, rem, type } from '../styles/theme';
 

@@ -17,7 +17,7 @@ promotion live in the coordinator, and a host that bypasses it silently loses
 all three — that is the mistake the phone client made, and it is why
 coordinator-internal fixes reach three of the four clients and miss one.
 
-**Do not reimplement anything in `@macha/core`.** API families, endpoint routing
+**Do not reimplement anything in `@machafoundation/core`.** API families, endpoint routing
 and health, playback resolution, Continue Watching, playlists, volume, sorting
 and title indexing are all there. If something seems missing, ask the session
 that owns `macha-ts` before writing a local version.
@@ -66,10 +66,11 @@ and the fix that mattered came from a log rather than from reasoning.
   `plugins/withAndroidTvOnly.js`.
 - `react-native` is an alias for `react-native-tvos`; its prerelease version
   fails peer ranges, hence `legacy-peer-deps` in `.npmrc`.
-- **`@macha/core` is a `file:` link and npm will not rebuild it for you.** A
-  stale `dist/` typechecks green and fails at runtime — and `dist:check` cannot
-  see src that is ahead of its last build. Run `cd ../macha-ts && npm run build`
-  after changing core.
+- **`@machafoundation/core` comes from the registry.** No `file:` link, no
+  `npm link`, and a local `../macha-ts` checkout does not feed this tree — the
+  cycle is deliberately what a user sees on install. The stale-`dist` class of
+  fault is gone with it. For an unreleased core change, core publishes under a
+  dist-tag: `npm install @machafoundation/core@next`.
 - Expo's synchronous `Function` has no `runOnQueue`; only `AsyncFunction` does.
   `PlayerEngine` marshals onto ExoPlayer's looper itself.
 

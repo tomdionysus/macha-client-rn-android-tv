@@ -11,11 +11,11 @@
     "prebuild": "expo prebuild --platform android",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "pretest": "npm run version:check && cd ../macha-ts && npm run dist:check",
+    "pretest": "npm run version:check",
     "version:check": "node scripts/version-check.mjs"
   },
   "dependencies": {
-    "@macha/core": "file:../macha-ts",
+    "@machafoundation/core": "^0.11.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.20",
     "expo-build-properties": "~57.0.17",

@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { MachaClientConfiguration } from '@macha/core';
+import { MachaClientConfiguration } from '@machafoundation/core';
 
 /**
  * This build's binding of the core's client configuration.

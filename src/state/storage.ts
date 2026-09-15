@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { StorageLike } from '@macha/core';
+import type { StorageLike } from '@machafoundation/core';
 
 /**
  * `AsyncStorage` behind the core's synchronous `StorageLike`.

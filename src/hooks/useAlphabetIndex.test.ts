@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { sortMediaByIndexedTitle, type MediaSummary } from '@macha/core';
+import { sortMediaByIndexedTitle, type MediaSummary } from '@machafoundation/core';
 import { firstMediaIdByKey, mediaFocusId } from './useAlphabetIndex';
 import { tvFocus } from './tvFocus';
 

@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { sortMediaByIndexedTitle, type MediaApi, type MediaSummary } from '@macha/core';
+import { sortMediaByIndexedTitle, type MediaApi, type MediaSummary } from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaCard } from '../components/MediaCard';

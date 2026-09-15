@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { errorMessage } from '@macha/core';
+import { errorMessage } from '@machafoundation/core';
 import { Focusable } from '../components/Focusable';
 import { TvTextInput } from '../components/TvTextInput';
 import { tvFocus } from '../hooks/tvFocus';

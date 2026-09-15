@@ -1,4 +1,4 @@
-import { configureClientDiagnostics, createClientLogger } from '@macha/core';
+import { configureClientDiagnostics, createClientLogger } from '@machafoundation/core';
 
 /**
  * The diagnostics buffer this client had, unread, until now.

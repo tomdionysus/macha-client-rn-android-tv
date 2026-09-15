@@ -10,7 +10,7 @@ import {
   ContinueWatchingStore,
   PlaybackQueueStore,
   type MachaServices,
-} from '@macha/core';
+} from '@machafoundation/core';
 import {
   clientConfiguration,
   getBootstrapEndpoints,

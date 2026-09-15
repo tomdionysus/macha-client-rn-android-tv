@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { MediaSummary } from '@macha/core';
+import type { MediaSummary } from '@machafoundation/core';
 import { Focusable } from '../components/Focusable';
 import { clamp, colour, font, pageGutter, radius, rem, type, vw } from '../styles/theme';
 

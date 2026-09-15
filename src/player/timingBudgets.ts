@@ -1,4 +1,4 @@
-import { SERVER_SEGMENT_HOLD_MS } from '@macha/core';
+import { SERVER_SEGMENT_HOLD_MS } from '@machafoundation/core';
 
 /**
  * The timing budgets this client chooses, in one place, with what each is

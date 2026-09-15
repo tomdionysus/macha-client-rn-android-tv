@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet } from 'react-native';
-import { newestCatalogueFirst, type MediaApi, type MediaSummary, type PlaybackProgress } from '@macha/core';
+import { newestCatalogueFirst, type MediaApi, type MediaSummary, type PlaybackProgress } from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaRow } from '../components/MediaRow';

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { playbackFailureKindForStatus, type PlaybackSource } from '@macha/core';
+import { playbackFailureKindForStatus, type PlaybackSource } from '@machafoundation/core';
 import { awaitFirstFragment, holdBackoffMs } from './readiness';
 import {
   FIRST_FRAGMENT_TIMEOUT_MS,

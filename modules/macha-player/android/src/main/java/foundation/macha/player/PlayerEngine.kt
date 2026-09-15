@@ -377,7 +377,7 @@ class PlayerEngine(private val context: Context) {
    * **The status-to-kind mapping below is protocol, not platform, and does not
    * belong in this file.** It is specified in `writing-a-player.md` and then
    * reimplemented by every client — the web one against hls.js, this one
-   * against media3. It has been proposed for `@macha/core` as
+   * against media3. It has been proposed for `@machafoundation/core` as
    * `playbackFailureKindForStatus(status)`. When that lands, this class should
    * report the raw HTTP status as evidence and let the TypeScript adapter apply
    * core's rule, so no protocol knowledge remains on the platform side. The

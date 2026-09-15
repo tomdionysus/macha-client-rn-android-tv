@@ -9,7 +9,7 @@ import {
   type PlaybackSource,
   type PlaybackTimeRange,
   type Player,
-} from '@macha/core';
+} from '@machafoundation/core';
 import { createWatchdogEnvironment } from './watchdogEnvironment';
 import { awaitFirstFragment } from './readiness';
 import { playbackLog } from '../diagnostics/playbackLog';

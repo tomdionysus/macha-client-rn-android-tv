@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
-import { progressFor, sessionManager, type MediaSummary, type PlaybackProgress } from '@macha/core';
+import { progressFor, sessionManager, type MediaSummary, type PlaybackProgress } from '@machafoundation/core';
 import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime } from './app/usePlaybackRuntime';
 import { hydrateStorage } from './state/storage';

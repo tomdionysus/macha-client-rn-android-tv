@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
-import type { Episode } from '@macha/core';
+import type { Episode } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { colour, font, layout, rem, type } from '../styles/theme';
 

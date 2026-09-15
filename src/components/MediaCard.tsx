@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import type { MediaSummary } from '@macha/core';
+import type { MediaSummary } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { LazyArtwork } from './LazyArtwork';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';

@@ -4,7 +4,7 @@ import {
   availableAlphabetKeys,
   type AlphabetIndexKey,
   type MediaSummary,
-} from '@macha/core';
+} from '@machafoundation/core';
 import { tvFocus } from './tvFocus';
 
 /**

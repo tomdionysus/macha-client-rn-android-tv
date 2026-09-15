@@ -7,7 +7,7 @@ import {
   type PlaybackResolver,
   type PlaybackRuntimeOptions,
   type Platform,
-} from '@macha/core';
+} from '@machafoundation/core';
 
 /**
  * The application-scoped playback runtime.

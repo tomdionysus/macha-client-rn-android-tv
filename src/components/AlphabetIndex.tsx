@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { ALPHABET_INDEX, type AlphabetIndexKey } from '@macha/core';
+import { ALPHABET_INDEX, type AlphabetIndexKey } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { colour, font, radius, rem, type } from '../styles/theme';
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaybackSource } from '@macha/core';
+import type { PlaybackSource } from '@machafoundation/core';
 import { FIRST_FRAGMENT_TIMEOUT_MS, HOLD_RETRY_CEILING_MS } from './timingBudgets';
 
 /**
