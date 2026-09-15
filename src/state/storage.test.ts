@@ -60,7 +60,15 @@ describe('hydrate filter, against core\'s key registry', () => {
   it('loads this client\'s own keys, which core\'s registry does not cover', () => {
     // `isMachaStorageKey` answers "is this one of core's" and returns false
     // here, which is why the filter is not delegated to it.
+    //
+    // Asserted by literal rather than through core's exported prefixes, because
+    // both of these are ours and core's registry is not a record of them.
+    // `macha.volume.v1.` is the case that proves the point: core carried the
+    // volume store until 2026-09-13, this client owns the copy now, and a core
+    // release that drops the prefix from its registry must not quietly drop it
+    // from this suite along with it.
     expect(shouldHydrate('macha-playback-failure-trail-v1')).toBe(true);
+    expect(shouldHydrate('macha.volume.v1.some-client-id')).toBe(true);
   });
 
   it('does not load keys belonging to anything else', () => {
