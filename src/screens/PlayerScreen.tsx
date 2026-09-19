@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, Text, View } from 'react-native';
 import {
+  describePlaybackSession,
   formatPlaybackTime,
   type MediaSummary,
   type PlaybackCoordinatorSnapshot,
@@ -46,6 +47,9 @@ const CHROME_HIDE_MS = 4_000;
  */
 const SCRUB_COMMIT_MS = 400;
 
+/** The scrubber, by name, so a cold left or right press can land on it. */
+const SCRUBBER_FOCUS_ID = 'player-scrubber';
+
 /** The focus scope name; while the chrome is up nothing behind it is reachable. */
 const CHROME_SCOPE = 'player-chrome';
 
@@ -63,6 +67,13 @@ export function PlayerScreen({
     runtime.getPlaybackSnapshot(),
   );
   const [chromeVisible, setChromeVisible] = useState(true);
+  /**
+   * Read by the command subscription, which is made once and must not be torn
+   * down and rebuilt every time the chrome hides — that is the moment its
+   * events matter most.
+   */
+  const chromeVisibleRef = useRef(chromeVisible);
+  chromeVisibleRef.current = chromeVisible;
   const [optionsOpen, setOptionsOpen] = useState(false);
   const volume = usePlayerVolume(runtime, useMacha().volume);
   const [scrubPosition, setScrubPosition] = useState<number | undefined>();
@@ -124,7 +135,43 @@ export function PlayerScreen({
    * did something, which is the behaviour the web client gets from its chrome
    * never leaving the DOM.
    */
-  useEffect(() => tvFocus.onCommand(() => showChrome()), [showChrome]);
+  /**
+   * Any press brings the chrome back — and left or right also seeks.
+   *
+   * **Tom, 2026-09-19: a tap on the D-pad with the bar hidden should raise it,
+   * land on the progress control, and make the move, all at once.** The bar
+   * appearing and then having to be steered to is two presses for one
+   * intention, and on a remote the viewer's thumb is already on the key that
+   * means "back a bit".
+   *
+   * The seek runs through the same ladder as a press on the focused scrubber,
+   * so holding from cold accelerates exactly as holding on it does — it is one
+   * hold either way, and only the first press of it is special.
+   *
+   * Focus cannot be moved here: the chrome is unmounted while hidden, so the
+   * scrubber is not registered yet. The flag is spent by the effect below,
+   * once it exists.
+   */
+  const focusScrubberOnShow = useRef(false);
+
+  useEffect(
+    () =>
+      tvFocus.onCommand((command) => {
+        const hidden = !chromeVisibleRef.current;
+        showChrome();
+        if (!hidden) return;
+        if (command !== 'left' && command !== 'right') return;
+        focusScrubberOnShow.current = true;
+        seekByHeldKeyRef.current(command === 'left' ? -1 : 1);
+      }),
+    [showChrome],
+  );
+
+  useEffect(() => {
+    if (!chromeVisible || !focusScrubberOnShow.current) return;
+    focusScrubberOnShow.current = false;
+    tvFocus.select(SCRUBBER_FOCUS_ID);
+  }, [chromeVisible]);
 
   // While the chrome is up it owns the D-pad entirely, mirroring the web
   // client scoping its candidate query to `.player-chrome.visible`.
@@ -238,26 +285,37 @@ export function PlayerScreen({
   // dependency on it.
   const nudgeRef = useRef(nudge);
   nudgeRef.current = nudge;
+  const seekByHeldKeyRef = useRef(seekByHeldKey);
+  seekByHeldKeyRef.current = seekByHeldKey;
 
-  const streamStatus = useMemo(() => {
-    const instruction = playback?.instruction;
-    const session = playback?.session;
-    if (!instruction && !session) return [];
-
-    const lines: string[] = [];
-    const container = instruction?.servedContainer ?? instruction?.container;
-    const endpoint = event?.streamOrigin?.replace(/^https?:\/\//, '');
-    // Either half is omitted rather than defaulted when absent: this is the one
-    // place a container the client asked for and did not get can show, and a
-    // default would read as an answer.
-    if (container || endpoint) lines.push([container, endpoint].filter(Boolean).join(' : '));
-    if (instruction) {
-      lines.push(`${instruction.mode}${instruction.withoutFacts ? ' (no facts)' : ''}`);
-      if (instruction.video) lines.push(`video ${instruction.video}`);
-      if (instruction.audio) lines.push(`audio ${instruction.audio}`);
-    }
-    return lines;
-  }, [playback?.instruction, playback?.session, event?.streamOrigin]);
+  /**
+   * What the node says it is doing to each stream — **core's description, not
+   * ours**.
+   *
+   * This built its own lines until Tom read the two control bars side by side
+   * (2026-09-19) and they did not match. They could not: core ships
+   * `describePlaybackSession` and the web client calls it, while this assembled
+   * something similar from `instruction` — mode with a `(no facts)` suffix,
+   * `video …`, `audio …`, and no subtitle line at all. Same intent, different
+   * words, and reimplementing what core already ships is the one thing
+   * `AGENTS.md` says not to do.
+   *
+   * The arrangement is the web client's too: carriage and the node that served
+   * it on one line as `CONTAINER : endpoint`, because "what was I served, and
+   * by whom" is a single question, and either half is omitted rather than
+   * defaulted when absent — this is the one place a container the client asked
+   * for and did not get can show, and a default would read as an answer.
+   */
+  const streamStatus = describePlaybackSession(playback?.session, event?.streamOrigin);
+  const streamLines = useMemo(
+    () => [
+      [streamStatus?.container, streamStatus?.endpoint].filter(Boolean).join(' : '),
+      streamStatus?.video,
+      streamStatus?.audio,
+      streamStatus?.subtitle,
+    ].filter((line): line is string => Boolean(line)),
+    [streamStatus?.container, streamStatus?.endpoint, streamStatus?.video, streamStatus?.audio, streamStatus?.subtitle],
+  );
 
   const playedPercent = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
   const bufferedPercent = duration > 0 ? Math.min(100, (buffered / duration) * 100) : 0;
@@ -321,10 +379,17 @@ export function PlayerScreen({
                 <Text style={styles.streamLine}>{playback.notice}</Text>
               ) : playback?.preparingSource ? (
                 // The one moment the client is moving between nodes, and
-                // "which node" is the only question worth asking about it.
-                <Text style={styles.streamLine}>Preparing new stream…</Text>
+                // "which node" is the only question worth asking about it. The
+                // endpoint shown is the one currently held — the node being
+                // replaced during a failover — so watching this line through a
+                // failover shows how far round the cluster it has got.
+                <Text style={styles.streamLine}>
+                  {streamStatus?.endpoint
+                    ? `Preparing new stream on ${streamStatus.endpoint}…`
+                    : 'Preparing new stream…'}
+                </Text>
               ) : (
-                streamStatus.map((line) => (
+                streamLines.map((line) => (
                   <Text key={line} style={styles.streamLine}>
                     {line}
                   </Text>
@@ -356,6 +421,7 @@ export function PlayerScreen({
             <Text style={styles.timeLabel}>{formatPlaybackTime(position)}</Text>
             <Focusable
               ring={false}
+              focusId={SCRUBBER_FOCUS_ID}
               scope={CHROME_SCOPE}
               style={styles.scrubberShell}
               ownsDirection={(direction) => direction === 'left' || direction === 'right'}

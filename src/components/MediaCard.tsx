@@ -113,17 +113,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colour.surface2,
     /**
-     * Two dp rather than one, at Tom's call off the set.
+     * Thicker than the web client's, and standing off the artwork.
      *
-     * The web client's `outline: 1px` is one CSS px, and the conversion that
-     * fixed the sizing made this client's border one *dp* — half a CSS px on a
-     * panel reporting density 320, which is as thin as the platform can draw
-     * and disappears at three metres. The border is on whether focused or not,
-     * only its colour changes, so widening it moves nothing: the focus scorer
-     * reads these rectangles and a control that resized on focus would shift
-     * its neighbours.
+     * `outline: 1px solid var(--focus); outline-offset: 1px` is what base.css
+     * draws, and React Native has no outline at all — so the border was on the
+     * poster itself, one dp wide, touching the picture. At three metres that
+     * read as nothing: a hairline against a lit poster is the one place a thin
+     * line cannot be seen. Three dp with the artwork inset by two reproduces
+     * the *offset*, which is the part that makes it legible — a gap of
+     * background between the line and the image, so the line has something to
+     * be seen against. Tom's call off the set, twice.
+     *
+     * The border and the padding are both always present and only the colour
+     * changes, so nothing moves on focus: the scorer reads these rectangles,
+     * and a card that grew when focused would shift its neighbours.
      */
-    borderWidth: 2,
+    borderWidth: 3,
+    padding: px(2),
     borderColor: 'transparent',
   },
   /** `.music-artwork { aspect-ratio: 1 }` — albums, artists and tracks. */
@@ -136,6 +142,7 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+    borderRadius: radius.poster,
   },
   placeholder: {
     width: '100%',
