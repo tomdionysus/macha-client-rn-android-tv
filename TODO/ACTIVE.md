@@ -206,13 +206,13 @@ Cheap, and it decides a real thing. After a terminal error, does the player
 still answer `currentTime` and `bufferedPosition` for the buffer it was holding,
 or do they collapse to zero?
 
-It matters because core reads the viewer's remaining cover from the last event
-this adapter emitted, and decides whether to hold a replacement or build one
-immediately against that figure (§2.6). If a dead player tells the truth, this
-adapter should emit one last event before reporting the failure and core decides
-on a live number instead of one that may be a minute old. If it zeroes them,
-doing that would report no cover where a minute of it exists — worse than the
-staleness it fixes.
+**Not load-bearing, and deliberately so** — §2.6 records why this client does
+not emit a last event before reporting, and core owns the staleness fix either
+way. What this answers is narrower and still worth knowing: it is a real fact
+about this host, it tells core what shape its guard needs (its existing one
+covers the position and not the buffer), and it is the difference between
+`unknown` on a platform quirk and `unknown` on a node that genuinely said
+nothing. **Do not let it block anything.**
 
 Provoke it the same sitting as the pause case: kill the node mid-film, or point
 the player at a URL the node has reaped, and read both values in the
@@ -564,18 +564,25 @@ probe, plus core's own**. Three terms, and until this exchange nobody was
 counting any of them. Core owns the fix; what it costs here is an argument for
 keeping the probe budget tight, which it already is.
 
-**The one thing that could shorten the first term is a measurement, not a
-decision.** Core reads the runway from the last `PlaybackEvent` this adapter
-emitted, so emitting a fresh one immediately before reporting a failure would
-hand it a current figure — *if* `expo-video` still answers `currentTime` and
-`bufferedPosition` honestly once a player is in its error state. **Nobody knows
-whether it does.** If it reports the truth, emit and core decides on a live
-number; if it zeroes them, emitting would tell core there is no cover when
-there is a minute of it, which sends the viewer straight to `no-cover` and
-spends exactly what was being protected. Synthesising a decayed estimate
-instead is not an option — a computed figure must not be reported as a measured
-one, which is core's own rule about `readAheadRunwayMs`. **So this stays as it
-is until the set answers it** (§1.7).
+**Emitting one last event before reporting was the obvious fix for the first
+term, and it is the wrong one.** The plumbing works — `onPlayerEvent` is
+synchronous, so an event emitted immediately before the failure listener does
+reach `snapshot.event` first — and the hazard it would introduce is one core has
+already met on another host. Verified here: as an element tears down it can
+report a position of zero, and core guards that with a forward-only
+`Math.max(reported, lastObserved)` (`PlaybackCoordinator.js:1659`) — but **only
+on the position, and only while a failover is in flight.** `forwardBufferMs`
+goes through untouched in the spread below it. So a player that zeroes its
+buffer on the way down would write `forwardBufferMs: 0` into the snapshot,
+`elementRunwayMs()` would return 0, and the deferral test would go straight to
+`no-cover` — spending precisely the cover the exercise was meant to protect.
+
+So **this client does not emit, and this is not a host obligation.** Doing it
+would remove one term of three and only be safe after core changes anyway,
+while core can close all three alone by re-reading the runway at the decision
+point rather than trusting a snapshot taken before two round trips. Four hosts
+each doing something partial to fix what core can fix once fails Tom's test in
+the direction that matters. Core owns it and has taken it.
 
 **A pause no longer ends on a failure screen.** The web client measured exactly
 that — a paused generation judged dead seven seconds in, then a failover that
