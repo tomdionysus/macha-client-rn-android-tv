@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   BROKEN_GENERATION_STATUS,
+  generationAttemptBudgetMs,
   MEDIA_STALL_TIMEOUT_MS,
   SEGMENT_NOT_READY_STATUS,
   SOURCE_NOT_FOUND_STATUS,
@@ -123,9 +124,17 @@ describe('the acquisition deadline a node states for itself', () => {
   });
 
   it('still clears the hold it must outlast, for a node that cannot say', () => {
-    // The original relationship, unchanged: waiting less than a hold reports a
-    // node answering the protocol correctly as a fault.
+    // The relationship that survives, and the only one that was ever load
+    // bearing: waiting less than a hold aborts mid-hold and reports a node
+    // answering the protocol correctly as a fault.
     expect(FIRST_FRAGMENT_TIMEOUT_MS).toBeGreaterThan(SERVER_SEGMENT_HOLD_MS);
+  });
+
+  it('is core\'s figure for a node that cannot state one, not a local multiple', () => {
+    // It was `SERVER_SEGMENT_HOLD_MS * 5` until 2026-09-19 — sound reasoning
+    // from the one server constant a client could see, and no authority beside
+    // that. Core answers the same question from the server's own numbers.
+    expect(FIRST_FRAGMENT_TIMEOUT_MS).toBe(generationAttemptBudgetMs());
   });
 });
 

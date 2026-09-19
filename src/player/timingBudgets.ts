@@ -1,4 +1,8 @@
-import { SERVER_SEGMENT_HOLD_MS, type PlaybackSource } from '@machafoundation/core';
+import {
+  generationAttemptBudgetMs,
+  SERVER_SEGMENT_HOLD_MS,
+  type PlaybackSource,
+} from '@machafoundation/core';
 
 /**
  * The timing budgets this client chooses, in one place, with what each is
@@ -50,16 +54,23 @@ export const HOLD_RETRY_CEILING_MS = 8_000;
  * How long a node is given to produce the first fragment of a fresh
  * generation before the wait becomes evidence against it.
  *
- * Generous deliberately, and expressed as a multiple of the hold rather than
- * as a round number. A `500 segment_not_ready` is the node stating it is
- * already working on a fragment it promised; abandoning it costs more than
- * waiting does, because the replacement node starts its own generation from
- * nothing and the viewer waits out a cold start instead of the tail of a warm
- * one. Five holds is long enough for a node at its production frontier and
- * short enough that a genuinely dead one is still caught.
+ * **Core's figure, for a node that cannot state its own** (Tom, 2026-09-19).
+ * `generationAttemptBudgetMs()` is the same question answered from the server's
+ * numbers rather than from this client's reasoning: the node's
+ * `startup_timeout_ms` — what it is entitled to spend bringing a stream up —
+ * plus core's allowance for the distance to it.
  *
- * **It is deliberately larger than `MEDIA_START_STARVATION_MS` (20 s), and
- * that is only safe because of where it runs.** The wait happens in
+ * *It was `SERVER_SEGMENT_HOLD_MS * 5` until then, and the five was mine.* The
+ * argument was sound and the authority was not: a `500 segment_not_ready` is
+ * the node stating it is already working on a fragment it promised, abandoning
+ * it costs a cold start on a node that does not have it either, so the budget
+ * should be generous — but "five holds" was a multiple chosen because the hold
+ * was the only server figure a client could see. Now a node states the figure
+ * that actually bounds it, and a client that keeps its own multiple is
+ * overruling the node with arithmetic.
+ *
+ * **Its relationship to `MEDIA_START_STARVATION_MS` (20 s) is not what makes
+ * it safe — where it runs is.** The wait happens in
  * `ExpoVideoAdapter.play()` *before* the start watchdog is armed, so the two
  * budgets never overlap: the watchdog measures "no bytes ever arrived after
  * the player was given the source", which cannot begin until this has
@@ -68,19 +79,18 @@ export const HOLD_RETRY_CEILING_MS = 8_000;
  * that was behaving exactly as the protocol says it should — which is the
  * precise bug this walk exists to remove, reintroduced by ordering.
  */
-export const FIRST_FRAGMENT_TIMEOUT_MS = SERVER_SEGMENT_HOLD_MS * 5;
+export const FIRST_FRAGMENT_TIMEOUT_MS = generationAttemptBudgetMs();
 
 /**
  * How long to spend acquiring a source from **this** node before the wait
  * becomes evidence against it.
  *
- * `FIRST_FRAGMENT_TIMEOUT_MS` above is a figure this client chose from the one
- * server constant it could see, and it applies to every node identically —
- * which was the only option until core 0.14.0. A node now states its own on
- * `PlaybackSource.budgets.deadlineMs`, derived from that node's
- * `startup_timeout_ms` plus core's allowance for the distance to it, and core
- * is explicit that **a host must not shorten it on its own authority**: of two
- * deadlines the shorter silently wins and the other layer then looks broken.
+ * Both branches are core's now. A node states its own on
+ * `PlaybackSource.budgets.deadlineMs`, and a node that cannot gets
+ * `generationAttemptBudgetMs()` — the same derivation against the server's
+ * published defaults. Core is explicit that **a host must not shorten either on
+ * its own authority**: of two deadlines the shorter silently wins and the other
+ * layer then looks broken.
  *
  * So a stated figure is taken whole, including when it is *shorter* than the
  * local constant. Preferring the larger of the two would be this client

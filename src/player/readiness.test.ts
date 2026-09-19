@@ -241,10 +241,16 @@ describe('hold backoff', () => {
 });
 
 describe('the first-fragment budget against the server hold', () => {
-  it('allows several holds rather than one', () => {
+  it('allows more than one hold, so a node is not abandoned as it speaks', () => {
     // One hold's worth of patience is no patience at all: the node answers at
     // the end of a hold, so a budget of one would abandon it just as it spoke.
-    expect(FIRST_FRAGMENT_TIMEOUT_MS).toBeGreaterThan(SERVER_SEGMENT_HOLD_MS * 3);
+    //
+    // This said `* 3` while the budget was five holds by construction, where it
+    // asserted nothing the definition did not already say. The budget is core's
+    // now — the node's startup entitlement plus transport — so the multiple is
+    // no longer ours to choose, and what is worth pinning is the requirement
+    // rather than a number that happens to clear it.
+    expect(FIRST_FRAGMENT_TIMEOUT_MS).toBeGreaterThan(SERVER_SEGMENT_HOLD_MS * 2);
   });
 
   it('leaves room for at least one backoff inside the budget', () => {

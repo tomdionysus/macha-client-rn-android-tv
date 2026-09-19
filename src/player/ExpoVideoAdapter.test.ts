@@ -858,6 +858,32 @@ describe('the stall budget follows the source', () => {
     }
   });
 
+  it('judges a first fragment against the node\'s own deadline, not a constant', async () => {
+    // The stall watchdog takes the node's figures through `useSourceBudgets`;
+    // the start watchdog's budget is a constructor argument, so the equivalent
+    // is a fresh one per source. Left alone it would judge every node by
+    // `MEDIA_START_STARVATION_MS`, which is 20 s compiled in.
+    vi.useFakeTimers();
+    try {
+      const adapter = new ExpoVideoAdapter();
+      const failures: Error[] = [];
+      adapter.subscribeFailure((error) => failures.push(error));
+
+      // A node stating a much shorter entitlement than the compiled-in default.
+      const stated = 5_000;
+      await adapter.play(source({ budgets: { deadlineMs: stated, segmentHoldMs: 1_000 } }));
+      expect(fake.calls).toContain('replace');
+
+      // The player was given the source and never delivered a byte.
+      await vi.advanceTimersByTimeAsync(stated + 500);
+
+      expect(failures).toHaveLength(1);
+      expect(failures[0]?.message).toContain('No media delivered');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('states it for a promoted standby too', async () => {
     // A promotion is the case where it matters most: the whole point is that
     // the replacement is on a *different* node from the one that just stopped.

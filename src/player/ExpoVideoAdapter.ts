@@ -1,4 +1,4 @@
-import { createVideoPlayer, type VideoPlayer, type VideoSource } from 'expo-video';
+import { createVideoPlayer, type BufferOptions, type VideoPlayer, type VideoSource } from 'expo-video';
 import {
   ENDPOINT_TRANSPORT_ALLOWANCE_MS,
   generationAttemptBudgetMs,
@@ -17,10 +17,39 @@ import {
   type PlaybackTimeRange,
   type PlaybackTransition,
   type Player,
+  type MediaWatchdogEnvironment,
 } from '@machafoundation/core';
 import { createWatchdogEnvironment } from './watchdogEnvironment';
 import { awaitFirstFragment } from './readiness';
+import { firstFragmentTimeoutMs } from './timingBudgets';
 import { playbackLog } from '../diagnostics/playbackLog';
+
+/**
+ * Buffer ahead the way the web client does.
+ *
+ * **Tom, 2026-09-19: the client must buffer ahead, as the web client does, and
+ * in the same way.** That client configures hls.js with `maxBufferLength: 60`
+ * (`WebHlsPolicy.webHlsBufferConfig`, read there rather than remembered);
+ * `expo-video` defaults Android to **20**. Three times less cover, in exactly
+ * the quantity everything about failover is decided on: the runway is what core
+ * defers a replacement behind, and it is what this adapter spends classifying a
+ * failure. Their measurements talk about sixty seconds in hand because they
+ * have sixty seconds in hand.
+ *
+ * **The byte ceiling is deliberately not copied.** Theirs is 128 MB, set on a
+ * desktop browser; this set is `armeabi-v7a` with no arm64, and an allocation
+ * failure mid-film is a worse outcome than a shorter buffer. `0` leaves the
+ * ceiling to the platform, which is the same intent expressed against different
+ * hardware — and `prioritizeTimeOverSizeThreshold` stays at its default so the
+ * size ceiling still wins, rather than the sixty seconds being held against a
+ * 4K HEVC bitrate on a 32-bit device. **What forward buffer is actually reached
+ * on a high-bitrate title is unmeasured**, and is the thing to read off the set
+ * (`TODO/ACTIVE.md` §1.7's sitting).
+ */
+const BUFFER_OPTIONS: BufferOptions = {
+  preferredForwardBufferDuration: 60,
+  maxBufferBytes: 0,
+};
 
 /**
  * Core's `Player`, implemented over `expo-video`.
@@ -196,13 +225,27 @@ export class ExpoVideoAdapter implements Player {
    */
   private sourceGeneration = 0;
 
-  private readonly startWatchdog: MediaStartWatchdog;
+  /**
+   * Rebuilt per attach, because its budget belongs to the node.
+   *
+   * `MediaStallWatchdog` takes the serving node's figures through
+   * `useSourceBudgets()`; the start watchdog has no such method — its budget is
+   * a constructor argument — so the equivalent is a fresh one per source. Core
+   * gives the figure either way (Tom, 2026-09-19): the same deadline the
+   * readiness walk uses, stated by the node or derived from the server's
+   * defaults for one that cannot say. Left at its own default it would judge
+   * every node by `MEDIA_START_STARVATION_MS`, a compiled-in 20 s, against
+   * nodes that now say what they are entitled to spend.
+   */
+  private startWatchdog: MediaStartWatchdog;
   private readonly stallWatchdog: MediaStallWatchdog;
+  private readonly watchdogEnvironment: MediaWatchdogEnvironment;
 
   constructor() {
     // Constructed with no source: `attach` binds presentation and must not
     // create a playback session, so the session begins at `play()`.
     this.active = createVideoPlayer(null);
+    this.active.bufferOptions = BUFFER_OPTIONS;
     // Media3 keeps the screen awake itself when told to. The WebView client
     // never had this and dimmed through films; a CPU wake lock is not enough.
     this.active.keepScreenOnWhilePlaying = true;
@@ -211,6 +254,7 @@ export class ExpoVideoAdapter implements Player {
     this.active.timeUpdateEventInterval = 0.25;
 
     const environment = createWatchdogEnvironment();
+    this.watchdogEnvironment = environment;
     this.startWatchdog = new MediaStartWatchdog(environment);
     this.stallWatchdog = new MediaStallWatchdog(environment);
 
@@ -469,6 +513,23 @@ export class ExpoVideoAdapter implements Player {
    */
   private startWatchdogs(source: PlaybackSource): void {
     this.stallWatchdog.useSourceBudgets(source);
+    this.startWatchdog.stop();
+    this.startWatchdog = new MediaStartWatchdog(
+      this.watchdogEnvironment,
+      firstFragmentTimeoutMs(source),
+    );
+
+    // What the node said about itself, on the trail. A frozen picture at three
+    // metres is unreadable without it: "this node holds a fragment for 6 s and
+    // is allowed 19 s to bring a stream up" is the difference between a fault
+    // and a node doing what it is entitled to. Absent where the node is too old
+    // to say, which is itself worth seeing.
+    playbackLog.warn('source-budgets', {
+      url: source.url,
+      deadlineMs: source.budgets?.deadlineMs,
+      segmentHoldMs: source.budgets?.segmentHoldMs,
+      startBudgetMs: firstFragmentTimeoutMs(source),
+    });
 
     // A node that accepts the source and then sends nothing is reported as a
     // `stream` failure so the coordinator recovers onto another node. Nothing
@@ -613,6 +674,12 @@ export class ExpoVideoAdapter implements Player {
     if (this.released || this.standby?.url === source.url) return;
     this.discardStandby();
     const player = createVideoPlayer(this.videoSourceFor(source));
+    // The standby buffers on the same terms as the active player, which is what
+    // makes a promotion worth having — and is the web client's shape. Two
+    // players holding a minute each is also the memory question on a 32-bit set,
+    // and belongs with §1.3's decoder-instance measurement rather than being
+    // guessed at here.
+    player.bufferOptions = BUFFER_OPTIONS;
     player.volume = 0;
     player.timeUpdateEventInterval = 0;
     this.standby = { url: source.url, player };
@@ -673,6 +740,7 @@ export class ExpoVideoAdapter implements Player {
     for (const subscription of this.subscriptions) subscription.remove();
     this.active = standby.player;
     this.active.volume = this.volume;
+    this.active.bufferOptions = BUFFER_OPTIONS;
     this.active.keepScreenOnWhilePlaying = true;
     this.active.timeUpdateEventInterval = 0.25;
     this.subscriptions = this.bindPlayer(this.active);
