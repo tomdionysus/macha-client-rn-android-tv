@@ -7,6 +7,11 @@ import {
   type PlaybackRuntime,
 } from '@machafoundation/core';
 import { VideoView } from 'expo-video';
+import {
+  accelerateSeek,
+  type SeekDirection,
+  type SeekHold,
+} from './player/seekAcceleration';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
@@ -166,7 +171,23 @@ export function PlayerScreen({
 
   const event = playback?.event;
   const duration = event?.durationMs ?? media.durationMs ?? 0;
-  const position = scrubPosition ?? event?.positionMs ?? 0;
+  /**
+   * What the scrubber shows: the viewer's own preview, then **core's intent**.
+   *
+   * Not `event.positionMs`. A seek is dispatched and the player goes on
+   * reporting the old position until it has actually moved, so falling back to
+   * what it reports snapped the bar back to where the viewer started and then
+   * jumped forward when the seek landed — reported from the set by Tom,
+   * 2026-09-19, as flicking back before seeking.
+   *
+   * `intent.positionMs` is the position core is holding the transport at, and
+   * core keeps holding it until the player is tracking again — that is what
+   * `seekIntentActive` is for. So the bar moves once, to where the viewer asked
+   * to be, and stays there. This is what the web client renders
+   * (`PlayerScreen.tsx:687`), read there rather than inferred, and matching it
+   * is the requirement.
+   */
+  const position = scrubPosition ?? Math.min(duration || Number.MAX_SAFE_INTEGER, playback?.intent.positionMs ?? 0);
   const paused = playback?.intent.paused ?? false;
   const buffered = event?.bufferedRangesMs?.[0]?.endMs ?? 0;
 
@@ -181,16 +202,42 @@ export function PlayerScreen({
     [runtime],
   );
 
+  /**
+   * The accelerating "finder", ported from the web client.
+   *
+   * A remote has no scrub wheel and a fixed ten seconds is wrong at both ends:
+   * tedious across a film, and an overshoot when you are hunting a moment. The
+   * ladder climbs on **time held** rather than on how many auto-repeat events
+   * the platform happened to send, so the two clients feel the same however
+   * fast this remote repeats. See `seekAcceleration.ts`.
+   */
+  const seekHold = useRef<SeekHold | undefined>(undefined);
+
+  const seekByHeldKey = useCallback(
+    (direction: SeekDirection) => {
+      const { hold, deltaMs } = accelerateSeek(seekHold.current, direction, Date.now());
+      seekHold.current = hold;
+      nudgeRef.current(deltaMs);
+    },
+    [],
+  );
+
   const nudge = useCallback(
     (deltaMs: number) => {
-      const base = scrubPosition ?? event?.positionMs ?? 0;
+      const base = scrubPosition ?? playback?.intent.positionMs ?? 0;
       const next = Math.max(0, Math.min(duration || Number.MAX_SAFE_INTEGER, base + deltaMs));
       setScrubPosition(next);
       showChrome();
       commitScrub(next);
     },
-    [scrubPosition, event?.positionMs, duration, showChrome, commitScrub],
+    [scrubPosition, playback?.intent.positionMs, duration, showChrome, commitScrub],
   );
+
+  // `seekByHeldKey` is stable so the ladder is not rebuilt on every position
+  // report; it reaches the latest `nudge` through this rather than by taking a
+  // dependency on it.
+  const nudgeRef = useRef(nudge);
+  nudgeRef.current = nudge;
 
   const streamStatus = useMemo(() => {
     const instruction = playback?.instruction;
@@ -306,7 +353,7 @@ export function PlayerScreen({
               scope={CHROME_SCOPE}
               style={styles.scrubberShell}
               ownsDirection={(direction) => direction === 'left' || direction === 'right'}
-              onDirection={(direction) => nudge(direction === 'left' ? -10_000 : 10_000)}
+              onDirection={(direction) => seekByHeldKey(direction === 'left' ? -1 : 1)}
             >
               {({ focused }) => (
                 <View style={styles.scrubberVisual}>
@@ -328,6 +375,11 @@ export function PlayerScreen({
           {/* `.player-button-row` */}
           <View style={styles.buttonRow}>
             <ChromeButton icon="restart" onSelect={() => { runtime.seek(0); showChrome(); }} />
+            {/*
+              * The buttons keep a fixed step. They are pressed, not held — the
+              * ladder belongs to the scrubber, which is where a viewer hunting
+              * a moment actually holds a key down.
+              */}
             <ChromeButton icon="rewind" onSelect={() => { runtime.seekBy(-10_000); showChrome(); }} />
             <ChromeButton
               icon={paused ? 'play' : 'pause'}
