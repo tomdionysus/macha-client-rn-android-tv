@@ -302,6 +302,143 @@ had never been built from, so there was nothing to preserve.
 - **Main-looper marshalling inside the engine**, since Expo's synchronous
   `Function` has no `runOnQueue`.
 
+## Core `0.14.0`, and two failures a viewer would have blamed on the node (2026-09-19)
+
+Taken from `0.12.0` in one session, and it was a port rather than a version
+bump: `0.13.0` and `0.14.0` are one bug seen from four sides. A viewer pauses
+for half an hour, the node reaps the play session exactly as `session_idle`
+says it should, and the viewer comes back to a failure screen naming a node
+their session was never on. Three of the parts touch the player seam.
+
+**Nothing below has been observed on hardware.** All of it is asserted from two
+implementations and a contract, and the pause case is now first in the queue for
+the set (§1.7 and §0).
+
+### What the port took
+
+- **`not-found`.** A `404` on a playback route is a statement about one
+  session's existence, not about the node. Read as `stream` it is endpoint
+  evidence, so the node that answered honestly is charged a failure and dropped
+  while the viewer is sent to one that never held the session.
+  `ExpoVideoAdapter` maps the readiness walk's status through
+  `playbackFailureKindForStatus` instead of reporting a blanket `stream`, and
+  honours the obligation that arrives with the kind: an adapter reporting it
+  must not tear the presentation down, because the element's buffer is the
+  cover core builds the replacement behind.
+- **Node-stated budgets.** `firstFragmentTimeoutMs()` takes
+  `PlaybackSource.budgets.deadlineMs` **whole, including when it is shorter**
+  than this client's own constant. Core owns when to stop and the host owns
+  what happens until then; of two deadlines the shorter silently wins while the
+  other layer looks broken.
+- **`MediaStallWatchdog.useSourceBudgets()`** at every attach, promotions
+  included. The watchdog outlives a generation while the hold belongs to a node.
+- **`PlaybackTransition`.** A warm standby is cut to **only on `continue`**. A
+  viewer's seek and a reap recovery arrive byte-identical — measured by the web
+  client — so it is the one bit no host can derive.
+
+### Parking, which is the half a viewer would actually have noticed
+
+Tom, 2026-09-19: **the experience must be as close as possible to the web
+client.** So the web client was read and then asked, rather than reasoned about.
+
+A terminal error raised while nobody is waiting is now parked rather than
+reported, and met again on resume with the viewer present. Every judgement this
+adapter makes is "is this node failing the person watching", and while playback
+is paused there is nobody to fail. Keyed on **viewer intent** rather than on the
+player, because between a play request and the element running nothing is
+playing while the viewer is very much waiting; `startPaused` counts as
+not-waiting, as it does there.
+
+**Where this platform cannot match theirs**, recorded so nobody reads it as a
+defect: their park keeps the buffer and the frame (`stopLoad`/`startLoad`);
+`expo-video` owns its loader and a player in its error state will not resume, so
+the source is re-attached and the viewer sees the held frame blank and come
+back. The two clients diverge precisely at the moment the viewer is looking at
+the screen. Tier 3 is what would close it.
+
+### Classifying an error the player could not
+
+`expo-video`'s `PlayerError` is `{ message: string }`. So a terminal error from
+its own loader now asks the node what it says, rather than reporting `unknown`
+and letting the coordinator read that as endpoint evidence.
+
+- **The walk, not the session.** Asking whether the *session* is alive is the
+  obvious move and is wrong: a fragment past the end of a live plan and a reaped
+  session both answer `404 not_found`, one word of English apart in a body no
+  loader surfaces. The web session caught that before it was built.
+- **Latched per attached source**, which is host-local memory by nature — only
+  the host knows that this element's later statusless error is the same event.
+- **Bounded against the runway**, which the core session asked for and is the
+  part that had real teeth. Lateness spends the deferral, and a verdict arriving
+  after another recovery owns the source is not late but **void**.
+- **No message parsing.** Nothing in either client classifies from text.
+
+### Four things this session got wrong
+
+The first three are the same error in three costumes: **a claim about another
+component, made without opening it.** The reasoning about this tree held
+throughout, because reading is the default here.
+
+- **A blanket `stream` for every readiness refusal**, which predates 0.13.0 and
+  is what the port fixed. Reasoned from "the node did not serve it" without
+  asking what the node had actually said.
+- **"`unknown` costs a spinner; a wrong `stream` costs a healthy node."**
+  Repeated from the web session and written into code comments and two
+  documents before anybody read the function.
+  `isEndpointRetryablePlaybackFailure` returns true for **both**. The floor is
+  still `unknown`, for a different reason: it is core's documented answer for an
+  unmapped status, and the standby behind it is the recovery that works without
+  knowing the cause. **The asymmetry that does hold is against `not-found`** — a
+  false one buys silence, a false `unknown` buys a standby.
+- **The floor justified with 9 s and 4 s**, two real measurements of entirely
+  other things — a join point built past a node's look-ahead frontier, and the
+  transport allowance elapsing on a dead node. The core session read them. The
+  true comparison is stronger: four seconds spent to avoid a
+  `generationAttemptBudgetMs()` of about nineteen on a node holding nothing.
+- **A charitable reading of core's own exposure.** Told that core reads its
+  runway off a stale snapshot too, this session assumed core's case was milder
+  because events are still arriving at its deferral check. Core's *terminal*
+  path awaits `sessionAlive()` and only then reads the runway, so its figure is
+  stale by the probe as well. Being generous about a peer's code is the same
+  failure as being harsh about it.
+
+### What came back from the other two sessions, which is most of the value
+
+- **The runway decays and a last known value does not.** Found by the core
+  session while reading this client's budget for a different question. A sample
+  standing for ninety seconds was granting the walk ninety seconds of cover
+  already spent. Fixed by subtracting the event's age, through the monotonic
+  clock because it is a duration.
+- **Do not emit a last event before reporting**, which was this session's next
+  idea. Core's guard for a dying witness is forward-only on the *position* and
+  gated on a failover in flight; `forwardBufferMs` goes through untouched. A
+  player that zeroes its buffer on the way down would write `no-cover` into the
+  decision — spending exactly what was being protected. It is also the wrong
+  layer: one term of three, safe only after core changes anyway.
+- **A hidden element still buffers, and promoting one the moment it is ready
+  starves the viewer seconds later.** Both from the web session's own Tier 3
+  work, carried into §2.1 as warnings from their platform rather than results
+  on this one. Their own margin is unsettled, so the shape is what to copy.
+- **`subscribeDegradation` already is the "supply a status you hold" entry
+  point**, and the branch was built for the web client's read-ahead worker. That
+  shrank a proposed core seam to one additive helper.
+
+### The convention that came out of it
+
+This repo already insists every claim says whether it is **measured or
+asserted**, and had only ever applied it to hardware. It now applies to
+**cross-repo claims too**: a statement about another tree names the file it was
+read from, or says that nobody has read it. A compressed claim from a peer
+arrives wearing the same clothes as a fact about your own code, and nothing in
+the sentence marks which it is. All three of the errors above were filed next to
+verified things because of that.
+
+### Also landed
+
+- **CodeGraph removed.** `CLAUDE.md` pointed every code question at a
+  `.codegraph/` index that is not in this repository, so the instruction could
+  not be followed. `AGENTS.md` carries the working rules.
+
 ## Core integration
 
 - **Playback goes through `PlaybackCoordinator`** via `PlaybackRuntime`.

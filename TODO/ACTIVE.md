@@ -20,7 +20,12 @@ stated limits in [`COMPLETED.md`](COMPLETED.md) and §1.2 below.
 
 **Still never exercised: failover.** No watchdog has fired and no standby has
 been promoted on this set. Every failover claim in this file remains unproven,
-which is the largest block of untested behaviour left.
+which is the largest block of untested behaviour left — and `0.14.0` has just
+added to it: the park, the classification probe and the promotion gate (§2.6)
+have never run against a node either.
+
+**Core is `0.14.0` as of 2026-09-19.** What the port took is §2.6; what it left
+is §2.7.
 
 ### The single next action
 
@@ -657,6 +662,84 @@ session aged out" apart from "this cluster refuses you" — identical to a gate,
 very different to a person. Both belong on the failure trail (§4.2), which
 means **§1.1's Settings scroll fault is ahead of this in the order**: the trail
 is built and shipped and cannot currently be switched on.
+
+### 2.7 Finishing the `0.14.0` port
+
+§2.6 is what the port *took*. This is what it left, highest first. None of it
+blocks anything; all of it is the difference between consuming core and being
+ported onto it.
+
+**2.7.1 The fallback acquisition budget is still a local invention.**
+`FIRST_FRAGMENT_TIMEOUT_MS` is `SERVER_SEGMENT_HOLD_MS * 5` — 30 s — and it is
+what a node that cannot state a deadline gets. Core now ships
+`generationAttemptBudgetMs()`, which is the same question answered from the
+server's own figures: `startupTimeoutMs` (15 s) plus the transport allowance,
+so **19 s**. Five holds was reasoned from the one constant visible at the time
+and has no authority beside that. Adopting core's would make every branch of
+`firstFragmentTimeoutMs()` core's, stated or default. **Decide rather than
+drift** — and if it changes, `timingBudgets.test.ts` asserts relationships, so
+check the hold relationship still holds at 19 s (it does: 19 > 6) before
+assuming the suite covers it.
+
+**2.7.2 The start watchdog has no node budget, and the stall watchdog now
+does.** `MEDIA_START_STARVATION_MS` is 20 s, compiled in, while the node states
+`startupTimeoutMs` — the same figure 2.7.1 is about, and the one core calls
+*law for the node that stated it*. There is no `useSourceBudgets` on
+`MediaStartWatchdog`. Ask the core session whether a start-side equivalent is
+wanted; it is their constant and their class. **The ordering invariant is the
+thing to protect**: the readiness walk must finish before the start watchdog is
+armed, and it is structural rather than numeric today — if either figure becomes
+node-derived, re-read `ExpoVideoAdapter.startWatchdogs()` and the test that pins
+it before touching anything.
+
+**2.7.3 `seekOffsetMs`, `seekRequestedMs` and `lookAheadMs` are unread here.**
+All three arrived in `0.13.0`/`0.14.0` on `PlaybackSession`, and this client
+renders position from core's snapshot, where the coordinator has already applied
+`streamOffsetMs`. So this is probably free — **and "probably free" is exactly
+what the web client believed.** They measured a readout sitting **18.12 s ahead
+of the picture, constant to two decimal places**, on a remux generation: the
+element's duration was 715.56 s short of the title's and the offset accounted
+for all but 18.12 s of it. A D-pad generates backward seeks as ordinary viewing
+(§2.2b), so remux generations are the common case here. **Verify on hardware:
+one remux title, compare the readout against the picture, and read
+`seekMs + seekOffsetMs === seekRequestedMs` back off the session.** Viewer-
+visible, cheap, and currently nothing but an assumption.
+
+**2.7.4 Nothing surfaces what the node said about itself.** `budgets`,
+`lookAheadMs` and the session's seek triple are all now on the wire and none of
+them reach the Settings screen or the failure trail. They are exactly what makes
+a spurious failover legible at three metres — "this node said it holds fragments
+for 6 s and produces 24 s ahead" turns a frozen picture into a reading.
+**Blocked behind §1.1**, like everything else diagnostic.
+
+**2.7.5 The Kotlin engine predates all of it.** `PlayerEngine.kt` holds
+`readTimeoutMs = 15000` and `responseCode == 500` as literals. Core now exports
+`SEGMENT_NOT_READY_STATUS` and every node states its own hold, so both are
+answerable rather than assumed — but the engine cannot import either, which is
+why `timingBudgets.test.ts` reads them back out of the source. **Only worth
+doing if §2.0 is revisited**; recorded so the revisit does not start by
+re-deriving what core now ships. `NativeFailureKind` already carries
+`not-found` for completeness, though the native side reports raw statuses and
+will never produce it.
+
+**2.7.6 Two things are deliberately not coming.** `PlaybackEvent.readAheadBytes`
+is for a host with its own read-ahead cache; there is none here, and **absent
+means "no read-ahead", never "zero"** — so leaving it unset is the correct
+implementation and not an omission. And `addDirectSourceAlternative` remains
+§3.1's decision rather than a task.
+
+**2.7.7 It is all unexercised.** `sessionAlive`, `regenerate`, the park, the
+classification probe and the promotion gate have never run against a node. The
+pause case is the single sitting that exercises most of them at once — pause
+past `session_idle`, resume, and watch what the trail says — and it is the same
+sitting as §1.7. **Until then every claim in §2.6 and here is asserted.**
+
+**2.7.8 If core's conservatism helper lands, delete ours.** Core is recording
+an additive helper — optional status in, kind out, `unknown` when absent — with
+two of this client's misfires as the case for it. Whether it ships is Tom's.
+`kindForTerminalError()` contains that sentence today; when the helper exists,
+call it and delete the local copy, keeping the probe and the bound, which are
+host policy and stay here.
 
 ## 3. Decisions for Tom
 
