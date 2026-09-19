@@ -38,8 +38,8 @@ export function MediaCard({
   /** 0–1, drawn as `.progress-track` / `.progress-value` across the poster foot. */
   progress?: number;
   onFocusChange?: (focused: boolean) => void;
-  /** This card's box, for a grid whose scroller has to follow focus. */
-  onExtent?: (extent: { y: number; height: number }) => void;
+  /** This card's box, for a scroller that has to follow focus. */
+  onExtent?: (box: { x: number; y: number; width: number; height: number }) => void;
 }): React.JSX.Element {
   const { services } = useMacha();
   const mediaApi = services.mediaApi;
@@ -112,7 +112,18 @@ const styles = StyleSheet.create({
     borderRadius: radius.poster,
     overflow: 'hidden',
     backgroundColor: colour.surface2,
-    borderWidth: 1,
+    /**
+     * Two dp rather than one, at Tom's call off the set.
+     *
+     * The web client's `outline: 1px` is one CSS px, and the conversion that
+     * fixed the sizing made this client's border one *dp* — half a CSS px on a
+     * panel reporting density 320, which is as thin as the platform can draw
+     * and disappears at three metres. The border is on whether focused or not,
+     * only its colour changes, so widening it moves nothing: the focus scorer
+     * reads these rectangles and a control that resized on focus would shift
+     * its neighbours.
+     */
+    borderWidth: 2,
     borderColor: 'transparent',
   },
   /** `.music-artwork { aspect-ratio: 1 }` — albums, artists and tracks. */

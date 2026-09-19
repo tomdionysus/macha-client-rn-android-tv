@@ -6,7 +6,7 @@ import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/St
 import { MediaCard } from '../components/MediaCard';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
 import { useAlphabetIndex } from '../hooks/useAlphabetIndex';
-import { scrollTargetY } from '../hooks/focusScroll';
+import { scrollTarget } from '../hooks/focusScroll';
 import { layout, pageGutter, rem, screenSize } from '../styles/theme';
 
 /**
@@ -79,8 +79,8 @@ export function LibraryScreen({
   const revealCard = (index: number) => {
     const extent = cardExtents.current.get(index);
     if (!extent) return;
-    const target = scrollTargetY(
-      { y: gridY.current + extent.y, height: extent.height },
+    const target = scrollTarget(
+      { offset: gridY.current + extent.y, length: extent.height },
       viewportHeight.current,
       scrollY.current,
       rem(1.4),
@@ -93,15 +93,15 @@ export function LibraryScreen({
   return (
     // The strip is a sibling of the scroller, not a child of it: it is pinned
     // to the screen edge and must not scroll away with the grid.
-    <View style={styles.screen}>
-      <ScrollView
-        ref={scroller}
-        contentContainerStyle={styles.page}
-        scrollEnabled={false}
-        onLayout={(event) => {
-          viewportHeight.current = event.nativeEvent.layout.height;
-        }}
-      >
+    <View
+      style={styles.screen}
+      onLayout={(event) => {
+        // The wrapper, not the scroller: a `ScrollView`'s own `onLayout`
+        // reports no height here, which left every decision abstaining.
+        viewportHeight.current = event.nativeEvent.layout.height;
+      }}
+    >
+      <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
         <PageTitle>{title}</PageTitle>
         {result.error ? <RefreshError error={result.error} /> : null}
         <View
@@ -117,7 +117,7 @@ export function LibraryScreen({
               addressable
               onSelect={() => onOpen(item)}
               defaultFocus={index === 0}
-              onExtent={(extent) => cardExtents.current.set(index, extent)}
+              onExtent={(box) => cardExtents.current.set(index, { y: box.y, height: box.height })}
               onFocusChange={(focused) => focused && revealCard(index)}
             />
           ))}

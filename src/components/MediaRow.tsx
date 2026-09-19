@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@machafoundation/core';
 import { MediaCard } from './MediaCard';
+import { scrollTarget } from '../hooks/focusScroll';
 import { colour, font, layout, pageGutter, rem, type } from '../styles/theme';
 
 /**
@@ -30,15 +31,32 @@ export function MediaRow({
   onRowFocus?: () => void;
 }): React.JSX.Element | null {
   const scroller = useRef<ScrollView | null>(null);
+  const viewportWidth = useRef(0);
+  const scrollX = useRef(0);
+  const cards = useRef(new Map<number, { offset: number; length: number }>());
 
   if (items.length === 0) return null;
 
-  const scrollToIndex = (index: number) => {
-    const stride = layout.mediaCardWidth + layout.rowGap;
-    // Keep one card of lead-in visible so the viewer can see there is more to
-    // the left, matching how the web row comes to rest.
-    const x = Math.max(0, index * stride - stride);
-    scroller.current?.scrollTo({ x, animated: true });
+  /**
+   * Move the row only when the focused card is not already in view.
+   *
+   * **It used to scroll on every focus change**, from a stride: a card in plain
+   * sight still dragged the row under the viewer, and the first card of a row
+   * could never sit at the left edge because the arithmetic always subtracted
+   * one stride. Reported off the set as the eager half of the scrolling fault.
+   * The stride was also a guess — correct only while every card is exactly the
+   * same width, which is true today and is not a thing to depend on.
+   *
+   * The lead keeps a sliver of the neighbouring card visible, which is the same
+   * signal the web row gives that there is more to one side.
+   */
+  const revealCard = (index: number) => {
+    const card = cards.current.get(index);
+    if (!card) return;
+    const target = scrollTarget(card, viewportWidth.current, scrollX.current, layout.rowGap);
+    if (target === undefined) return;
+    scrollX.current = target;
+    scroller.current?.scrollTo({ x: target, animated: true });
   };
 
   return (
@@ -51,6 +69,12 @@ export function MediaRow({
         contentContainerStyle={styles.row}
         // A television has no touch; the D-pad drives this entirely.
         scrollEnabled={false}
+        // Measured from a wrapping `View` for the vertical scrollers because a
+        // `ScrollView` reports nothing here; horizontally it does report, and
+        // this is the frame rather than the content.
+        onLayout={(event) => {
+          viewportWidth.current = event.nativeEvent.layout.width;
+        }}
       >
         {items.map((media, index) => (
           <MediaCard
@@ -59,9 +83,10 @@ export function MediaRow({
             onSelect={() => onSelect(media)}
             defaultFocus={defaultFocusFirst && index === 0}
             progress={progressFor?.(media)}
+            onExtent={(box) => cards.current.set(index, { offset: box.x, length: box.width })}
             onFocusChange={(focused) => {
               if (!focused) return;
-              scrollToIndex(index);
+              revealCard(index);
               // The row moves horizontally; the page has to move vertically to
               // it, or focus lands on a row below the fold and the selector sits
               // on a card cut off by the bottom edge.

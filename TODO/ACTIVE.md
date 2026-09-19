@@ -874,9 +874,13 @@ Missing:
 
 - ~~Options~~ — **done 2026-09-13**, §2.3.
 - **Previous / next** — needs `PlaybackQueueStore` (§2.5).
-- ~~Volume and mute~~ — **done 2026-09-13**. Not a slider: the control takes
-  left and right while focused, as the scrubber does, since a D-pad is the only
-  input and a separate slider would be two controls where one will do.
+- ~~Volume and mute~~ — built 2026-09-13 and **removed 2026-09-19** (Tom). A
+  television's remote has volume keys that drive the set's own output stage,
+  and an app-level level underneath them is a second, invisible multiplier; two
+  volumes that disagree is worse than one. `VolumeStore` and
+  `usePlayerVolume` stay wired, because core's `setVolume` still applies a
+  remembered level and a promoted standby still comes up at it — what went is
+  the control, not the state.
 - **Mini player** and its minimise/expand pair.
 - ~~**Failure trail**~~ — **built 2026-09-13, and currently unreachable.**
   `screens/player/failureTrail.ts` prints the last dozen warnings and errors
@@ -945,3 +949,54 @@ stays in core and stays in our path: it *applies* a volume where the store
 
 The clearest illustration of rule 1: all four stores are core's, already written
 and tested, and the work here is to render them.
+
+### 4.6 Music — seven routes, none of them started
+
+**Tom asked why there is no Music on Home** (2026-09-19), and the first answer
+written here was wrong. It said the row was empty because `home.albums` came
+back empty, inferred from a `uiautomator dump` that showed only two rows — but
+that dump **prunes what is off screen**, and the rows were below the fold
+because the page could not scroll (§1.1's fault, in its Home form). With the
+scroll fixed, Home shows Movies, TV Shows *and* Music, albums and all:
+`docs/evidence/2026-09-19-home-scroll-fixed.png`.
+
+Kept because it is the same mistake this repo keeps writing down: a tool's
+silence read as evidence of absence. The dump could not have told me either
+way, and one press of Down could.
+
+**The Home row works. What is absent is everything else**, and it is the
+largest single block left in this file: **seven of the web client's
+twenty-eight routes.** A viewer can see that albums exist and cannot open one.
+
+**What core already ships**, so none of this is a data problem (§4's rule 1):
+`MediaApi.artists()`, `.albums()`, `.tracks()`, core's `PlaylistStore` — which
+supersedes the `MusicPlaylistStore` this client never constructed and which core
+says to delete rather than extend (§4.5) — and `state/musicPlaylist`.
+
+**What is missing is presentation, and three pieces of it block the rest:**
+
+- **`OverflowMenu` and `Modal`** (§4.3). Every "add to playlist / play next /
+  play later" affordance hangs off them, and on a D-pad a menu is a focus scope
+  with its own trap — the same problem `PlayerOptions` solved, and the place to
+  copy from.
+- **A queue that survives the screen.** `PlaybackQueueStore` is constructed and
+  read by nothing (§2.5). Music is the case that makes it unavoidable: an album
+  is a queue, and next/previous in the transport (§4.2) needs the same wiring.
+- **A player that is not the film player.** A track has no picture, so the
+  full-screen `PlayerScreen` is the wrong surface: the web client keeps music
+  playing while the viewer browses, which means a mini player (§4.2) and a
+  runtime that outlives the route — this client's `PlaybackRuntime` already is
+  app-scoped, so the gap is presentation again.
+
+**Route by route**, against `../macha-client` — read, not recalled:
+`/music` (landing), `/music/artists`, `/music/artists/:id`, `/music/albums`,
+`/music/albums/:id`, `/music/tracks`, `/music/playlists`.
+
+**Not started, and not to be started piecemeal.** The three blockers above are
+shared with Search (§4.1) and with the transport work, so doing them first buys
+more than one screen. A television is also the place to ask whether the whole
+of it is wanted: the web client's music routes assume a pointer and a keyboard
+for playlist editing, and §3.3 already rules that a 10-foot UI is a poor place
+to retag a film. **Tom's call, and worth making before the first screen rather
+than after four.**
+

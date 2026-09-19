@@ -20,7 +20,7 @@ import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
  * is shown here where a person can check it against the file being played.
  */
 export function SettingsScreen(): React.JSX.Element {
-  const { scroller, viewportHeight, measureRow, revealRow } = usePageFocusScroll(SCROLL_LEAD);
+  const { scroller, measureViewport, measureRow, revealRow } = usePageFocusScroll(SCROLL_LEAD);
 
   const [capabilities, setCapabilities] = useState<PlaybackCapabilities | undefined>();
   const [error, setError] = useState<Error | undefined>();
@@ -40,15 +40,13 @@ export function SettingsScreen(): React.JSX.Element {
   }, []);
 
   return (
+    <View style={styles.fill} onLayout={measureViewport}>
     <ScrollView
       ref={scroller}
       contentContainerStyle={styles.page}
       // A television has no touch: the D-pad drives this, and the scroller
       // follows focus rather than the other way round.
       scrollEnabled={false}
-      onLayout={(event) => {
-        viewportHeight.current = event.nativeEvent.layout.height;
-      }}
     >
       <PageTitle>Settings</PageTitle>
 
@@ -173,6 +171,7 @@ export function SettingsScreen(): React.JSX.Element {
         </Text>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -194,6 +193,9 @@ function Capability({ name, value }: { name: string; value: string }): React.JSX
 }
 
 const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
   page: {
     paddingTop: rem(1),
     paddingBottom: rem(4),

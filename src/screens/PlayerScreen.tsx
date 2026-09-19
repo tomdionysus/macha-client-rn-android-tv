@@ -388,32 +388,17 @@ export function PlayerScreen({
             />
             <ChromeButton icon="forward" onSelect={() => { runtime.seekBy(10_000); showChrome(); }} />
             {/*
-              * Volume takes left and right while focused, exactly as the
-              * scrubber does — a slider a viewer has to travel to and then
-              * scrub is two controls where one will do, and the D-pad is
-              * already the only input.
+              * **No volume control here** (Tom, 2026-09-19). A television's own
+              * remote has volume keys and they drive the set's output stage,
+              * which is the one a viewer reaches for; an app-level level in the
+              * transport row is a second, invisible multiplier underneath it,
+              * and two volumes that disagree is worse than one.
+              *
+              * `VolumeStore` and `usePlayerVolume` stay wired — core's
+              * `setVolume` still applies a remembered level, and a promoted
+              * standby still comes up at it. What is gone is the control, not
+              * the state. See `TODO/ACTIVE.md` §4.2.
               */}
-            <Focusable
-              ring={false}
-              scope={CHROME_SCOPE}
-              style={styles.volumeControl}
-              focusedStyle={styles.volumeControlFocused}
-              onSelect={() => { volume.toggleMute(); showChrome(); }}
-              ownsDirection={(direction) => direction === 'left' || direction === 'right'}
-              onDirection={(direction) => {
-                volume.step(direction === 'right' ? 'up' : 'down');
-                showChrome();
-              }}
-            >
-              {() => (
-                <>
-                  <PlayerIcon name={volume.muted ? 'mute' : 'volume'} size={20} />
-                  <Text style={styles.volumeLevel}>
-                    {volume.muted ? 'Muted' : `${volumePercent(volume)}%`}
-                  </Text>
-                </>
-              )}
-            </Focusable>
             {playback?.session ? (
               <ChromeButton icon="options" onSelect={() => setOptionsOpen(true)} />
             ) : null}

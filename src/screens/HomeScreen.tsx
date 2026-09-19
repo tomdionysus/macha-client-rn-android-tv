@@ -23,7 +23,7 @@ export function HomeScreen({
   onResume: (media: MediaSummary) => void;
 }): React.JSX.Element {
   const home = useRefreshableAsync(() => api.home(), [api]);
-  const { scroller, viewportHeight, measureRow, revealRow } = usePageFocusScroll(rem(1));
+  const { scroller, measureViewport, measureRow, revealRow } = usePageFocusScroll(rem(1));
 
   if (!home.value) {
     return (
@@ -44,6 +44,7 @@ export function HomeScreen({
   };
 
   return (
+    <View style={styles.fill} onLayout={measureViewport}>
     <ScrollView
       ref={scroller}
       contentContainerStyle={styles.page}
@@ -51,9 +52,6 @@ export function HomeScreen({
       // this the rows below the fold could be focused and never seen, which is
       // how the selector came to sit on a card cut off by the bottom edge.
       scrollEnabled={false}
-      onLayout={(event) => {
-        viewportHeight.current = event.nativeEvent.layout.height;
-      }}
     >
       <PageTitle>Home</PageTitle>
       {home.error ? <RefreshError error={home.error} /> : null}
@@ -93,10 +91,14 @@ export function HomeScreen({
         />
       </View>
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
   // `main { padding: 1rem 3vw 4rem }`. The rails apply the horizontal gutter
   // themselves so a focused card can scroll flush to the screen edge.
   page: {

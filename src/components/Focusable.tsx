@@ -35,7 +35,7 @@ export interface FocusableProps {
    * the wrong frame for `scrollTo` — and a second `onLayout` cannot be added to
    * the view below from outside, since the first belongs to the registry.
    */
-  onExtent?: (extent: { y: number; height: number }) => void;
+  onExtent?: (box: { x: number; y: number; width: number; height: number }) => void;
   /** Directions this element keeps rather than yielding to the focus scorer. */
   ownsDirection?: (direction: TvDirection) => boolean;
   onDirection?: (direction: TvDirection) => void;
@@ -92,8 +92,8 @@ export const Focusable = forwardRef<View, FocusableProps>(function Focusable(
       ref={ref}
       onLayout={(event) => {
         onLayout(event);
-        const { y, height } = event.nativeEvent.layout;
-        onExtent?.({ y, height });
+        const { x, y, width, height } = event.nativeEvent.layout;
+        onExtent?.({ x, y, width, height });
       }}
       style={[
         ring ? styles.ring : null,
