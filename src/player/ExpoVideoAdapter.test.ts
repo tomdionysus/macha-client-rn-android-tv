@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaybackSource } from '@machafoundation/core';
+import { MediaStallWatchdog } from '@machafoundation/core';
+import type { PlaybackSource, PlaybackSourceError } from '@machafoundation/core';
 import { FIRST_FRAGMENT_TIMEOUT_MS, HOLD_RETRY_CEILING_MS } from './timingBudgets';
 
 /**
@@ -316,7 +317,7 @@ describe('the warm standby', () => {
 
   it('promotes by handing over rather than reloading the source', async () => {
     const adapter = await withStandby();
-    await adapter.play(alternate());
+    await adapter.play(alternate(), 0, false, 'continue');
     // The decisive assertion: the primed player was never told to `replace`,
     // because the whole point is that it has already buffered.
     expect(created[1]?.replaced).toHaveLength(0);
@@ -326,7 +327,7 @@ describe('the warm standby', () => {
   it('brings the promoted player up at the volume core last asked for', async () => {
     const adapter = await withStandby();
     adapter.setVolume(0.25);
-    await adapter.play(alternate());
+    await adapter.play(alternate(), 0, false, 'continue');
     expect(created[1]?.volume).toBe(0.25);
   });
 
@@ -335,27 +336,27 @@ describe('the warm standby', () => {
     // current task. Releasing here would destroy a player the mounted
     // `VideoView` is still rendering.
     const adapter = await withStandby();
-    await adapter.play(alternate());
+    await adapter.play(alternate(), 0, false, 'continue');
     expect(fake.released).toBe(false);
   });
 
   it('releases it once presentation says it has rendered the promoted one', async () => {
     const adapter = await withStandby();
-    await adapter.play(alternate());
+    await adapter.play(alternate(), 0, false, 'continue');
     adapter.releaseRetiredPlayer();
     expect(fake.released).toBe(true);
   });
 
   it('releases a retired player on stop even if presentation never acknowledged', async () => {
     const adapter = await withStandby();
-    await adapter.play(alternate());
+    await adapter.play(alternate(), 0, false, 'continue');
     adapter.stop();
     expect(fake.released).toBe(true);
   });
 
   it('releases a retired player on teardown even if presentation never acknowledged', async () => {
     const adapter = await withStandby();
-    await adapter.play(alternate());
+    await adapter.play(alternate(), 0, false, 'continue');
     adapter.detach();
     expect(fake.released).toBe(true);
   });
@@ -367,7 +368,7 @@ describe('the warm standby', () => {
 
   it('carries the adapter event stream onto the promoted player', async () => {
     const adapter = await withStandby();
-    await adapter.play(alternate());
+    await adapter.play(alternate(), 0, false, 'continue');
     const events: { positionMs: number }[] = [];
     adapter.subscribe((event) => events.push(event));
     created[1]!.currentTime = 42;
@@ -377,7 +378,7 @@ describe('the warm standby', () => {
 
   it('stops listening to the player it released', async () => {
     const adapter = await withStandby();
-    await adapter.play(alternate());
+    await adapter.play(alternate(), 0, false, 'continue');
     const events: unknown[] = [];
     adapter.subscribe((event) => events.push(event));
     fake.emit('timeUpdate');
@@ -386,7 +387,7 @@ describe('the warm standby', () => {
 
   it('resumes at the position core asked for', async () => {
     const adapter = await withStandby();
-    await adapter.play(alternate(), 90_000);
+    await adapter.play(alternate(), 90_000, false, 'continue');
     expect(created[1]?.currentTime).toBe(90);
   });
 
@@ -412,6 +413,34 @@ describe('the warm standby', () => {
     expect(created[1]?.released).toBe(true);
   });
 
+  it('promotes only when core says the viewer did not ask for this', async () => {
+    // A seek arrives as `play(source, positionMs)` exactly as a recovery does —
+    // byte-identical, measured — and `transition` is the only thing that tells
+    // them apart. Hiding a seek behind a pre-buffered player holds the viewer
+    // where they were while the clock says they arrived.
+    const adapter = await withStandby();
+    await adapter.play(alternate(), 90_000, false, 'relocate');
+
+    // The standby was not cut to: the active player was given the source.
+    expect(created[1]?.calls).not.toContain('play');
+    expect(fake.replaced.at(-1)).toMatchObject({
+      uri: 'https://node-b.test/generation/index.m3u8',
+    });
+  });
+
+  it('treats an absent transition as a relocate, which is core\'s default', async () => {
+    // A host that ignores the argument must still be correct, and the
+    // behaviour every player had before seamless replacement existed is to
+    // attach and let it show.
+    const adapter = await withStandby();
+    await adapter.play(alternate());
+
+    expect(created[1]?.calls).not.toContain('play');
+    expect(fake.replaced.at(-1)).toMatchObject({
+      uri: 'https://node-b.test/generation/index.m3u8',
+    });
+  });
+
   it('does not re-prime the same source twice', async () => {
     const adapter = await withStandby();
     await adapter.preflightSource(alternate());
@@ -429,6 +458,58 @@ describe('the warm standby', () => {
  * failover that looks exactly like a node fault — is the one most likely to
  * be misread during the 5.1 downmix measurement.
  */
+/**
+ * The stall budget belongs to the node, and the node now states it.
+ *
+ * Until core 0.14.0 the relationship "longer than the longest legitimate wait
+ * this node can impose" could only be written against a compiled-in guess at
+ * what that wait was. A node configured with a longer hold was called dead for
+ * using it.
+ */
+describe('the stall budget follows the source', () => {
+  it('re-states it to the watchdog at every attach, not once at construction', async () => {
+    // The watchdog outlives any one generation while the figure belongs to a
+    // node, so an adapter that sets it once judges every later node by the
+    // first one's number.
+    const useSourceBudgets = vi.spyOn(MediaStallWatchdog.prototype, 'useSourceBudgets');
+    try {
+      const adapter = new ExpoVideoAdapter();
+      const first = source({ budgets: { deadlineMs: 19_000, segmentHoldMs: 6_000 } });
+      const second = source({
+        url: 'https://node-b.test/generation/index.m3u8',
+        budgets: { deadlineMs: 19_000, segmentHoldMs: 12_000 },
+      });
+
+      await adapter.play(first);
+      await adapter.play(second);
+
+      expect(useSourceBudgets.mock.calls.map(([given]) => given)).toEqual([first, second]);
+    } finally {
+      useSourceBudgets.mockRestore();
+    }
+  });
+
+  it('states it for a promoted standby too', async () => {
+    // A promotion is the case where it matters most: the whole point is that
+    // the replacement is on a *different* node from the one that just stopped.
+    const useSourceBudgets = vi.spyOn(MediaStallWatchdog.prototype, 'useSourceBudgets');
+    try {
+      const adapter = new ExpoVideoAdapter();
+      await adapter.play(source());
+      const alternate = source({
+        url: 'https://node-b.test/generation/index.m3u8',
+        budgets: { deadlineMs: 19_000, segmentHoldMs: 12_000 },
+      });
+      await adapter.preflightSource(alternate);
+      await adapter.play(alternate, 0, false, 'continue');
+
+      expect(useSourceBudgets).toHaveBeenLastCalledWith(alternate);
+    } finally {
+      useSourceBudgets.mockRestore();
+    }
+  });
+});
+
 describe('waiting for the node to serve the first fragment', () => {
   it('does not hand the player a source until the node serves it', async () => {
     const adapter = new ExpoVideoAdapter();
@@ -504,6 +585,85 @@ describe('waiting for the node to serve the first fragment', () => {
     }
   });
 
+  it('reports a 404 as one session\'s absence, never as the node failing', async () => {
+    // Core 0.13.0: read as `stream` this is endpoint evidence, and the node
+    // that answered honestly is charged a failure and dropped while the viewer
+    // is sent to one that never held the session. Reported as `not-found`, core
+    // asks that same node whether the session is still there.
+    const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
+    vi.stubGlobal('fetch', (async (url: string) => (url.endsWith('.m3u8')
+      ? { ok: true, status: 200, headers: { get: () => null }, text: async () => playlist }
+      : { ok: false, status: 404, headers: { get: () => null } })) as unknown as typeof fetch);
+
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+
+    await expect(adapter.play(source())).resolves.toBe(false);
+    expect(failures[0]?.kind).toBe('not-found');
+  });
+
+  it('does not tear the presentation down on a not-found', async () => {
+    // The obligation that arrives with the kind: the element's buffer is the
+    // cover core builds a replacement behind, and an adapter that empties it
+    // throws away exactly what the recovery was going to spend.
+    const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
+    const adapter = new ExpoVideoAdapter();
+    await adapter.play(source());
+    const callsWhilePlaying = [...fake.calls];
+
+    vi.stubGlobal('fetch', (async (url: string) => (url.endsWith('.m3u8')
+      ? { ok: true, status: 200, headers: { get: () => null }, text: async () => playlist }
+      : { ok: false, status: 404, headers: { get: () => null } })) as unknown as typeof fetch);
+    await adapter.play(source({ url: 'https://node-b.test/generation/index.m3u8' }));
+
+    // Nothing was paused, emptied or replaced: whatever is on screen is still on
+    // screen and still playing out.
+    expect(fake.calls).toEqual(callsWhilePlaying);
+    expect(fake.released).toBe(false);
+  });
+
+  it('reports a broken generation as evidence against the node', async () => {
+    // The other terminal status, and the opposite conclusion: a 503 is this
+    // node's generation broken, which is endpoint evidence and should fail over.
+    const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
+    vi.stubGlobal('fetch', (async (url: string) => (url.endsWith('.m3u8')
+      ? { ok: true, status: 200, headers: { get: () => null }, text: async () => playlist }
+      : { ok: false, status: 503, headers: { get: () => null } })) as unknown as typeof fetch);
+
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+
+    await expect(adapter.play(source())).resolves.toBe(false);
+    expect(failures[0]?.kind).toBe('stream');
+  });
+
+  it('waits out the deadline the node itself states, not the local default', async () => {
+    // Core 0.14.0 carries the serving node's own acquisition deadline on the
+    // source. A host that keeps waiting past it is holding a viewer in front of
+    // a node core has already decided is worth leaving.
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', holding());
+      const adapter = new ExpoVideoAdapter();
+      const failures: Error[] = [];
+      adapter.subscribeFailure((error) => failures.push(error));
+
+      const stated = 9_000;
+      const playing = adapter.play(source({ budgets: { deadlineMs: stated, segmentHoldMs: 6_000 } }));
+      await vi.advanceTimersByTimeAsync(stated + HOLD_RETRY_CEILING_MS);
+
+      await expect(playing).resolves.toBe(false);
+      expect(failures).toHaveLength(1);
+      // And it gave up well inside the figure it would have used for a node
+      // that could not say.
+      expect(stated).toBeLessThan(FIRST_FRAGMENT_TIMEOUT_MS);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('walks nothing for a source that is not a manifest', async () => {
     // A progressive byte source has no playlist to walk, and asking would
     // range-request the film itself.
@@ -528,7 +688,7 @@ describe('waiting for the node to serve the first fragment', () => {
 
     const fetchImpl = vi.fn(servable());
     vi.stubGlobal('fetch', fetchImpl);
-    await adapter.play(alternate);
+    await adapter.play(alternate, 0, false, 'continue');
 
     expect(fetchImpl).not.toHaveBeenCalled();
   });

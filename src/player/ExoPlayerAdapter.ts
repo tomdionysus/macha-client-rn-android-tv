@@ -142,9 +142,23 @@ export class ExoPlayerAdapter implements Player {
    *
    * Waiting for buffering here would stall the coordinator's failover timing,
    * which is the machinery that moves a viewer off an unhealthy node.
+   *
+   * **No `transition` parameter, deliberately.** Core 0.14.0 passes one so a
+   * host that can replace a source invisibly knows when it may; this engine
+   * holds one `ExoPlayer` and has no standby to cut to, so every replacement is
+   * an ordinary attach and there is nothing the answer would change. Omitting
+   * an optional parameter still satisfies `Player`. When the seamless work in
+   * `TODO/ACTIVE.md` §2.1 reaches this engine — where the injectable data
+   * source factory makes it cheaper than here — this is where it has to be
+   * honoured, and `ExpoVideoAdapter.promoteStandby` is the worked example.
    */
   async play(source: PlaybackSource, positionMs = 0, startPaused = false): Promise<boolean> {
     MachaPlayer.setKeepScreenOn(true);
+
+    // The stall budget belongs to the node serving this source, not to the
+    // watchdog, which outlives any one generation. A node stating a longer hold
+    // than the compiled-in default is no longer called dead for using it.
+    this.stallWatchdog.useSourceBudgets(source);
 
     // A node that accepts the source and then sends nothing is reported as a
     // `stream` failure, so the coordinator recovers onto another node — that

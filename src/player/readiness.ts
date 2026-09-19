@@ -1,6 +1,6 @@
 import { probeHlsReadiness, type PlaybackSource } from '@machafoundation/core';
 import {
-  FIRST_FRAGMENT_TIMEOUT_MS,
+  firstFragmentTimeoutMs,
   HOLD_RETRY_BASE_MS,
   HOLD_RETRY_CEILING_MS,
 } from './timingBudgets';
@@ -37,6 +37,16 @@ export interface FirstFragmentReadiness {
   ready: boolean;
   /** Why not, in the terms the node stated it. */
   reason?: string;
+  /**
+   * The status the node answered with, where it answered at all.
+   *
+   * Carried rather than folded into `reason` because the caller has to turn it
+   * into an evidence kind, and that mapping is core's
+   * (`playbackFailureKindForStatus`). A `404` and a `503` are both "the node
+   * did not serve it" in prose and are opposite conclusions about the node:
+   * one is a statement about this session, the other is a broken generation.
+   */
+  status?: number;
   waitedMs: number;
   attempts: number;
 }
@@ -56,9 +66,10 @@ export function holdBackoffMs(attempts: number): number {
  * How long to wait before asking this node again.
  *
  * Core's `holding` carries the node's own `Retry-After` where it sent one,
- * falling back to `SERVER_SEGMENT_HOLD_MS`. It is honoured because the node
- * knows what it is doing better than a backoff curve does — **but core does
- * not bound it**, and a node stating `Retry-After: 9999` would otherwise park
+ * falling back to that node's stated hold — `PlaybackSource.budgets`, or
+ * `SERVER_SEGMENT_HOLD_MS` for a node too old to say. It is honoured because
+ * the node knows what it is doing better than a backoff curve does — **but
+ * core does not bound it**, and a node stating `Retry-After: 9999` would park
  * playback for the rest of the budget on one header. Clamped here rather than
  * left to the deadline check, because hitting the deadline abandons the node
  * whereas clamping keeps asking it.
@@ -92,22 +103,25 @@ export async function awaitFirstFragment(
     fetchImpl = fetch,
     now = () => Date.now(),
     sleep = (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); }),
-    timeoutMs = FIRST_FRAGMENT_TIMEOUT_MS,
+    // The serving node's own deadline where it states one, and this client's
+    // constant only for a node that cannot. See `firstFragmentTimeoutMs`.
+    timeoutMs = firstFragmentTimeoutMs(source),
     superseded = () => false,
   } = options;
 
   const started = now();
   const deadline = started + timeoutMs;
   // One controller for the whole sequence of attempts. Core applies its own
-  // per-request deadline inside each walk (`HLS_WALK_TIMEOUT_MS`, which it
-  // keeps above the server's hold); this one bounds the total, or a node
-  // could hold every attempt right up to core's deadline and never exceed
-  // ours.
+  // per-request deadline inside each walk — since 0.14.0 derived from the
+  // hold this node states, and `HLS_WALK_TIMEOUT_MS` only for one that cannot
+  // — and this one bounds the total, or a node could hold every attempt right
+  // up to core's deadline and never exceed ours.
   const controller = new AbortController();
   const expiry = setTimeout(() => controller.abort(), timeoutMs);
 
   let attempts = 0;
   let reason = 'superseded before the node was asked';
+  let status: number | undefined;
   try {
     while (!superseded()) {
       attempts += 1;
@@ -132,6 +146,7 @@ export async function awaitFirstFragment(
         // failure trail worth having: without it every transport fault reads
         // as "the node did not answer", which cannot be told apart from a
         // node that answered badly. Core added it at this client's request.
+        status = outcome.status;
         reason = outcome.status !== undefined
           ? `the node answered ${outcome.status}`
           : outcome.detail ?? 'the node did not answer';
@@ -146,7 +161,7 @@ export async function awaitFirstFragment(
       }
       await sleep(retryMs);
     }
-    return { ready: false, reason, waitedMs: now() - started, attempts };
+    return { ready: false, reason, status, waitedMs: now() - started, attempts };
   } finally {
     clearTimeout(expiry);
   }

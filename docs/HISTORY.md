@@ -134,6 +134,57 @@ fails only when the retune is wrong.
 
 ---
 
+## 2026-09-19 — The numbers stop being ours (core `0.14.0`)
+
+Every budget in the table above was chosen against one compiled-in server
+default, because that was the only figure a client could see. Server `0.45.0`
+and `0.46.0` changed that: a node now states its own `startup_timeout_ms`,
+`segment_timeout_ms` and `stream.look_ahead_ms`, core reads them through
+`EndpointHealthMonitor` and carries them on `PlaybackSource.budgets`, and a
+host that goes on using its own constants is guessing at a number it has been
+handed.
+
+**The decision worth recording is which figure wins when they disagree.** A
+stated deadline is taken **whole, including when it is shorter** than this
+client's own — `firstFragmentTimeoutMs()`. The temptation is to take the larger
+of the two, on the reasoning that waiting longer is the safer error; it is not.
+Core owns *when to stop* and the host owns *what happens until then*, and of
+two deadlines the shorter silently wins while the other layer looks broken —
+the same fault this file's timing table already records four times, arrived at
+from the opposite direction. Preferring our own number would also keep a viewer
+in front of a node core had already decided was worth leaving. The local
+constant is now only what a node too old to state one gets, and a node that
+cannot say is not a node that needs less time.
+
+**A `404` stopped meaning the node is bad.** Core `0.13.0` gave it a kind of its
+own, `not-found`, because a reaped session and a fragment past the end of a
+plan answer identically — measured by the core session against one node, same
+status and same machine code, differing by one word of English in a body no
+fragment loader surfaces. Read as `stream` it was endpoint evidence, so the
+node that answered honestly was charged a failure and dropped while the viewer
+was sent to one that had never held the session. This client reports the kind
+from its readiness walk now, and the obligation that arrives with it — an
+adapter reporting `not-found` must not tear its presentation down, because the
+buffer is the cover core builds the replacement behind.
+
+**Where it does not reach, and why that is a television problem.** The walk runs
+at `play()`. A session reaped *while the viewer is paused mid-film* is found by
+`expo-video`'s own loader, and `PlayerError` is `{ message: string }` — no
+status, so the kind is still `unknown`. The reap is not a risk on a television,
+it is a certainty: `SERVER_SESSION_IDLE_MS` is 30 minutes, a paused client stops
+asking for fragments within about one buffer, and somebody pausing a film for
+half an hour is ordinary. So the exact fault core `0.13.0` was built to fix is
+the one this client cannot currently report. Recorded in `TODO/ACTIVE.md` §2.6
+with the two ways out, neither of which has been measured.
+
+**Two hazards this client raised came back fixed.** The stall watchdog not
+re-arming after a pause, and a backward seek evicting a healthy node by dropping
+the buffer below its own high-water mark. Both were reported from here because a
+D-pad is the only seek affordance on a television and generates backward seeks
+as ordinary viewing; core's fix carries that reasoning in its own comment. Read
+out of the shipped `MediaWatchdog.js` rather than taken on report — and still
+**unexercised on hardware**, like everything else about failover here.
+
 ## Theories that did not survive
 
 ### `PlaybackRuntime.attach` takes an `HTMLElement` — **wrong**

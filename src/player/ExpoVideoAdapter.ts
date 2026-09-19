@@ -3,11 +3,13 @@ import {
   MediaStallWatchdog,
   MediaStartWatchdog,
   PlaybackSourceError,
+  playbackFailureKindForStatus,
   preflightHlsSource,
   type PlaybackEvent,
   type PlaybackHost,
   type PlaybackSource,
   type PlaybackTimeRange,
+  type PlaybackTransition,
   type Player,
 } from '@machafoundation/core';
 import { createWatchdogEnvironment } from './watchdogEnvironment';
@@ -29,12 +31,17 @@ import { playbackLog } from '../diagnostics/playbackLog';
  * **What is knowingly given up while this is the player**, so none of it is
  * rediscovered as a bug:
  *
- * - **Seamless failover.** `expo-video` builds its `OkHttpDataSource.Factory`
- *   internally (`utils/DataSourceUtils.kt`) with no injection point, so there
- *   is no way to prime a second source or hand a surface over.
- *   `preflightSource` and `addDirectSourceAlternative` are therefore not
- *   implemented here — deliberately, not by oversight. Core degrades to a cold
- *   endpoint walk, which still recovers, just visibly.
+ * - **Byte-level source control.** `expo-video` builds its
+ *   `OkHttpDataSource.Factory` internally (`utils/DataSourceUtils.kt`) with no
+ *   injection point, so there is no per-request control and no HTTP status on
+ *   what the player's own loader hits. `addDirectSourceAlternative` is not
+ *   implemented for that reason — deliberately, not by oversight.
+ *
+ *   **This does not cost seamless failover**, which an earlier version of this
+ *   paragraph claimed: handover does not live in the transport. `VideoView`'s
+ *   player setter holds the shutter open for a pre-warmed player, so a second
+ *   `VideoPlayer` can be primed and promoted — which is what `preflightSource`
+ *   and `promoteStandby` below do.
  * - **Audio focus ducking.** `expo-video`'s `AudioFocusManager` halves
  *   `player.volume` on a transient duck and restores from its own
  *   `userVolume`, rather than keeping ducking as a separate multiplier.
@@ -72,9 +79,12 @@ export class ExpoVideoAdapter implements Player {
   /**
    * A source primed and buffering, ready to take over.
    *
-   * Keyed by URL because that is all core gives us to recognise it: promotion
-   * arrives as an ordinary `play()` carrying the source we were asked to
-   * preflight, with nothing marking it as a promotion.
+   * Keyed by URL because that is all core gives us to recognise *which* source
+   * this is: promotion arrives as an ordinary `play()` carrying the one we were
+   * asked to preflight, with no separate hook. Since core 0.14.0 the
+   * `transition` argument says whether the swap may be hidden, which is a
+   * different question from which source it is — both have to agree before the
+   * standby is cut to. See `promoteStandby`.
    */
   private standby?: { url: string; player: VideoPlayer };
 
@@ -220,8 +230,17 @@ export class ExpoVideoAdapter implements Player {
    * working. Failing over during that answer is not faster; it is a cold
    * start on a node that does not have the fragment either. See
    * `readiness.ts`.
+   *
+   * **`transition` is the one bit this adapter cannot work out for itself**,
+   * and it decides whether replacing the source may be hidden. See
+   * `promoteStandby`.
    */
-  async play(source: PlaybackSource, positionMs = 0, startPaused = false): Promise<boolean> {
+  async play(
+    source: PlaybackSource,
+    positionMs = 0,
+    startPaused = false,
+    transition?: PlaybackTransition,
+  ): Promise<boolean> {
     const generation = ++this.sourceGeneration;
     this.ended = false;
     this.seeking = false;
@@ -237,8 +256,8 @@ export class ExpoVideoAdapter implements Player {
     // would spend up to five server holds re-answering a question that was
     // settled when it was primed — in front of a viewer whose picture has
     // just frozen, which is the worst possible moment to spend it.
-    if (this.promoteStandby(source, positionMs, startPaused)) {
-      this.startWatchdogs();
+    if (this.promoteStandby(source, positionMs, startPaused, transition)) {
+      this.startWatchdogs(source);
       return true;
     }
 
@@ -250,7 +269,7 @@ export class ExpoVideoAdapter implements Player {
     // player now, and finishing this one would overwrite it.
     if (generation !== this.sourceGeneration) return false;
 
-    this.startWatchdogs();
+    this.startWatchdogs(source);
     this.active.replace(this.videoSourceFor(source));
     if (positionMs > 0) this.active.currentTime = positionMs / 1_000;
     if (startPaused) this.active.pause();
@@ -285,7 +304,26 @@ export class ExpoVideoAdapter implements Player {
     this.reportFailure(
       new PlaybackSourceError(
         `The node did not serve the first fragment: ${readiness.reason}`,
-        'stream',
+        // The status it answered with, through core's rule — never a blanket
+        // `stream`, which is what this said until core 0.13.0 gave `404` a kind
+        // of its own. A `404` on a playback route is one session's existence,
+        // not the node's health: read as `stream` it is endpoint evidence, and
+        // the node that answered honestly is charged a failure and dropped from
+        // the candidate list while the viewer is sent to one that never held
+        // the session. Reported as `not-found`, core asks that same node
+        // whether the session is still there and regenerates on it if not.
+        //
+        // **Reporting the kind carries an obligation** (`Player.subscribeFailure`):
+        // an adapter reporting `not-found` must not tear the presentation down
+        // on it, because the element's buffer is the cover a replacement is
+        // built behind. Nothing here does — the walk runs before the active
+        // player is given anything, so whatever is playing keeps playing, and
+        // `reportFailure` touches only the watchdogs. Where there was no status
+        // at all the honest answer is still `stream`: the node was asked and
+        // did not answer.
+        readiness.status !== undefined
+          ? playbackFailureKindForStatus(readiness.status)
+          : 'stream',
       ),
     );
     return false;
@@ -301,8 +339,18 @@ export class ExpoVideoAdapter implements Player {
    * watchdog fire mid-walk and report a `stream` failure against a node that
    * was answering the protocol correctly — the exact spurious failover the
    * walk was written to remove.
+   *
+   * **The source is passed because the stall budget belongs to the node, not
+   * to the watchdog.** A stall must be called only after the node has failed
+   * to answer its own hold, and until core 0.14.0 that relationship could only
+   * be written against a compiled-in guess at what the hold was. The watchdog
+   * outlives any one generation while the figure travels with the source, so
+   * a host that does not re-state it at every attach goes on judging the new
+   * node by the old one's number.
    */
-  private startWatchdogs(): void {
+  private startWatchdogs(source: PlaybackSource): void {
+    this.stallWatchdog.useSourceBudgets(source);
+
     // A node that accepts the source and then sends nothing is reported as a
     // `stream` failure so the coordinator recovers onto another node. Nothing
     // else would ever notice: no player raises an error for a source it
@@ -426,10 +474,35 @@ export class ExpoVideoAdapter implements Player {
    * Core signals a promotion by calling `play()` with the source it previously
    * asked us to preflight — there is no separate hook, so the URL is the
    * recognition. Returns false when this is an ordinary play.
+   *
+   * **A matching URL is not sufficient on its own; `transition` decides.** Core
+   * 0.14.0 states whether the viewer asked for this change, and it is the one
+   * fact no host can derive: a seek and a recovery both arrive as
+   * `play(source, positionMs)` and are byte-identical, measured. `continue`
+   * means the viewer did not ask and should not see it — a failover, a reaped
+   * session, a quality change — which is exactly what a warm standby is for.
+   * `relocate` means they asked to be somewhere else, and the one outcome they
+   * did not want is being held where they were while the move is hidden. The
+   * web client measured fourteen seconds of that.
+   *
+   * So a `relocate` takes the ordinary path and the standby is discarded by the
+   * caller. Absent is treated as `relocate`, which is core's stated default and
+   * the behaviour every player had before seamless replacement existed.
+   *
+   * Today the cost of getting this wrong is small, because Tier 2 promotion
+   * still shows a black frame — but Tier 3 (§2.1) exists precisely to make the
+   * swap invisible, and at that point an unasked-for hide becomes a lie about
+   * where the viewer is.
    */
-  private promoteStandby(source: PlaybackSource, positionMs: number, startPaused: boolean): boolean {
+  private promoteStandby(
+    source: PlaybackSource,
+    positionMs: number,
+    startPaused: boolean,
+    transition?: PlaybackTransition,
+  ): boolean {
     const standby = this.standby;
     if (!standby || standby.url !== source.url) return false;
+    if (transition !== 'continue') return false;
     this.standby = undefined;
 
     // A successful promotion is logged at `warn` on purpose, against the

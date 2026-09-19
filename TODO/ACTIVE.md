@@ -210,9 +210,14 @@ and Dolby Vision the panel decodes natively.
   top-level function making a fresh `OkHttpClient`) with no injection point.
   This does **not** block seamless failover — see §2.1 — but it does block
   per-request control and HTTP status reporting.
-- **Failure evidence is weaker.** `expo-video` reports no HTTP status, so
-  `playbackFailureKindForStatus` cannot be applied and the honest kind is
-  `unknown`.
+- **Failure evidence is weaker.** `expo-video` reports no HTTP status —
+  `PlayerError` is `{ message: string }` — so `playbackFailureKindForStatus`
+  cannot be applied to anything the player itself reports, and the honest kind
+  is `unknown`. **Partly recovered since 0.14.0**: the readiness walk
+  (`readiness.ts`) makes its own requests and does see statuses, so a refusal
+  at `play()` is now classified properly, including the `404` that means a
+  reaped session rather than a bad node. What the player's own loader hits
+  mid-film is still unclassified — see §2.6.
 - ~~**Hold-aware loading is gone**~~ — **restored 2026-09-13**, in JS, without
   returning to the native engine. `src/player/readiness.ts` waits out a
   `500 segment_not_ready` on the *same* node before the source is ever handed
@@ -289,31 +294,32 @@ cheapest confirmation that promotion is doing the whole job. It matters more to
 this client than to the peers: §2.1's standby is a *second* concurrent session,
 so the arithmetic on a one-slot node only works if the old session goes away.
 
-### 2.2b Two core hazards that land hardest on a D-pad
+### 2.2b Two core hazards that land hardest on a D-pad — **fixed in core, unproven here**
 
 From the core session's review (`macha-ts/TODO/REVIEW-2026-09-12.md`), both
-**verified against core's source here** rather than taken on report. Neither is
-fixed in core yet; both bear on §2.1. Core owns the fixes.
+raised from this client because a D-pad meets them as ordinary viewing. **Both
+are fixed in `@machafoundation/core 0.14.0`**, read out of the shipped
+`MediaWatchdog.js` this tree compiles against rather than taken on report.
 
-**The stall watchdog never re-arms after a suspend.**
-`MediaStallWatchdog.suspend()` (`MediaWatchdog.ts:352`) disarms the deadline,
-and only `note()` re-arms it — but `note()` returns early unless position or
-buffer **advanced** (`:333-340`). So: pause, the node dies while paused, resume,
-and nothing ever advances, so nothing ever re-arms. **A frozen frame sits there
-indefinitely with the whole failover apparatus disarmed.** We wired both
-watchdogs precisely so `prepareAlternate` was reachable; this is the case where
-that wiring silently does nothing.
+- **The stall watchdog never re-armed after a suspend.** `suspend()` disarmed
+  the deadline and only advancement re-armed it, so a node that died while the
+  viewer was paused left a frozen frame with the whole failover apparatus
+  disarmed. `note()` now carries a `resumed` flag — set by `suspend()`, cleared
+  by the first `note()` after it — which re-arms without requiring anything to
+  have moved.
+- **A backward seek could evict a healthy node.** The buffer baseline was a
+  running max, so after a backward seek a node refilling perfectly well never
+  counted as advancing and was condemned at the stall deadline. `note()` now
+  detects the discontinuity — position or buffered end moving backwards, neither
+  of which ordinary playback can do — and re-bases the high-water mark. Core's
+  own comment names the television case: a D-pad is the only seek affordance, so
+  this is routine viewing rather than an edge case.
 
-**A backward seek can evict a healthy node.** `note()` keeps the buffer baseline
-as a running max. After a backward seek the reported buffer end drops below that
-high-water mark, so `advanced` stays false against a node that is working fine,
-and a below-realtime but healthy transcode is condemned at the stall deadline.
-
-**This is worse on a television than anywhere else**, and the core session has
-raised its severity on that basis: a D-pad *is* the seek affordance —
-`PlayerScreen.nudge()` commits a `runtime.seek` after every rewind burst — so
-this client generates backward seeks as ordinary viewing. Web and phone have
-scrubbers people touch rarely.
+**Neither fix has been exercised here**, and nor could it be: no watchdog has
+ever fired on this set (§2.2). The pause case is the one to provoke first,
+because it is also the case §2.6 leaves half-answered — pause past the node's
+`session_idle`, resume, and watch whether the failure is reported as evidence
+against a node that did nothing wrong.
 
 ### 2.3 Player options — done, and now exercised
 
@@ -356,15 +362,78 @@ Still dead:
 
 ---
 
-### 2.6 Core `0.10.0` — adopted and green, not ported
+### 2.6 Core `0.14.0` — the player contract is ported; the session work is not
 
-`@machafoundation/core 0.10.0` is installed and this tree builds and passes
-against it (159 tests, typecheck clean). Nothing resolves a removed or renamed
-symbol: the renames cost nothing because none of them were referenced by name,
-and `MachaHost.ephemeralStorage` was removed with a note left where it was
-decided. **The port itself has not been done.**
+`@machafoundation/core 0.14.0` is installed (2026-09-19, from `0.12.0` — the
+registry has no `0.13.0` gap, both minors landed in four days) and this tree
+builds and passes against it: 179 tests, typecheck clean, `expo export` clean.
 
-Not wired, in the order they matter here:
+**What 0.13.0 and 0.14.0 actually are** is one bug seen from four sides — a
+viewer pauses for half an hour, the node reaps the play session exactly as
+`session_idle` says it should, and the viewer comes back to a failure screen
+naming a node their session was never on. The three parts of the answer are a
+status that was read as the wrong kind of evidence, a replacement built at the
+wrong time, and a look-ahead figure no client could see. All three touch the
+player seam, which is why this was a port rather than a version bump.
+
+**Ported here** (see `git log` for the argument in each):
+
+- **`not-found`.** A `404` on a playback route is a statement about one
+  session's existence, not about the node that answered. Read as `stream` it is
+  endpoint evidence, so the honest node is charged a failure and dropped while
+  the viewer is sent to one that never held the session.
+  `ExpoVideoAdapter.nodeWillServe` now maps the readiness walk's status through
+  `playbackFailureKindForStatus` instead of reporting a blanket `stream`, and
+  core answers a `not-found` by asking that same node whether the session is
+  still there and regenerating on it — no failover, no failure recorded.
+  **The kind carries an obligation**: an adapter reporting it must not tear the
+  presentation down, because the element's buffer is the cover core builds the
+  replacement behind. Nothing here does, and a test pins it.
+- **Node-stated budgets.** `PlaybackSource.budgets` carries the serving node's
+  own acquisition deadline and fragment hold. `firstFragmentTimeoutMs()` takes
+  the stated deadline **whole, including when it is shorter** than this
+  client's five-holds constant — core owns when to stop and the host owns what
+  happens until then, and of two deadlines the shorter silently wins while the
+  other layer looks broken. The constant is now only what a node too old to say
+  gets, and a node that cannot say is not one that needs less time.
+- **`MediaStallWatchdog.useSourceBudgets()`** at every attach, including a
+  promotion. The watchdog outlives a generation while the figure belongs to a
+  node, so a host that states it once judges every later node by the first
+  one's hold — which is how a node configured with a longer hold gets called
+  dead for using it.
+- **`PlaybackTransition`.** `play()` now takes it, and a warm standby is cut to
+  **only on `continue`**. A viewer's seek and a session-reap recovery arrive
+  byte-identical — measured, by the web client — so this is the one bit no host
+  can derive. Hiding a seek holds the viewer where they were while the clock
+  says they arrived: fourteen seconds of it, measured there. Absent means
+  `relocate`, which is core's default and the behaviour every player had before
+  seamless replacement existed. Tier 2's promotion still shows a black frame so
+  the cost of getting it wrong is small *today*; Tier 3 (§2.1) is what makes
+  the swap invisible, and an unasked-for hide then becomes a lie.
+- **`sessionAlive` / `regenerate`** arrive free through
+  `ClusterPlaybackResolver`, and the node budgets reach the source through
+  `EndpointHealthMonitor`, which this client already runs. Neither needed
+  wiring — but both are **unexercised here**, like everything else about
+  failover (§2.2).
+
+**The gap this leaves, and it is a television-shaped one.** The `not-found`
+classification only reaches core from the **readiness walk**, which runs at
+`play()` before the source is handed over. A session reaped *while the viewer
+is paused mid-film* is discovered by `expo-video`'s own fragment loader
+instead, and `PlayerError` is `{ message: string }` — no status, so the honest
+kind is still `unknown`, which core treats as possible endpoint evidence. So
+the exact case 0.13.0 exists for is the case this client cannot yet report:
+resume after a long pause charges a healthy node and cold-starts elsewhere.
+**And a television is where a half-hour pause is ordinary** — `SERVER_SESSION_IDLE_MS`
+is 30 minutes and a paused client stops asking for fragments, so the reap is a
+certainty rather than a risk. Two ways out, neither taken: probe the source
+once with core's walk when the player reports a terminal error and classify on
+what the node answers, which costs a round trip on the failure path; or read
+the status out of media3's message text, which is free and unmeasured. **A
+decision for Tom, and the native engine (§2.0) does not have the problem at
+all** — `PlayerEngine.kt` already reports the raw status.
+
+**Still not wired, from `0.10.0` and unchanged by this port:**
 
 - **`SessionManager.lastIdentityChange`** — `{ from?, to?, at }`, set when a
   re-obtained session belongs to a different account than before.

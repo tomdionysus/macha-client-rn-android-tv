@@ -1,4 +1,4 @@
-import { SERVER_SEGMENT_HOLD_MS } from '@machafoundation/core';
+import { SERVER_SEGMENT_HOLD_MS, type PlaybackSource } from '@machafoundation/core';
 
 /**
  * The timing budgets this client chooses, in one place, with what each is
@@ -69,3 +69,33 @@ export const HOLD_RETRY_CEILING_MS = 8_000;
  * precise bug this walk exists to remove, reintroduced by ordering.
  */
 export const FIRST_FRAGMENT_TIMEOUT_MS = SERVER_SEGMENT_HOLD_MS * 5;
+
+/**
+ * How long to spend acquiring a source from **this** node before the wait
+ * becomes evidence against it.
+ *
+ * `FIRST_FRAGMENT_TIMEOUT_MS` above is a figure this client chose from the one
+ * server constant it could see, and it applies to every node identically —
+ * which was the only option until core 0.14.0. A node now states its own on
+ * `PlaybackSource.budgets.deadlineMs`, derived from that node's
+ * `startup_timeout_ms` plus core's allowance for the distance to it, and core
+ * is explicit that **a host must not shorten it on its own authority**: of two
+ * deadlines the shorter silently wins and the other layer then looks broken.
+ *
+ * So a stated figure is taken whole, including when it is *shorter* than the
+ * local constant. Preferring the larger of the two would be this client
+ * overriding the node on the one question the node is the authority for, and
+ * would keep a viewer in front of a node core has already decided is worth
+ * leaving. The constant is what a node that cannot say gets, and a node that
+ * cannot say is not a node that needs less time.
+ *
+ * The ordering invariant is unaffected either way, because it is structural
+ * rather than numeric: this wait completes before the start watchdog is armed.
+ */
+export function firstFragmentTimeoutMs(source?: PlaybackSource): number {
+  const stated = source?.budgets?.deadlineMs;
+  if (stated === undefined || !Number.isFinite(stated) || stated <= 0) {
+    return FIRST_FRAGMENT_TIMEOUT_MS;
+  }
+  return stated;
+}

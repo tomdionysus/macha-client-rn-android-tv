@@ -14,8 +14,21 @@ export interface NativePlaybackEvent {
   streamOrigin?: string | null;
 }
 
-/** The evidence kinds core reasons about, mirrored from `PlaybackFailureKind`. */
-export type NativeFailureKind = 'stream' | 'media' | 'unsupported' | 'not-ready' | 'unknown';
+/**
+ * The evidence kinds core reasons about, mirrored from `PlaybackFailureKind`.
+ *
+ * `not-found` arrived in core 0.13.0 and is listed for completeness rather than
+ * for the native side to produce: it is a `404` on a playback route, and the
+ * engine reports the raw status for the adapter to map. A decoder cannot reach
+ * that conclusion, so `platformKind` will never carry it.
+ */
+export type NativeFailureKind =
+  | 'stream'
+  | 'media'
+  | 'unsupported'
+  | 'not-ready'
+  | 'not-found'
+  | 'unknown';
 
 /**
  * What the player saw, not what it concluded.
