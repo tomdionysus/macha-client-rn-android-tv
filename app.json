@@ -3,7 +3,7 @@
     "name": "Macha",
     "icon": "./assets/icon.png",
     "slug": "macha-client-rn-tv",
-    "version": "0.3.4",
+    "version": "0.4.0",
     "orientation": "landscape",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0e0e0f",
@@ -16,7 +16,7 @@
         "foregroundImage": "./assets/icon-adaptive.png",
         "backgroundColor": "#0e0e0f"
       },
-      "versionCode": 304,
+      "versionCode": 400,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
