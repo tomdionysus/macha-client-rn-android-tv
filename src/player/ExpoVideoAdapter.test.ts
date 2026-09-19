@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MediaStallWatchdog } from '@machafoundation/core';
+import { ENDPOINT_TRANSPORT_ALLOWANCE_MS, MediaStallWatchdog } from '@machafoundation/core';
 import type { PlaybackSource, PlaybackSourceError } from '@machafoundation/core';
 import { FIRST_FRAGMENT_TIMEOUT_MS, HOLD_RETRY_CEILING_MS } from './timingBudgets';
 
@@ -694,6 +694,67 @@ describe('classifying a terminal error the player could not', () => {
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(failures[0]?.kind).toBe('unknown');
+  });
+
+  it('stops asking once the answer would cost more than it is worth', async () => {
+    // Lateness is not free: core defers building a replacement only while the
+    // runway exceeds the replacement lead time, and a verdict that arrives
+    // after another recovery has taken the source is absorbed entirely. So the
+    // walk is bounded, and a node that has stopped answering gets one transport
+    // allowance rather than the walk's full deadline.
+    vi.useFakeTimers();
+    try {
+      const adapter = new ExpoVideoAdapter();
+      const failures: PlaybackSourceError[] = [];
+      adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+      await adapter.play(source());
+
+      // A node that accepts the request and never answers it.
+      vi.stubGlobal('fetch', ((_url: string, init?: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      })) as unknown as typeof fetch);
+
+      fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+      await vi.advanceTimersByTimeAsync(ENDPOINT_TRANSPORT_ALLOWANCE_MS + 100);
+
+      expect(failures).toHaveLength(1);
+      expect(failures[0]?.kind).toBe('unknown');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('spends the cover it has, when the element is holding some', async () => {
+    // With a long runway the deferral is what is being protected, so there is
+    // room to ask properly — the budget is what is left above the lead time.
+    vi.useFakeTimers();
+    try {
+      const adapter = new ExpoVideoAdapter();
+      const failures: PlaybackSourceError[] = [];
+      adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+      await adapter.play(source());
+
+      // Ninety seconds of buffer reported before the failure.
+      fake.currentTime = 10;
+      fake.bufferedPosition = 100;
+      fake.playing = true;
+      fake.emit('timeUpdate');
+
+      vi.stubGlobal('fetch', ((_url: string, init?: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      })) as unknown as typeof fetch);
+
+      fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+      await vi.advanceTimersByTimeAsync(ENDPOINT_TRANSPORT_ALLOWANCE_MS + 100);
+
+      // Still asking: the floor does not apply while there is cover to spend.
+      expect(failures).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(90_000);
+      expect(failures).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not carry a verdict into the generation that replaces it', async () => {

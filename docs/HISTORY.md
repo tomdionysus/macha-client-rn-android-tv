@@ -190,9 +190,22 @@ Three things came back and all three are now in `ExpoVideoAdapter`:
   decode error — and they did not read the text: the layer that sees statuses
   remembers, and the statusless error is interpreted against that memory.
   Nothing in either client classifies from a message string.
-- **Classify conservatively.** `unknown` costs a spinner; a wrong `stream` costs
-  a healthy node its place in the candidate list. The asymmetry is why the
-  server speaks its counter-intuitive dialect on holds in the first place.
+- **Classify conservatively** — with the right reason, which took a second
+  correction. The web session gave the asymmetry as `unknown` costing a spinner
+  against a wrong `stream` costing a healthy node, and it was repeated here
+  before being checked. It is false: `isEndpointRetryablePlaybackFailure` reads
+  `unknown` and `stream` identically, so both prepare a standby elsewhere and
+  both can escalate. The core session caught it, and the real asymmetry is
+  against `not-found` — excluded from that gate, and a false one sends core to
+  ask about a session that was never reaped, where a session reported alive
+  stops the recovery dead. **A false `not-found` buys silence; a false
+  `unknown` buys a standby.** The floor stays `unknown` because it is core's
+  documented answer for an unmapped status and the standby is the recovery that
+  needs no cause — not because it is cheap.
+
+  Worth keeping as an instance of a pattern this project keeps meeting: a peer's
+  compression of its own reasoning, accepted because it sounded like the shape
+  of the truth. Two sessions held it before the third read the function.
 
 **And a pause must not be judged at all.** Their measurement: a paused
 generation called dead seven seconds in, a failover that could not succeed, and
@@ -203,6 +216,17 @@ element running nothing is playing while the viewer is very much waiting. Both
 clients now do this. This one cannot keep the buffer or the frame across it,
 since `expo-video` owns its loader, so a parked source is re-attached and the
 viewer sees the held frame blank and come back.
+
+**Lateness has a price, and the walk is bounded by it.** Core defers building a
+replacement while the runway exceeds the replacement lead time and builds
+immediately below it, and `beginMissingSessionRecovery` does nothing at all if
+another recovery already owns the source — so a verdict can be not merely late
+but void. The probe budget is `runway - leadTime` from core's own
+`replacementLeadTimeMs`, floored at one transport allowance so that asking is
+still worth it with no cover left: a node that will answer answers within a
+round trip, while the alternative is failing over to a node that must cold-start
+at 9 s. The runway is the last figure the event stream carried, because a player
+in its error state may report nothing about a buffer it still holds.
 
 **Provenance, because it decides what a comparison means.** Their 404 policy is
 in their source and **not deployed** — the nodes run 0.17.1 and it ships in

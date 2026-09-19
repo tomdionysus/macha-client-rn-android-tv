@@ -472,15 +472,38 @@ it in one place worth keeping:
   statusless error is read against it. `sourceVerdict` is that latch, fed by
   the walk, keyed by URL because a generation is its URL.
 - **Classify conservatively.** `ready`, `holding`, `unassessable` or no answer
-  all leave the kind `unknown`. The errors are not symmetrical: `unknown` costs
-  a spinner, a wrong `stream` costs a healthy node its place in the candidate
-  list.
+  all leave the kind `unknown`.
 - **No message parsing.** Nothing in the web adapter classifies from text, and
   the one place they were tempted they used a latch instead.
 
-The cost is a round trip before core hears about a failure, and up to the
-walk's deadline where the node does not answer at all. Nothing is torn down
-while it runs.
+**The reason for that floor was wrong as first written here, and the core
+session corrected it.** It said `unknown` costs a spinner while a wrong
+`stream` costs a healthy node. `isEndpointRetryablePlaybackFailure` returns
+true for **both** — verified in the shipped `Platform.js` — so an `unknown`
+prepares a standby on another node and can escalate exactly as a `stream` does.
+The floor is still right for a different reason: `unknown` is core's documented
+answer for a status it has no rule for, and the standby behind it is the
+recovery that works without knowing the cause. **The asymmetry that does hold
+is against `not-found`**, which is excluded from that gate: a false one sends
+core to ask about a session that was never reaped, and a session reported alive
+stops the recovery dead. A false `not-found` buys silence; a false `unknown`
+buys a standby.
+
+**The walk is bounded against the runway, not by a fixed deadline** — also the
+core session's, and the one change it asked for. Core defers building a
+replacement while `runwayMs > leadTimeMs` and builds immediately below it, so
+every second spent asking comes off the cover the deferral was protecting; and
+`beginMissingSessionRecovery` returns handled when another recovery already
+owns the source, so a verdict arriving after one has started is not late but
+**void**. The budget is therefore `runway - leadTime`, computed from core's own
+`replacementLeadTimeMs` against this node's attempt budget, with a floor of one
+`ENDPOINT_TRANSPORT_ALLOWANCE_MS`. The floor is what makes asking worth it with
+no cover left: a node that will answer answers within a round trip, and the
+alternative is an `unknown` that fails over to a node which must cold-start —
+9 s measured by core, against a floor of 4. **Asserted from those two figures,
+not measured here.** The runway itself is the last figure the event stream
+carried, not one read after the failure, because a player in its error state
+may report nothing about a buffer it still holds.
 
 **A pause no longer ends on a failure screen.** The web client measured exactly
 that — a paused generation judged dead seven seconds in, then a failover that

@@ -1,11 +1,14 @@
 import { createVideoPlayer, type VideoPlayer, type VideoSource } from 'expo-video';
 import {
+  ENDPOINT_TRANSPORT_ALLOWANCE_MS,
+  generationAttemptBudgetMs,
   MediaStallWatchdog,
   MediaStartWatchdog,
   PlaybackSourceError,
   playbackFailureKindForStatus,
   preflightHlsSource,
   probeHlsReadiness,
+  replacementLeadTimeMs,
   type PlaybackEvent,
   type PlaybackHost,
   type PlaybackFailureKind,
@@ -92,6 +95,16 @@ export class ExpoVideoAdapter implements Player {
 
   /** Last volume core asked for, so a promoted standby comes up at it. */
   private volume = 1;
+
+  /**
+   * The cover the element last reported, in media time.
+   *
+   * Kept from the event stream rather than read when it is wanted, because it
+   * is wanted exactly when the player has failed — and a player in its error
+   * state may report nothing about a buffer it is still holding. The last good
+   * sample is the honest estimate of what a recovery has to work behind.
+   */
+  private lastForwardBufferMs = 0;
 
   /**
    * Whether the viewer wants this playing.
@@ -263,6 +276,7 @@ export class ExpoVideoAdapter implements Player {
       bufferedRangesMs: bufferedEndMs > 0 ? [{ startMs: 0, endMs: bufferedEndMs }] : [],
       forwardBufferMs: Math.max(0, bufferedEndMs - positionMs),
     };
+    this.lastForwardBufferMs = snapshot.forwardBufferMs ?? 0;
     for (const listener of this.listeners) listener(snapshot);
   }
 
@@ -325,6 +339,7 @@ export class ExpoVideoAdapter implements Player {
     this.wantsPlayback = !startPaused;
     this.parked = undefined;
     this.sourceVerdict = undefined;
+    this.lastForwardBufferMs = 0;
     this.video.keepScreenOnWhilePlaying = true;
 
     // A promotion arrives as an ordinary `play()` carrying the source we were
@@ -728,16 +743,30 @@ export class ExpoVideoAdapter implements Player {
    * walk asks exactly what the loader asked.
    *
    * **Conservative on everything else.** A walk that answers `ready`,
-   * `holding`, `unassessable` or nothing at all leaves the kind `unknown`,
-   * because in this direction the errors are not symmetrical: `unknown` costs a
-   * spinner, and a wrong `stream` costs a healthy node its place in the
-   * candidate list.
+   * `holding`, `unassessable` or nothing at all leaves the kind `unknown`.
    *
-   * **What it costs** is one round trip before core hears about the failure,
-   * and up to the walk's own deadline where the node does not answer at all —
-   * which is the case where the delay buys nothing. Nothing is torn down while
-   * it runs, so whatever the element still holds goes on playing; that buffer
-   * is the whole margin a recovery has to be invisible in.
+   * *An earlier version of this comment justified that by saying `unknown`
+   * costs a spinner while a wrong `stream` costs a healthy node. That is not
+   * true and the core session corrected it:*
+   * `isEndpointRetryablePlaybackFailure` (`Platform.js:27`) returns true for
+   * **both** — an `unknown` prepares a standby on another node and can escalate
+   * exactly as a `stream` does. `unknown` is still the right floor for a
+   * different reason: it is core's documented answer for a status it has no
+   * rule for, and the standby machinery behind it is the recovery that works
+   * *without* knowing the cause. The asymmetry that does hold is against
+   * `not-found`, which is excluded from that gate — a wrong `not-found` sends
+   * core to ask about a session that was never reaped, and a session reported
+   * alive stops the recovery dead. **A false `not-found` buys silence; a false
+   * `unknown` buys a standby.** That is why the floor is the permissive one.
+   *
+   * **Bounded against the runway rather than by a fixed deadline**, because
+   * lateness spends something. Core defers building a replacement while
+   * `runwayMs > leadTimeMs` and builds immediately below it, so every second
+   * spent here comes off the cover the deferral was protecting; and
+   * `beginMissingSessionRecovery` returns handled if another recovery already
+   * owns the source, so a verdict that arrives after one has started is not
+   * late but void. Below the lead time a correct kind later is worse than an
+   * honest `unknown` now.
    */
   private reportTerminalPlayerFailure(message: string): void {
     const generation = this.sourceGeneration;
@@ -745,7 +774,7 @@ export class ExpoVideoAdapter implements Player {
     // and a watchdog firing during the probe would report it a second time.
     this.startWatchdog.stop();
     this.stallWatchdog.stop();
-    void this.kindForTerminalError().then((kind) => {
+    void this.kindForTerminalError(this.classificationBudgetMs()).then((kind) => {
       // Core moved on while we asked, so the answer is about a source nobody is
       // watching any more.
       if (this.released || generation !== this.sourceGeneration) return;
@@ -753,7 +782,39 @@ export class ExpoVideoAdapter implements Player {
     });
   }
 
-  private async kindForTerminalError(): Promise<PlaybackFailureKind> {
+  /**
+   * How long there is to ask, before asking is worse than not knowing.
+   *
+   * The cover is what the element still holds, and core spends it on the same
+   * clock: it defers building a replacement while the runway exceeds the
+   * replacement lead time. So the honest budget is what is left over above that
+   * lead — computed the way core computes it, from the same exported function,
+   * against this node's own attempt budget. `lookAheadMs` is a session fact the
+   * adapter is not given, and leaving it out yields the *largest* lead time the
+   * function can return, which is the conservative direction here.
+   *
+   * **The floor is one transport allowance**, and it is what makes this worth
+   * doing at all with no cover left. A node that is going to answer answers
+   * within a round trip — a `404` is a refusal, not a hold — so the floor costs
+   * nothing in the case it exists for, and bounds the case where the node has
+   * stopped answering entirely. The alternative below the lead time is to
+   * report `unknown` and fail over to a node that must cold-start, which core
+   * measured at 9 s against a floor of 4. **Asserted from those two figures,
+   * not measured here.**
+   *
+   * The runway is the last figure the event stream carried rather than one read
+   * now, because a player in its error state may report nothing about a buffer
+   * it still holds.
+   */
+  private classificationBudgetMs(): number {
+    const leadMs = replacementLeadTimeMs(
+      undefined,
+      this.activeSource?.budgets?.deadlineMs ?? generationAttemptBudgetMs(),
+    );
+    return Math.max(this.lastForwardBufferMs - leadMs, ENDPOINT_TRANSPORT_ALLOWANCE_MS);
+  }
+
+  private async kindForTerminalError(budgetMs: number): Promise<PlaybackFailureKind> {
     const source = this.activeSource;
     if (!source) return 'unknown';
     // Already asked, for this source. The second terminal error of a generation
@@ -764,8 +825,10 @@ export class ExpoVideoAdapter implements Player {
     // the latch is fed by the read-ahead worker; there is no worker here, so
     // the honest answer is that nothing was learned.
     if (!source.isManifest) return 'unknown';
+    const controller = new AbortController();
+    const expiry = setTimeout(() => controller.abort(), budgetMs);
     try {
-      const outcome = await probeHlsReadiness(source, { fetch });
+      const outcome = await probeHlsReadiness(source, { fetch, signal: controller.signal });
       if (outcome.state !== 'unavailable' || outcome.status === undefined) return 'unknown';
       const kind = playbackFailureKindForStatus(outcome.status);
       playbackLog.warn('terminal-failure-classified', { status: outcome.status, kind });
@@ -774,6 +837,8 @@ export class ExpoVideoAdapter implements Player {
     } catch {
       // The walk could not be made at all, which says nothing about the node.
       return 'unknown';
+    } finally {
+      clearTimeout(expiry);
     }
   }
 
