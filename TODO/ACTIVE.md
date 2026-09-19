@@ -218,6 +218,14 @@ Provoke it the same sitting as the pause case: kill the node mid-film, or point
 the player at a URL the node has reaped, and read both values in the
 `statusChange` handler on the failure trail.
 
+**Do not read the web client's number as an answer to this.** They measured
+their own last-published event against the live element at **7 ms** at a reap,
+which sounds like it settles the question and does not: that run had events
+still arriving, because a reaped generation goes on emitting while its buffer
+drains. The case here is the player that has *stopped*. Their figure is evidence
+that the snapshot can be current when the stream is alive, and silent about the
+case this asks.
+
 ## 2. Player work
 
 ### 2.0 The player is `expo-video` for now
