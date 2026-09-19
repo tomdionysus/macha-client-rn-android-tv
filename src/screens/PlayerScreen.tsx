@@ -23,7 +23,7 @@ import { useMacha } from '../app/MachaProvider';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
-import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
+import { px, colour, font, pageGutter, radius, rem, type } from '../styles/theme';
 
 /**
  * How long the chrome stays up after the last button press.
@@ -302,18 +302,6 @@ export function PlayerScreen({
         </View>
       ) : null}
 
-      {optionsOpen && playback?.session ? (
-        <PlayerOptions
-          session={playback.session}
-          pendingPreferences={playback.pendingPreferences}
-          instruction={playback.instruction}
-          onApply={(update) => {
-            runtime.update(update);
-            showChrome();
-          }}
-        />
-      ) : null}
-
       {chromeVisible || playback?.fatalError ? (
         <View style={styles.chrome}>
           {/* `.player-titlebar` */}
@@ -344,6 +332,24 @@ export function PlayerScreen({
               )}
             </View>
           </View>
+
+          {/*
+            `.player-options` sits **inside the chrome, above the scrubber** on
+            the web client — a block of rows, not a pane. It was a 42%-wide
+            side panel here until Tom called it off the set; the same groups in
+            the same order, but in the wrong shape and in the wrong place.
+          */}
+          {optionsOpen && playback?.session ? (
+            <PlayerOptions
+              session={playback.session}
+              pendingPreferences={playback.pendingPreferences}
+              instruction={playback.instruction}
+              onApply={(update) => {
+                runtime.update(update);
+                showChrome();
+              }}
+            />
+          ) : null}
 
           {/* `.player-scrubber-row { grid-template-columns: 4.5rem 1fr 4.5rem }` */}
           <View style={styles.scrubberRow}>
@@ -522,7 +528,7 @@ const styles = StyleSheet.create({
   },
   // `.player-scrubber-visual { height: 4px; border-radius: 99px; background: #e7e7ea }`
   scrubberVisual: {
-    height: 4,
+    height: px(4),
     borderRadius: radius.pill,
     backgroundColor: colour.scrubberTrack,
     justifyContent: 'center',
@@ -547,10 +553,10 @@ const styles = StyleSheet.create({
   // `.player-scrubber::-webkit-slider-thumb { width/height: 14px; border-radius: 50%; background: var(--red-400) }`
   scrubberThumb: {
     position: 'absolute',
-    width: 14,
-    height: 14,
+    width: px(14),
+    height: px(14),
     marginLeft: -7,
-    borderRadius: 7,
+    borderRadius: px(7),
     borderWidth: 1,
     borderColor: '#ffffffa8',
     backgroundColor: colour.red400,

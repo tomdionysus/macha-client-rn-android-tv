@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Episode } from '@machafoundation/core';
 import { Focusable } from './Focusable';
-import { colour, font, layout, rem, type } from '../styles/theme';
+import { px, colour, font, layout, rem, type } from '../styles/theme';
 
 /**
  * One episode in the rail, from `.episode-card` / `.episode-still` in base.css.
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     left: rem(0.45),
     right: rem(0.45),
     bottom: rem(0.45),
-    height: 3,
+    height: px(3),
     borderRadius: 99,
     backgroundColor: '#000000bb',
     overflow: 'hidden',

@@ -7,7 +7,7 @@ import type {
   PlaybackUpdate,
 } from '@machafoundation/core';
 import { Focusable } from '../../components/Focusable';
-import { colour, font, radius, rem, type } from '../../styles/theme';
+import { colour, px, radius, rem, type, vh } from '../../styles/theme';
 import {
   assumptionNote,
   audioProcessingNote,
@@ -74,7 +74,6 @@ export function PlayerOptions({
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.heading}>Playback options</Text>
       <ScrollView contentContainerStyle={styles.groups} scrollEnabled={false}>
         <Group label="Mode">
           <Option label="Auto" selected={!chosenByViewer} onSelect={() => applyMode('choose')} defaultFocus />
@@ -156,7 +155,6 @@ export function PlayerOptions({
           </Group>
         ) : null}
       </ScrollView>
-      <Text style={styles.dismissHint}>Back to close</Text>
     </View>
   );
 }
@@ -204,68 +202,91 @@ function Note({ text, warning }: { text: string; warning?: boolean }): React.JSX
 }
 
 const styles = StyleSheet.create({
-  /** `.player-options`, but a panel rather than an inline block. */
+  /**
+   * `.player-options { display: grid; gap: .65rem; max-height: min(34vh, 320px);
+   * margin: 0 0 1rem; padding: .8rem 0 .2rem; overflow-y: auto }`.
+   *
+   * **A block inside the chrome, above the scrubber — not a pane.** It was a
+   * 42%-wide panel pinned to the right edge until Tom read it against the web
+   * client on the set. The groups and their order were already right; what was
+   * wrong was that it covered the picture, sat somewhere the web client has
+   * nothing, and drew its own heading.
+   */
   panel: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: '42%',
-    backgroundColor: colour.accentSurfaceStrong,
-    paddingHorizontal: rem(1.6),
-    paddingTop: rem(1.4),
-    paddingBottom: rem(1),
-    zIndex: 20,
-  },
-  heading: {
-    color: colour.text,
-    fontSize: type.h2,
-    fontWeight: font.weightSemibold,
-    marginBottom: rem(0.8),
+    maxHeight: Math.min(vh(34), px(320)),
+    marginBottom: rem(1),
+    paddingTop: rem(0.8),
+    paddingBottom: rem(0.2),
   },
   groups: {
-    paddingBottom: rem(1),
+    gap: rem(0.65),
   },
+  /** `.player-option-group { grid-template-columns: 6.5rem 1fr; gap: .8rem }`. */
   group: {
-    marginBottom: rem(1.1),
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: rem(0.8),
   },
+  /**
+   * `.player-option-group > span { padding-top: .45rem; color: var(--text-faint);
+   * font-size: .78rem; text-transform: uppercase; letter-spacing: .08em }`.
+   */
   groupLabel: {
-    color: colour.textDim,
+    width: rem(6.5),
+    paddingTop: rem(0.45),
+    color: colour.textFaint,
     fontSize: type.eyebrow,
-    letterSpacing: 1,
+    letterSpacing: type.eyebrow * 0.08,
     textTransform: 'uppercase',
-    marginBottom: rem(0.4),
   },
+  /** `.player-option-group > div { display: flex; flex-wrap: wrap; gap: .4rem }`. */
   groupOptions: {
+    flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: rem(0.5),
+    gap: rem(0.4),
   },
+  /**
+   * `.player-option-group button { border: 1px solid #3a3a40; border-radius: 999px;
+   * padding: .42rem .7rem; background: #09090ab8; color: #bcbcc2; font-size: .82rem }`.
+   *
+   * A pill, which is the part that read as a different interface: these were
+   * rounded rectangles on a surface fill, with no border at all.
+   */
   option: {
-    paddingHorizontal: rem(0.8),
-    paddingVertical: rem(0.45),
-    borderRadius: radius.control,
-    backgroundColor: colour.surface2,
+    paddingHorizontal: rem(0.7),
+    paddingVertical: rem(0.42),
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colour.inputBorder,
+    backgroundColor: colour.optionSurface,
   },
-  /** The current value, which is not the same as the focused one. */
+  /**
+   * `:hover, :focus-visible, .selected { border-color: var(--focus);
+   * background: var(--accent-surface-strong); color: #dedee2 }` — one rule for
+   * all three on the web, and selected and focused are different things here, so
+   * the border carries focus and the fill carries selection.
+   */
   optionSelected: {
-    backgroundColor: colour.accent,
+    backgroundColor: colour.accentSurfaceStrong,
   },
   optionFocused: {
-    backgroundColor: colour.surface3,
+    borderColor: colour.focus,
+    backgroundColor: colour.accentSurfaceStrong,
   },
   optionLabel: {
-    color: colour.textDim,
+    color: colour.optionText,
     fontSize: type.small,
   },
   optionLabelActive: {
-    color: colour.text,
+    color: colour.heading,
   },
+  /** `.player-option-note { grid-column: 2; color: var(--text-faint); font-size: .75rem }`. */
   note: {
-    color: colour.textDim,
-    fontSize: type.small,
-    marginTop: rem(-0.6),
-    marginBottom: rem(1),
+    marginLeft: rem(7.3),
+    color: colour.textFaint,
+    fontSize: type.faint,
+    lineHeight: type.faint * 1.35,
   },
   /**
    * A warning is the whole point of the note: it is the only signal on this
@@ -274,10 +295,5 @@ const styles = StyleSheet.create({
    */
   noteWarning: {
     color: colour.text,
-  },
-  dismissHint: {
-    color: colour.textFaint,
-    fontSize: type.small,
-    textAlign: 'right',
   },
 });

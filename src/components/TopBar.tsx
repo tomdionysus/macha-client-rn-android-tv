@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import { Focusable } from './Focusable';
-import { colour, font, layout, pageGutter, radius, rem, type } from '../styles/theme';
+import { px, colour, font, layout, pageGutter, radius, rem, type } from '../styles/theme';
 
 export interface NavItem {
   key: string;
@@ -74,12 +74,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: rem(0.65),
-    minWidth: 110,
+    minWidth: px(110),
   },
   // `.app-logo { width: 42px; height: 42px }`
   logo: {
-    width: 42,
-    height: 42,
+    width: px(42),
+    height: px(42),
   },
   // `.brand-name { color: #d8d8dc; font-size: 1.08rem; font-weight: 500 }`
   brandName: {
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     color: colour.text,
   },
   badgeCell: {
-    minWidth: 110,
+    minWidth: px(110),
     alignItems: 'flex-end',
   },
   // `.platform-badge { text-transform: uppercase; font-size: .72rem; letter-spacing: .14em }`

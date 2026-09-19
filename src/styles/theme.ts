@@ -118,6 +118,10 @@ export const colour = {
   inputBorder: '#3a3a40',
   inputBackground: '#19191c',
   placeholderGlyph: '#ffffff16',
+  /** `.player-option-group button { background: #09090ab8 }`. */
+  optionSurface: '#09090ab8',
+  /** `.player-option-group button { color: #bcbcc2 }`. */
+  optionText: '#bcbcc2',
   scrubberTrack: '#e7e7ea',
   scrubberBuffered: '#d7a3af',
   scrubberPlayed: '#620014',

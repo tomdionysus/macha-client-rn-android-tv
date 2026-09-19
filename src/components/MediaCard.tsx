@@ -4,7 +4,7 @@ import { Focusable } from './Focusable';
 import { LazyArtwork } from './LazyArtwork';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { useMacha } from '../app/MachaProvider';
-import { colour, font, layout, radius, rem, type } from '../styles/theme';
+import { px, colour, font, layout, radius, rem, type } from '../styles/theme';
 
 /**
  * A poster card, from `.media-card` / `.poster` / `.card-title` in base.css.
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     left: rem(0.4),
     right: rem(0.4),
     bottom: rem(0.4),
-    height: 4,
+    height: px(4),
     borderRadius: radius.pill,
     backgroundColor: '#000000bb',
     overflow: 'hidden',

@@ -1,5 +1,5 @@
 import Svg, { Circle, Path } from 'react-native-svg';
-import { colour } from '../styles/theme';
+import { px, colour } from '../styles/theme';
 
 export type PlayerIconName =
   | 'back'
@@ -25,7 +25,12 @@ export type PlayerIconName =
  */
 export function PlayerIcon({
   name,
-  size = 22,
+  // `<svg width="20" height="20">` on the web client's `PlaybackIcons`. A raw
+  // number here is CSS px drawn as dp, which on this panel is twice the size —
+  // the same fault `theme.ts` carried, in the one place that does not go
+  // through it. It filled the transport buttons where the web client's glyph
+  // sits inside one.
+  size = px(20),
   color = colour.heading,
 }: {
   name: PlayerIconName;
