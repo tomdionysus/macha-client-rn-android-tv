@@ -48,6 +48,11 @@ desktop and has asked for them in this order (2026-09-19):
    it is an open P0 there. A television is where a pause that long is ordinary,
    so this set is the right place to find out.
 
+Add §1.7 to the same sitting — what a dead player still reports about its buffer
+— because it is free once either of the above is being provoked, and it decides
+whether this client can hand core a live cover figure or must go on handing it a
+stale one.
+
 ### Getting a build onto the set
 
 ```sh
@@ -194,6 +199,24 @@ title.
 capability block on the Settings screen and were never reached — see §1.1.
 The three `titleIndex` probes core added on this client's prompt are in that
 block, so §4.3's `AlphabetIndex` still has no runtime evidence behind it.
+
+### 1.7 What a dead `expo-video` player still reports
+
+Cheap, and it decides a real thing. After a terminal error, does the player
+still answer `currentTime` and `bufferedPosition` for the buffer it was holding,
+or do they collapse to zero?
+
+It matters because core reads the viewer's remaining cover from the last event
+this adapter emitted, and decides whether to hold a replacement or build one
+immediately against that figure (§2.6). If a dead player tells the truth, this
+adapter should emit one last event before reporting the failure and core decides
+on a live number instead of one that may be a minute old. If it zeroes them,
+doing that would report no cover where a minute of it exists — worse than the
+staleness it fixes.
+
+Provoke it the same sitting as the pause case: kill the node mid-film, or point
+the player at a URL the node has reaped, and read both values in the
+`statusChange` handler on the failure trail.
 
 ## 2. Player work
 
@@ -521,6 +544,30 @@ made while reading this for a different question: **a last known value does not
 decay and the buffer it describes does**, so a stale sample grants a walk more
 time than the viewer has. Core has the same exposure at its own deferral
 decision and has recorded it there.
+
+**And the staleness does not end at this adapter.** Core's *terminal* path is
+exposed worse than its deferral one, which the core session found on being told
+this client's version: `recoverFromMissingSession` awaits `sessionAlive()` — a
+router walk with its own deadline — and only then reads `runwayMs()`
+(`PlaybackCoordinator.js:2016` and `:2050`, verified in the package this tree
+compiles against). So the cover figure core builds a replacement against is
+stale by the time since the player stopped emitting, **plus this adapter's
+probe, plus core's own**. Three terms, and until this exchange nobody was
+counting any of them. Core owns the fix; what it costs here is an argument for
+keeping the probe budget tight, which it already is.
+
+**The one thing that could shorten the first term is a measurement, not a
+decision.** Core reads the runway from the last `PlaybackEvent` this adapter
+emitted, so emitting a fresh one immediately before reporting a failure would
+hand it a current figure — *if* `expo-video` still answers `currentTime` and
+`bufferedPosition` honestly once a player is in its error state. **Nobody knows
+whether it does.** If it reports the truth, emit and core decides on a live
+number; if it zeroes them, emitting would tell core there is no cover when
+there is a minute of it, which sends the viewer straight to `no-cover` and
+spends exactly what was being protected. Synthesising a decayed estimate
+instead is not an option — a computed figure must not be reported as a measured
+one, which is core's own rule about `readAheadRunwayMs`. **So this stays as it
+is until the set answers it** (§1.7).
 
 **A pause no longer ends on a failure screen.** The web client measured exactly
 that — a paused generation judged dead seven seconds in, then a failover that
