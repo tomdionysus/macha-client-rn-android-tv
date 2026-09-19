@@ -212,12 +212,13 @@ and Dolby Vision the panel decodes natively.
   per-request control and HTTP status reporting.
 - **Failure evidence is weaker.** `expo-video` reports no HTTP status —
   `PlayerError` is `{ message: string }` — so `playbackFailureKindForStatus`
-  cannot be applied to anything the player itself reports, and the honest kind
-  is `unknown`. **Partly recovered since 0.14.0**: the readiness walk
-  (`readiness.ts`) makes its own requests and does see statuses, so a refusal
-  at `play()` is now classified properly, including the `404` that means a
-  reaped session rather than a bad node. What the player's own loader hits
-  mid-film is still unclassified — see §2.6.
+  cannot be applied to anything the player itself reports. **Recovered
+  differently since 0.14.0**: the readiness walk makes its own requests and does
+  see statuses, so a refusal at `play()` is classified directly, and a terminal
+  error from the player is classified by asking the node — one walk against the
+  current source, latched per generation, conservative on anything short of a
+  status. See §2.6. The kind is still `unknown` wherever the node does not
+  answer, which is the honest outcome rather than a residual gap.
 - ~~**Hold-aware loading is gone**~~ — **restored 2026-09-13**, in JS, without
   returning to the native engine. `src/player/readiness.ts` waits out a
   `500 segment_not_ready` on the *same* node before the source is ever handed
@@ -416,22 +417,80 @@ player seam, which is why this was a port rather than a version bump.
   wiring — but both are **unexercised here**, like everything else about
   failover (§2.2).
 
-**The gap this leaves, and it is a television-shaped one.** The `not-found`
-classification only reaches core from the **readiness walk**, which runs at
-`play()` before the source is handed over. A session reaped *while the viewer
-is paused mid-film* is discovered by `expo-video`'s own fragment loader
-instead, and `PlayerError` is `{ message: string }` — no status, so the honest
-kind is still `unknown`, which core treats as possible endpoint evidence. So
-the exact case 0.13.0 exists for is the case this client cannot yet report:
-resume after a long pause charges a healthy node and cold-starts elsewhere.
-**And a television is where a half-hour pause is ordinary** — `SERVER_SESSION_IDLE_MS`
-is 30 minutes and a paused client stops asking for fragments, so the reap is a
-certainty rather than a risk. Two ways out, neither taken: probe the source
-once with core's walk when the player reports a terminal error and classify on
-what the node answers, which costs a round trip on the failure path; or read
-the status out of media3's message text, which is free and unmeasured. **A
-decision for Tom, and the native engine (§2.0) does not have the problem at
-all** — `PlayerEngine.kt` already reports the raw status.
+**A statusless terminal error is now classified rather than guessed at.**
+`expo-video`'s `PlayerError` is `{ message: string }`, so until this the
+`not-found` work above reached core only from the readiness walk at `play()` —
+and the likeliest failure on a television is the one it could not see: a
+session reaped while the viewer was paused, found by the player's own loader
+and reported as `unknown`, which core treats as possible endpoint evidence.
+
+The answer is the web client's, taken on its advice (**Tom, 2026-09-19: the
+experience must be as close as possible to the web client**) and corrected by
+it in one place worth keeping:
+
+- **Ask the node, not the session.** Their first instinct here was a session
+  `GET`; it is wrong, because a fragment past the end of a live plan and a
+  reaped session both answer `404 not_found` and differ by one word of English
+  in a body no loader surfaces. A session that reports itself alive therefore
+  does not prove the fragment was servable. `kindForTerminalError()` re-runs
+  core's readiness walk against the current source, which asks exactly what the
+  loader asked.
+- **Latch it.** The web adapter has this problem on Direct Play — a 404 body
+  handed to the element raises a generic decode error — and did not parse the
+  message: the layer that does see statuses latches its verdict and the
+  statusless error is read against it. `sourceVerdict` is that latch, fed by
+  the walk, keyed by URL because a generation is its URL.
+- **Classify conservatively.** `ready`, `holding`, `unassessable` or no answer
+  all leave the kind `unknown`. The errors are not symmetrical: `unknown` costs
+  a spinner, a wrong `stream` costs a healthy node its place in the candidate
+  list.
+- **No message parsing.** Nothing in the web adapter classifies from text, and
+  the one place they were tempted they used a latch instead.
+
+The cost is a round trip before core hears about a failure, and up to the
+walk's deadline where the node does not answer at all. Nothing is torn down
+while it runs.
+
+**A pause no longer ends on a failure screen.** The web client measured exactly
+that — a paused generation judged dead seven seconds in, then a failover that
+could not succeed, and a viewer looking at `Playback failed` naming a node they
+had never been on — and answered it with `park-paused`: a fatal error raised
+while nobody is waiting is parked rather than judged, and met again on resume
+with the viewer present. Every judgement here is "is this node failing the
+person watching", and while playback is paused there is nobody to fail.
+
+The same decision is now in `ExpoVideoAdapter`, keyed on **viewer intent**
+rather than on the player, because between a play request and the element
+running nothing is playing while the viewer is very much waiting. `startPaused`
+counts as not-waiting, as it does there.
+
+**Where this client cannot match it**, all four from the web session and none
+measured here:
+
+- Their park keeps the element's buffer and its frame — `hls.stopLoad()`, then
+  `startLoad()` on resume. `expo-video` owns its loader and a player in its
+  error state will not resume, so the source is re-attached instead: **the
+  viewer will see the held frame blank and come back**, and the buffer is gone.
+  Worth revisiting if Tier 3 lands, since a pre-warmed second player is exactly
+  what holds a shutter open (§2.1, gated on §1.3).
+- Their per-generation latches key on a source generation a re-attach would
+  bump. Ours is keyed by URL and a re-attach does not change it, so the same
+  404 cannot be re-reported as new — but this is the thing to check first if it
+  ever is.
+- Their position mapping had a negative-origin bug on exactly this re-attach
+  shape. This client re-attaches the *same* source, so the generation origin is
+  unchanged and element time still maps as it did.
+- **Their 404 policy is shipped in source and not deployed.** `fi-1` and `es-1`
+  run 0.17.1; `isHlsSourceNotFound`, `fail-not-found` and the Direct Play latch
+  are in 0.17.2, which is tagged and not out. So a behavioural comparison
+  against a live web client today compares against a build that still condemns
+  the node on a 404, and a difference seen there is not this platform.
+
+**None of it is observed.** Everything above is asserted from two implementations
+and a contract. The web session has not watched a parked-then-resumed session
+either — their "no spinner on resume" is a reading of their own code, stated as
+such when asked. **The pause case is now the first thing to provoke on the set**
+(§2.2b), and whoever gets there first owes the other the answer.
 
 **Still not wired, from `0.10.0` and unchanged by this port:**
 

@@ -111,6 +111,15 @@ function holding(): typeof fetch {
     : { ok: false, status: 500, headers: { get: () => null } })) as unknown as typeof fetch;
 }
 
+/**
+ * Let the classification probe settle.
+ *
+ * A terminal error from the player carries no status, so the adapter asks the
+ * node what it says before reporting a kind — one walk, then the report. The
+ * report is therefore a microtask or two behind the event.
+ */
+const settled = () => new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+
 beforeEach(() => {
   fake = new FakeVideoPlayer();
   created = [];
@@ -225,21 +234,24 @@ describe('what the adapter reports to core', () => {
     await adapter.play(source());
 
     fake.emit('statusChange', { status: 'error', error: { message: 'decoder gave up' } });
+    await settled();
 
     expect(failures).toHaveLength(1);
     expect(failures[0]?.message).toBe('decoder gave up');
   });
 
   it('claims no HTTP evidence it does not have', async () => {
-    // expo-video reports no status code, so the kind cannot come from core's
-    // `playbackFailureKindForStatus`. `unknown` is the honest answer; guessing
-    // `stream` would send the coordinator failing over on no evidence.
+    // expo-video reports no status code, so the kind cannot come from the error
+    // itself. The node is asked, and here it is serving — so nothing was
+    // learned about it and `unknown` is the honest answer. Guessing `stream`
+    // would send the coordinator failing over on no evidence.
     const adapter = new ExpoVideoAdapter();
     const failures: { kind?: string }[] = [];
     adapter.subscribeFailure((error) => failures.push(error as unknown as { kind?: string }));
     await adapter.play(source());
 
     fake.emit('statusChange', { status: 'error', error: { message: 'failed' } });
+    await settled();
 
     expect(failures[0]?.kind).toBe('unknown');
   });
@@ -466,6 +478,241 @@ describe('the warm standby', () => {
  * what that wait was. A node configured with a longer hold was called dead for
  * using it.
  */
+/**
+ * A judgement about whether a node is failing the viewer may only be made while
+ * there is a viewer to fail.
+ *
+ * The web client measured a pause ending on a failure screen two minutes in,
+ * naming a node the viewer had never asked for, and answered it by parking the
+ * load rather than judging it (`WebHlsPolicy`, `park-paused`). These assert the
+ * same behaviour here, on a platform that cannot reach its loader to park it.
+ */
+describe('a terminal error raised while nobody is watching', () => {
+  it('is not reported to core while the viewer is paused', async () => {
+    const adapter = new ExpoVideoAdapter();
+    await adapter.play(source());
+    const failures: Error[] = [];
+    adapter.subscribeFailure((error) => failures.push(error));
+
+    adapter.pause();
+    fake.status = 'error';
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    // Nothing torn down, nothing failed over, and the session the viewer was on
+    // is still the session they will come back to.
+    expect(failures).toHaveLength(0);
+  });
+
+  it('is met again on resume, with the viewer present', async () => {
+    const adapter = new ExpoVideoAdapter();
+    await adapter.play(source());
+    fake.currentTime = 612;
+    adapter.pause();
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    const replacedWhileParked = fake.replaced.length;
+
+    adapter.resume();
+
+    // The node is asked for the same source again, at the position the viewer
+    // left it — the nearest thing available to the web client's `startLoad`.
+    expect(fake.replaced).toHaveLength(replacedWhileParked + 1);
+    expect(fake.replaced.at(-1)).toMatchObject({ uri: source().url });
+    expect(fake.currentTime).toBe(612);
+    expect(fake.calls).toContain('play');
+  });
+
+  it('reports it when the same error arrives with a viewer waiting', async () => {
+    const adapter = new ExpoVideoAdapter();
+    await adapter.play(source());
+    const failures: Error[] = [];
+    adapter.subscribeFailure((error) => failures.push(error));
+
+    adapter.pause();
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    adapter.resume();
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.message).toBe('Source error');
+  });
+
+  it('judges an error while playback is starting, not only while it runs', async () => {
+    // The web client's reason for keying on intent rather than on the element:
+    // between a play request and the element actually running, nothing is
+    // playing while the viewer is very much waiting — and that window is
+    // exactly when a node refusing the stream must be judged.
+    const adapter = new ExpoVideoAdapter();
+    const failures: Error[] = [];
+    adapter.subscribeFailure((error) => failures.push(error));
+
+    await adapter.play(source());
+    expect(fake.playing).toBe(true);
+    fake.playing = false;
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(failures).toHaveLength(1);
+  });
+
+  it('parks one core activated paused, the same as a pause', async () => {
+    // `startPaused` is core saying the viewer is not waiting on this yet, which
+    // is the same fact a pause states. The web client draws the line in the
+    // same place — `wantsPlayback = !startPaused` — and the alternative reads
+    // worse on a television: a generation activated paused behind a viewer who
+    // stepped away would be judged with nobody there to be failed.
+    const adapter = new ExpoVideoAdapter();
+    const failures: Error[] = [];
+    adapter.subscribeFailure((error) => failures.push(error));
+
+    await adapter.play(source(), 0, true);
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(failures).toHaveLength(0);
+    // And it is judged the moment anyone waits on it.
+    adapter.resume();
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+    expect(failures).toHaveLength(1);
+  });
+
+  it('drops a parked error when core moves to another source', async () => {
+    const adapter = new ExpoVideoAdapter();
+    await adapter.play(source());
+    adapter.pause();
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+
+    await adapter.play(source({ url: 'https://node-b.test/generation/index.m3u8' }));
+    const replacedAfterPlay = fake.replaced.length;
+    adapter.resume();
+
+    // The parked source belonged to a generation that no longer exists;
+    // re-asking for it here would replace what the viewer is now on.
+    expect(fake.replaced).toHaveLength(replacedAfterPlay);
+  });
+});
+
+/**
+ * The player's own errors carry no status, so the node is asked what it says.
+ *
+ * The web client solved this on its Direct Play path — where a 404 body handed
+ * to the element raises a generic decode error — by latching what the layer
+ * that *does* see statuses learned, rather than by parsing the message. These
+ * assert the same shape, with the readiness walk as that layer.
+ */
+describe('classifying a terminal error the player could not', () => {
+  /** A node serving a playlist whose fragments answer `status`. */
+  function fragmentStatus(status: number): typeof fetch {
+    const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
+    return (async (url: string) => (url.endsWith('.m3u8')
+      ? { ok: true, status: 200, headers: { get: () => null }, text: async () => playlist }
+      : { ok: false, status, headers: { get: () => null } })) as unknown as typeof fetch;
+  }
+
+  it('reads a reaped session off the node rather than condemning it', async () => {
+    // The case this exists for, and the likeliest failure on a television: the
+    // viewer pauses past `session_idle`, the node reaps the session correctly,
+    // and the player reports a message with nothing in it. Reported `unknown`
+    // it is endpoint evidence and the honest node is charged for it.
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+    await adapter.play(source());
+
+    vi.stubGlobal('fetch', fragmentStatus(404));
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(failures[0]?.kind).toBe('not-found');
+  });
+
+  it('still calls a broken generation evidence against the node', async () => {
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+    await adapter.play(source());
+
+    vi.stubGlobal('fetch', fragmentStatus(503));
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(failures[0]?.kind).toBe('stream');
+  });
+
+  it('asks the node once per generation, not once per error', async () => {
+    // The latch. A second terminal error on the same source is not a second
+    // question, and re-probing spends a round trip to re-learn an answer held.
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+    await adapter.play(source());
+
+    const fetchImpl = vi.fn(fragmentStatus(404));
+    vi.stubGlobal('fetch', fetchImpl);
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+    const asked = fetchImpl.mock.calls.length;
+
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(fetchImpl.mock.calls).toHaveLength(asked);
+    expect(failures.map((failure) => failure.kind)).toEqual(['not-found', 'not-found']);
+  });
+
+  it('leaves a held fragment unclassified rather than reading it as a fault', async () => {
+    // A node still producing is the node working. In this direction the errors
+    // are not symmetrical: `unknown` costs a spinner, a wrong `stream` costs a
+    // healthy node its place in the candidate list.
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+    await adapter.play(source());
+
+    vi.stubGlobal('fetch', holding());
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(failures[0]?.kind).toBe('unknown');
+  });
+
+  it('asks nothing of a progressive source, which has no playlist to walk', async () => {
+    // The web client's Direct Play case. There is no read-ahead worker here to
+    // latch a status, so nothing was learned — and asking would range-request
+    // the film itself.
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+    await adapter.play(source({ url: 'https://node-a.test/file.mkv', isManifest: false, mode: 'direct' }));
+
+    const fetchImpl = vi.fn(fragmentStatus(404));
+    vi.stubGlobal('fetch', fetchImpl);
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(failures[0]?.kind).toBe('unknown');
+  });
+
+  it('drops an answer that arrived after core moved on', async () => {
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+    await adapter.play(source());
+
+    vi.stubGlobal('fetch', fragmentStatus(404));
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    vi.stubGlobal('fetch', servable());
+    await adapter.play(source({ url: 'https://node-b.test/generation/index.m3u8' }));
+    await settled();
+
+    // The answer is about a source nobody is watching any more.
+    expect(failures).toHaveLength(0);
+  });
+});
+
 describe('the stall budget follows the source', () => {
   it('re-states it to the watchdog at every attach, not once at construction', async () => {
     // The watchdog outlives any one generation while the figure belongs to a

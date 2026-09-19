@@ -5,8 +5,10 @@ import {
   PlaybackSourceError,
   playbackFailureKindForStatus,
   preflightHlsSource,
+  probeHlsReadiness,
   type PlaybackEvent,
   type PlaybackHost,
+  type PlaybackFailureKind,
   type PlaybackSource,
   type PlaybackTimeRange,
   type PlaybackTransition,
@@ -91,6 +93,57 @@ export class ExpoVideoAdapter implements Player {
   /** Last volume core asked for, so a promoted standby comes up at it. */
   private volume = 1;
 
+  /**
+   * Whether the viewer wants this playing.
+   *
+   * **Not `!this.video.playing`**, which is the mistake the web client names:
+   * between a play request and the element actually running, the player is
+   * still not playing while the viewer is very much waiting — and that window
+   * is exactly when a node refusing the stream must be judged rather than
+   * excused.
+   */
+  private wantsPlayback = false;
+
+  /** The source the active player is on, for re-asking a node after a park. */
+  private activeSource?: PlaybackSource;
+
+  /**
+   * A terminal error raised while nobody was waiting for a picture.
+   *
+   * Every judgement this adapter makes is "is this node failing the person
+   * watching", and while playback is paused there is nobody to fail. A node
+   * that dies during a pause has hurt no one yet, and reporting it tears down a
+   * generation nothing is using: core fails over, the viewer comes back to a
+   * failure screen naming a node they never asked for, and the session they
+   * were actually on is gone. The web client measured exactly that — a pause
+   * ending on `Playback failed` two minutes in — and answered it by parking the
+   * load instead of judging it (`WebHlsPolicy.managedHlsErrorAction`,
+   * `park-paused`). This is the same decision on a platform that cannot reach
+   * its loader to park it, so the source is re-asked on resume instead.
+   *
+   * Held rather than dropped, because the error is very likely still true: it is
+   * met again at `resume()`, with the viewer present and this adapter in the
+   * state where it knows what to do about it.
+   */
+  private parked?: { source: PlaybackSource; positionMs: number; message: string };
+
+  /**
+   * What a node last said about a source, in a status.
+   *
+   * `expo-video` reports `{ message: string }` and nothing else, so a terminal
+   * error from its own loader carries no status to classify. The web client has
+   * exactly this problem on its Direct Play path — a 404 body handed to the
+   * element as media raises a generic decode error — and did **not** parse the
+   * message: the layer that does see statuses latches what it learned, and the
+   * statusless error is reinterpreted against that memory. This is the same
+   * latch, fed by the readiness walk, which is the only thing here that makes
+   * its own requests.
+   *
+   * Keyed by URL because a generation is its URL: a replacement session is a
+   * different one, so a stale verdict cannot be read against a new source.
+   */
+  private sourceVerdict?: { url: string; kind: PlaybackFailureKind };
+
   /** A player a promotion replaced, awaiting presentation letting go of it. */
   private retired?: VideoPlayer;
 
@@ -145,12 +198,21 @@ export class ExpoVideoAdapter implements Player {
       }),
       video.addListener('statusChange', ({ status, error }) => {
         if (status === 'error') {
-          // Everything expo-video reports here is already terminal. It gives
-          // no HTTP status, so `playbackFailureKindForStatus` — which is the
-          // protocol rule and belongs to core — cannot be applied, and the
-          // honest kind is `unknown` rather than a guess at `stream`. This is
-          // strictly less evidence than the native module produced.
-          this.reportFailure(new PlaybackSourceError(error?.message ?? 'Playback failed', 'unknown'));
+          const message = error?.message ?? 'Playback failed';
+          // Nobody is waiting, so nothing here is evidence yet. Parked and
+          // re-asked on resume rather than reported — see `parked`.
+          if (!this.wantsPlayback && this.activeSource) {
+            this.parked = {
+              source: this.activeSource,
+              // The position to come back to. Read now, because the player is
+              // in its error state and will be replaced to escape it.
+              positionMs: Math.max(0, this.video.currentTime * 1_000),
+              message,
+            };
+            playbackLog.warn('failure-parked-while-paused', { message });
+            return;
+          }
+          this.reportTerminalPlayerFailure(message);
           return;
         }
         if (status === 'readyToPlay') this.seeking = false;
@@ -205,6 +267,9 @@ export class ExpoVideoAdapter implements Player {
   detach(): void {
     if (this.released) return;
     this.released = true;
+    this.wantsPlayback = false;
+    this.activeSource = undefined;
+    this.parked = undefined;
     this.startWatchdog.stop();
     this.stallWatchdog.stop();
     for (const subscription of this.subscriptions) subscription.remove();
@@ -244,6 +309,10 @@ export class ExpoVideoAdapter implements Player {
     const generation = ++this.sourceGeneration;
     this.ended = false;
     this.seeking = false;
+    // Core is asking for a source, so a viewer is waiting on one unless it says
+    // otherwise — and anything parked belonged to the generation being replaced.
+    this.wantsPlayback = !startPaused;
+    this.parked = undefined;
     this.video.keepScreenOnWhilePlaying = true;
 
     // A promotion arrives as an ordinary `play()` carrying the source we were
@@ -257,6 +326,7 @@ export class ExpoVideoAdapter implements Player {
     // settled when it was primed — in front of a viewer whose picture has
     // just frozen, which is the worst possible moment to spend it.
     if (this.promoteStandby(source, positionMs, startPaused, transition)) {
+      this.activeSource = source;
       this.startWatchdogs(source);
       return true;
     }
@@ -269,6 +339,7 @@ export class ExpoVideoAdapter implements Player {
     // player now, and finishing this one would overwrite it.
     if (generation !== this.sourceGeneration) return false;
 
+    this.activeSource = source;
     this.startWatchdogs(source);
     this.active.replace(this.videoSourceFor(source));
     if (positionMs > 0) this.active.currentTime = positionMs / 1_000;
@@ -301,6 +372,12 @@ export class ExpoVideoAdapter implements Player {
     }
 
     if (readiness.ready) return true;
+    if (readiness.status !== undefined) {
+      // Remembered as well as reported: the walk is the only thing here that
+      // sees a status, so what it learned is what a later statusless error from
+      // the player is read against.
+      this.sourceVerdict = { url: source.url, kind: playbackFailureKindForStatus(readiness.status) };
+    }
     this.reportFailure(
       new PlaybackSourceError(
         `The node did not serve the first fragment: ${readiness.reason}`,
@@ -372,11 +449,48 @@ export class ExpoVideoAdapter implements Player {
   }
 
   pause(): void {
+    // Presentation intent, not source teardown: the stall watchdog stands down
+    // in `emit()` and core re-arms it on the first report after the resume, so
+    // a node that dies mid-pause is still judged the moment anyone waits on it.
+    this.wantsPlayback = false;
     this.video.pause();
   }
 
   resume(): void {
+    this.wantsPlayback = true;
+    // Before the play request, deliberately: whatever killed this source while
+    // nobody was watching is about to be met again, and it should be met while
+    // the viewer is waiting — which is the state this adapter knows what to do
+    // in. The same ordering as the web client's `restartParkedHlsLoad`.
+    this.restartParkedSource();
     this.video.play();
+  }
+
+  /**
+   * Re-ask the node for a source that died while the viewer was away.
+   *
+   * The web client restarts hls.js's load and keeps everything the element had
+   * buffered. There is no equivalent here — `expo-video` owns its loader and a
+   * player in its error state will not resume — so the source is re-attached at
+   * the position the viewer left it. **What that costs is the buffer**, which on
+   * this path is very likely gone with the generation anyway.
+   *
+   * The watchdogs are re-armed with it: this is an acquisition like any other,
+   * and a node that accepts the source and then sends nothing on the way back
+   * must still be judged.
+   */
+  private restartParkedSource(): void {
+    const parked = this.parked;
+    if (!parked) return;
+    this.parked = undefined;
+    playbackLog.warn('parked-source-restarted', {
+      url: parked.source.url,
+      positionMs: Math.round(parked.positionMs),
+      message: parked.message,
+    });
+    this.startWatchdogs(parked.source);
+    this.active.replace(this.videoSourceFor(parked.source));
+    if (parked.positionMs > 0) this.active.currentTime = parked.positionMs / 1_000;
   }
 
   seek(positionMs: number): void {
@@ -567,6 +681,9 @@ export class ExpoVideoAdapter implements Player {
   }
 
   stop(): void {
+    this.wantsPlayback = false;
+    this.activeSource = undefined;
+    this.parked = undefined;
     this.active.keepScreenOnWhilePlaying = false;
     this.startWatchdog.stop();
     this.stallWatchdog.stop();
@@ -577,6 +694,75 @@ export class ExpoVideoAdapter implements Player {
     this.releaseRetiredPlayer();
     this.active.pause();
     this.active.replace(null);
+  }
+
+  /**
+   * Classify a terminal error the player could not classify for itself.
+   *
+   * **The player's own errors are the one path here with no status.**
+   * `expo-video`'s `PlayerError` is `{ message: string }`, and until this
+   * existed every one of them was reported as `unknown` — which core treats as
+   * possible endpoint evidence. So a session the node reaped while the viewer
+   * was paused, the single likeliest failure on a television, charged a failure
+   * against the node that had answered honestly and sent the viewer to one that
+   * had never held the session. That is the fault core's `not-found` exists to
+   * prevent, arriving through the one door this client could not see through.
+   *
+   * So the node is asked. **The readiness walk, not the session** — the web
+   * client's correction, and the reason is measured: a fragment past the end of
+   * a live plan and a reaped session both answer `404 not_found`, differing by
+   * one word of English in a body no loader surfaces. A session that reports
+   * itself alive therefore does not prove the fragment was servable, while the
+   * walk asks exactly what the loader asked.
+   *
+   * **Conservative on everything else.** A walk that answers `ready`,
+   * `holding`, `unassessable` or nothing at all leaves the kind `unknown`,
+   * because in this direction the errors are not symmetrical: `unknown` costs a
+   * spinner, and a wrong `stream` costs a healthy node its place in the
+   * candidate list.
+   *
+   * **What it costs** is one round trip before core hears about the failure,
+   * and up to the walk's own deadline where the node does not answer at all —
+   * which is the case where the delay buys nothing. Nothing is torn down while
+   * it runs, so whatever the element still holds goes on playing; that buffer
+   * is the whole margin a recovery has to be invisible in.
+   */
+  private reportTerminalPlayerFailure(message: string): void {
+    const generation = this.sourceGeneration;
+    // Stopped now rather than at the report: this source is already terminal,
+    // and a watchdog firing during the probe would report it a second time.
+    this.startWatchdog.stop();
+    this.stallWatchdog.stop();
+    void this.kindForTerminalError().then((kind) => {
+      // Core moved on while we asked, so the answer is about a source nobody is
+      // watching any more.
+      if (this.released || generation !== this.sourceGeneration) return;
+      this.reportFailure(new PlaybackSourceError(message, kind));
+    });
+  }
+
+  private async kindForTerminalError(): Promise<PlaybackFailureKind> {
+    const source = this.activeSource;
+    if (!source) return 'unknown';
+    // Already asked, for this source. The second terminal error of a generation
+    // is not a second question.
+    if (this.sourceVerdict?.url === source.url) return this.sourceVerdict.kind;
+    // A progressive source has no playlist to walk, and asking would
+    // range-request the film. This is the web client's Direct Play case, where
+    // the latch is fed by the read-ahead worker; there is no worker here, so
+    // the honest answer is that nothing was learned.
+    if (!source.isManifest) return 'unknown';
+    try {
+      const outcome = await probeHlsReadiness(source, { fetch });
+      if (outcome.state !== 'unavailable' || outcome.status === undefined) return 'unknown';
+      const kind = playbackFailureKindForStatus(outcome.status);
+      playbackLog.warn('terminal-failure-classified', { status: outcome.status, kind });
+      this.sourceVerdict = { url: source.url, kind };
+      return kind;
+    } catch {
+      // The walk could not be made at all, which says nothing about the node.
+      return 'unknown';
+    }
   }
 
   /** One route for terminal evidence, so a watchdog and the player agree. */

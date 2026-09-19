@@ -167,15 +167,51 @@ from its readiness walk now, and the obligation that arrives with it — an
 adapter reporting `not-found` must not tear its presentation down, because the
 buffer is the cover core builds the replacement behind.
 
-**Where it does not reach, and why that is a television problem.** The walk runs
-at `play()`. A session reaped *while the viewer is paused mid-film* is found by
-`expo-video`'s own loader, and `PlayerError` is `{ message: string }` — no
-status, so the kind is still `unknown`. The reap is not a risk on a television,
-it is a certainty: `SERVER_SESSION_IDLE_MS` is 30 minutes, a paused client stops
-asking for fragments within about one buffer, and somebody pausing a film for
-half an hour is ordinary. So the exact fault core `0.13.0` was built to fix is
-the one this client cannot currently report. Recorded in `TODO/ACTIVE.md` §2.6
-with the two ways out, neither of which has been measured.
+**Where the walk does not reach, and what the web client said to do about it.**
+The walk runs at `play()`. A session reaped *while the viewer is paused
+mid-film* is found by `expo-video`'s own loader, and `PlayerError` is
+`{ message: string }` — no status to classify. That reap is not a risk on a
+television but a certainty: `SERVER_SESSION_IDLE_MS` is 30 minutes, a paused
+client stops asking for fragments within about one buffer, and somebody pausing
+a film for half an hour is ordinary.
+
+Tom's instruction on 2026-09-19 was that the experience must be as close as
+possible to the web client, so the web session was asked rather than guessed at.
+Three things came back and all three are now in `ExpoVideoAdapter`:
+
+- **Ask the node, not the session.** Asking whether the *session* is alive is
+  the obvious move and it is wrong: a fragment past the end of a live plan and a
+  reaped session both answer `404 not_found`, one word of English apart in a
+  body no loader surfaces (measured by them against one node, 2026-09-17). A
+  live session therefore does not prove the fragment was servable. The readiness
+  walk asks what the loader asked.
+- **Latch the verdict rather than parse the message.** Their Direct Play path
+  has this problem exactly — a 404 body handed to the element raises a generic
+  decode error — and they did not read the text: the layer that sees statuses
+  remembers, and the statusless error is interpreted against that memory.
+  Nothing in either client classifies from a message string.
+- **Classify conservatively.** `unknown` costs a spinner; a wrong `stream` costs
+  a healthy node its place in the candidate list. The asymmetry is why the
+  server speaks its counter-intuitive dialect on holds in the first place.
+
+**And a pause must not be judged at all.** Their measurement: a paused
+generation called dead seven seconds in, a failover that could not succeed, and
+a viewer looking at `Playback failed` naming a node they had never been on. The
+fix is to park a fatal error raised while nobody is waiting and meet it again on
+resume — keyed on viewer *intent*, because between a play request and the
+element running nothing is playing while the viewer is very much waiting. Both
+clients now do this. This one cannot keep the buffer or the frame across it,
+since `expo-video` owns its loader, so a parked source is re-attached and the
+viewer sees the held frame blank and come back.
+
+**Provenance, because it decides what a comparison means.** Their 404 policy is
+in their source and **not deployed** — the nodes run 0.17.1 and it ships in
+0.17.2 — so a live web client today still condemns the node on a 404, and a
+difference observed against it is not this platform behaving differently. Their
+"no spinner on resume" is a reading of their own code, stated as such when
+asked; nobody has watched a parked-then-resumed session on either client. All of
+the above is **asserted**. The pause case is the first thing to provoke when the
+set is next up.
 
 **Two hazards this client raised came back fixed.** The stall watchdog not
 re-arming after a pause, and a backward seek evicting a healthy node by dropping
