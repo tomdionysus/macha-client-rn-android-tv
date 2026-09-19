@@ -696,6 +696,34 @@ describe('classifying a terminal error the player could not', () => {
     expect(failures[0]?.kind).toBe('unknown');
   });
 
+  it('does not carry a verdict into the generation that replaces it', async () => {
+    // The latch lives for one attached source and no longer. The web session
+    // observes that a stream URL carries a per-generation index, which would
+    // make the URL alone sufficient — but core states the URL shape is the
+    // server's to change, so nothing here rests on it.
+    const adapter = new ExpoVideoAdapter();
+    const failures: PlaybackSourceError[] = [];
+    adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+    await adapter.play(source());
+
+    vi.stubGlobal('fetch', fragmentStatus(404));
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+    expect(failures[0]?.kind).toBe('not-found');
+
+    // A replacement generation that happens to be served at the same URL is
+    // still a different generation, and is asked about on its own terms.
+    vi.stubGlobal('fetch', servable());
+    await adapter.play(source());
+    const fetchImpl = vi.fn(servable());
+    vi.stubGlobal('fetch', fetchImpl);
+    fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+    await settled();
+
+    expect(fetchImpl).toHaveBeenCalled();
+    expect(failures[1]?.kind).toBe('unknown');
+  });
+
   it('drops an answer that arrived after core moved on', async () => {
     const adapter = new ExpoVideoAdapter();
     const failures: PlaybackSourceError[] = [];

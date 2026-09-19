@@ -139,8 +139,19 @@ export class ExpoVideoAdapter implements Player {
    * latch, fed by the readiness walk, which is the only thing here that makes
    * its own requests.
    *
-   * Keyed by URL because a generation is its URL: a replacement session is a
-   * different one, so a stale verdict cannot be read against a new source.
+   * **Cleared at every `play()`, and keyed by URL as well.** The web session
+   * observes that a stream URL carries a per-generation index — a fresh session
+   * served `/…/1/master.m3u8`, one that had taken about fifty PATCHes served
+   * `/…/50/` — which would make the URL generation-unique on its own. But that
+   * is two captures rather than a contract, and core says outright that the URL
+   * shape is the server's to change: 0.32.12 turned `master.m3u8` from a media
+   * playlist into a master one without renaming it. So correctness does not
+   * rest on it. The verdict is discarded when a new source is attached, which
+   * is the only lifetime it was ever meant to have, and the URL check is what
+   * is left if a stale one somehow survives.
+   *
+   * The cheap direction is an extra probe; the expensive one is answering for a
+   * generation nobody asked about.
    */
   private sourceVerdict?: { url: string; kind: PlaybackFailureKind };
 
@@ -313,6 +324,7 @@ export class ExpoVideoAdapter implements Player {
     // otherwise — and anything parked belonged to the generation being replaced.
     this.wantsPlayback = !startPaused;
     this.parked = undefined;
+    this.sourceVerdict = undefined;
     this.video.keepScreenOnWhilePlaying = true;
 
     // A promotion arrives as an ordinary `play()` carrying the source we were

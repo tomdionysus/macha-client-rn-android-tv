@@ -36,6 +36,18 @@ Then, in one device session while the set is up: §1.2's two remaining captures,
 §1.3 decoder instances, §1.4 headers, §1.5 audio focus, and §1.6's unread
 platform-surface findings. They all want the same sitting.
 
+**Two of them are owed to the web session**, which cannot take either on a
+desktop and has asked for them in this order (2026-09-19):
+
+1. **Is the re-attach blank visible at ten feet?** Not whether it exists — it
+   does (§2.6) — but whether it reads as a fault or as nothing. That is what
+   decides whether holding the shutter open is worth a decoder instance
+   (§2.1), and no measurement in milliseconds answers it.
+2. **What does `session_idle` do to a set left paused, and after how long?**
+   Their figure is thirty minutes from the node's reaper and the client half of
+   it is an open P0 there. A television is where a pause that long is ordinary,
+   so this set is the right place to find out.
+
 ### Getting a build onto the set
 
 ```sh
@@ -260,6 +272,25 @@ Tiers 1 and 2 have landed — see `COMPLETED.md`. What remains:
 or alpha-0 `VideoView` so it renders a first frame, which flips
 `hasSentFirstFrameForCurrentMediaItem` and holds the shutter open through the
 swap. **Gated on §1.3.**
+
+**Two things the web session paid for on the same approach** (2026-09-19,
+unverified here and on a different platform, so treat as a warning rather than a
+result):
+
+- **A hidden element still buffers.** `display: none` does not gate MSE, so an
+  off-screen standby fills normally and costs nothing while it waits. The other
+  half of their finding — that *tab* visibility throttles loading as well as
+  decoding — has no equivalent on a television.
+- **Do not promote the moment it is ready.** An element holding almost nothing
+  past the join starves seconds later, and picture-back-then-gone reads worse
+  than the single gap it replaced. Their handover waits for the join plus a
+  margin; their relocation hold promotes on `canplay` and they are not yet sure
+  that is enough. **Open on their side, so do not copy the threshold** — copy
+  the shape, and measure the margin here.
+
+**It is also what would close the park gap** (§2.6): a source re-attached after
+a park blanks the held frame, and a pre-warmed second player is exactly what
+holds a shutter open across that.
 
 Until then, promotion shows a brief black frame: the standby has never rendered,
 so `VideoView`'s setter closes the shutter over the swap. That is the tier's
