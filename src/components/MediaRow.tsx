@@ -19,12 +19,15 @@ export function MediaRow({
   onSelect,
   defaultFocusFirst,
   progressFor,
+  onRowFocus,
 }: {
   title?: string;
   items: MediaSummary[];
   onSelect: (media: MediaSummary) => void;
   defaultFocusFirst?: boolean;
   progressFor?: (media: MediaSummary) => number | undefined;
+  /** Any card in this row taking focus. For a page scroller following focus. */
+  onRowFocus?: () => void;
 }): React.JSX.Element | null {
   const scroller = useRef<ScrollView | null>(null);
 
@@ -56,7 +59,14 @@ export function MediaRow({
             onSelect={() => onSelect(media)}
             defaultFocus={defaultFocusFirst && index === 0}
             progress={progressFor?.(media)}
-            onFocusChange={(focused) => focused && scrollToIndex(index)}
+            onFocusChange={(focused) => {
+              if (!focused) return;
+              scrollToIndex(index);
+              // The row moves horizontally; the page has to move vertically to
+              // it, or focus lands on a row below the fold and the selector sits
+              // on a card cut off by the bottom edge.
+              onRowFocus?.();
+            }}
           />
         ))}
       </ScrollView>

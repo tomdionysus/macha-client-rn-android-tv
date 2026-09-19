@@ -20,6 +20,7 @@ export function MediaCard({
   defaultFocus,
   progress,
   onFocusChange,
+  onExtent,
   addressable = false,
 }: {
   media: MediaSummary;
@@ -37,6 +38,8 @@ export function MediaCard({
   /** 0–1, drawn as `.progress-track` / `.progress-value` across the poster foot. */
   progress?: number;
   onFocusChange?: (focused: boolean) => void;
+  /** This card's box, for a grid whose scroller has to follow focus. */
+  onExtent?: (extent: { y: number; height: number }) => void;
 }): React.JSX.Element {
   const { services } = useMacha();
   const mediaApi = services.mediaApi;
@@ -50,6 +53,7 @@ export function MediaCard({
       onSelect={onSelect}
       defaultFocus={defaultFocus}
       onFocusChange={onFocusChange}
+      onExtent={onExtent}
       style={styles.card}
       focusedStyle={styles.cardFocused}
     >

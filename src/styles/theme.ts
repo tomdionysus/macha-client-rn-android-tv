@@ -2,25 +2,63 @@
  * The Macha appearance, ported from the web client's `src/styles/base.css`.
  *
  * The web client sets `html { font-size: 87.5% }`, so one rem is 14 CSS px,
- * and every size in that stylesheet is expressed in rem. Android TV runs its
- * UI at 1920x1080 dp regardless of panel resolution (a 4K set reports density
- * 2.0 over the same 1080p dp grid), and the TV WebView reports the same 1920
- * CSS px viewport — so dp and the web client's CSS px are the same unit here
- * and `rem()`/`vw()` reproduce the stylesheet directly rather than by eye.
+ * and every size in that stylesheet is expressed in rem.
+ *
+ * **This file claimed dp and the web client's CSS px were the same unit, and
+ * that was wrong on the hardware.** The claim was that Android TV runs its UI
+ * on a 1920x1080 dp grid whatever the panel is. Measured on the TCL
+ * `G10_4K_GB_NF_32BIT` (Android 12) on 2026-09-19: `wm size` reports a 1920x1080
+ * surface and `wm density` reports **320**, so React Native's viewport is
+ * **960x540 dp** — half the web client's CSS px viewport in each axis. Every
+ * `rem()` therefore drew at twice its intended size, and every `clamp()` floor
+ * expressed in px won where the web client's ceiling wins, so the cards were
+ * both too large and too few to a row. Reported by Tom from the set as
+ * "all too big", which is exactly what a factor of two looks like when nothing
+ * is blurry.
+ *
+ * So there is one conversion and everything goes through it: `px()` takes a
+ * length as `base.css` states it and returns dp for **this** viewport,
+ * against the 1920 CSS px viewport the stylesheet's clamps were read at.
+ * `vw()` and `vh()` need no conversion — a percentage of the viewport is the
+ * same fraction in either unit, which is why the two families must not be
+ * mixed by hand.
  *
  * Keep this file the single source of appearance. A colour written inline in a
  * component is a colour that will not follow when base.css changes.
  */
 import { Dimensions } from 'react-native';
 
+const screen = Dimensions.get('window');
+
+/**
+ * The viewport `base.css` is read against: the TV WebView's CSS px width.
+ *
+ * Not a guess — the web client's own clamps resolve against it, and this file
+ * already documented which side of each `clamp()` wins "at a 1920-wide TV
+ * viewport". Those resolutions are only correct if the conversion below is.
+ */
+export const DESIGN_WIDTH = 1920;
+
+/**
+ * CSS px to dp for this set.
+ *
+ * `1` on a device whose dp grid really is 1920 wide, which is what this file
+ * used to assume of every television; `0.5` on the 4K TCL, which reports a
+ * 1920x1080 surface at density 320.
+ */
+export const scale = screen.width / DESIGN_WIDTH;
+
+/** A length as `base.css` states it, in dp. */
+export function px(value: number): number {
+  return value * scale;
+}
+
 /** One rem in CSS px, from `html { font-size: 87.5% }` on a 16px root. */
 export const REM = 14;
 
 export function rem(value: number): number {
-  return value * REM;
+  return px(value * REM);
 }
-
-const screen = Dimensions.get('window');
 
 export function vw(value: number): number {
   return (screen.width * value) / 100;
@@ -131,13 +169,21 @@ export const radius = {
 
 export const layout = {
   /** `.topbar { min-height: 62px }`. */
-  topbarHeight: 62,
+  topbarHeight: px(62),
   /** `.section-nav-slot { top: 62px }`. */
-  sectionNavTop: 62,
-  /** `.media-card { flex: 0 0 clamp(145px, 13vw, 225px) }`. */
-  mediaCardWidth: clamp(145, vw(13), 225),
+  sectionNavTop: px(62),
+  /**
+   * `.media-card { flex: 0 0 clamp(145px, 13vw, 225px) }`.
+   *
+   * **The bound is in CSS px and the preferred value is in viewport units**, so
+   * only one of the three converts. Getting that wrong is what made the cards
+   * too wide: unconverted, the 145 floor is 145 dp — 290 px on this set — and
+   * beats a `13vw` that is already correct, so the row drew cards larger than
+   * the web client's ceiling and fitted fewer of them.
+   */
+  mediaCardWidth: clamp(px(145), vw(13), px(225)),
   /** `.episode-rail-item { flex: 0 0 clamp(300px, 31vw, 480px) }`. */
-  episodeCardWidth: clamp(300, vw(31), 480),
+  episodeCardWidth: clamp(px(300), vw(31), px(480)),
   /** `.media-row { gap: 1rem }`. */
   rowGap: rem(1),
   /** `.episode-rail { gap: 1.15rem }`. */

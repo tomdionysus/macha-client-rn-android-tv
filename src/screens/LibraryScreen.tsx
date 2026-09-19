@@ -6,6 +6,7 @@ import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/St
 import { MediaCard } from '../components/MediaCard';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
 import { useAlphabetIndex } from '../hooks/useAlphabetIndex';
+import { scrollTargetY } from '../hooks/focusScroll';
 import { layout, pageGutter, rem, screenSize } from '../styles/theme';
 
 /**
@@ -34,6 +35,10 @@ export function LibraryScreen({
   );
   const items = useMemo(() => sortMediaByIndexedTitle(result.value ?? []), [result.value]);
   const scroller = useRef<ScrollView | null>(null);
+  const viewportHeight = useRef(0);
+  const scrollY = useRef(0);
+  const gridY = useRef(0);
+  const cardExtents = useRef(new Map<number, { y: number; height: number }>());
   // Jumping moves focus to the first title in the bucket; the grid's existing
   // scroll-on-focus below does the revealing. See `useAlphabetIndex` for why
   // scrolling alone is the wrong behaviour on a D-pad.
@@ -56,21 +61,55 @@ export function LibraryScreen({
     );
   }
 
-  const scrollToRow = (index: number) => {
-    const row = Math.floor(index / columns);
-    // Card height is the poster (2:3 of its width) plus the two text lines.
-    const rowHeight = layout.mediaCardWidth * 1.5 + rem(3.4);
-    scroller.current?.scrollTo({ y: Math.max(0, (row - 1) * rowHeight), animated: true });
+  /**
+   * Bring the focused card fully into view.
+   *
+   * **Measured, not computed.** This multiplied a row index by a card height
+   * derived from the poster ratio plus two text lines, and then parked that row
+   * second from the top. Both halves were wrong on the set: a title that wraps
+   * to two lines makes a row taller than the formula says, the error accumulates
+   * down the grid, and forcing a scroll on every focus change means the last row
+   * can never come further up than the arithmetic allows — so the selector sat
+   * on a card cut off by the bottom edge and stayed there. Reported by Tom,
+   * 2026-09-19.
+   *
+   * Cards report their own boxes now, and a card already fully visible does not
+   * scroll at all.
+   */
+  const revealCard = (index: number) => {
+    const extent = cardExtents.current.get(index);
+    if (!extent) return;
+    const target = scrollTargetY(
+      { y: gridY.current + extent.y, height: extent.height },
+      viewportHeight.current,
+      scrollY.current,
+      rem(1.4),
+    );
+    if (target === undefined) return;
+    scrollY.current = target;
+    scroller.current?.scrollTo({ y: target, animated: true });
   };
 
   return (
     // The strip is a sibling of the scroller, not a child of it: it is pinned
     // to the screen edge and must not scroll away with the grid.
     <View style={styles.screen}>
-      <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
+      <ScrollView
+        ref={scroller}
+        contentContainerStyle={styles.page}
+        scrollEnabled={false}
+        onLayout={(event) => {
+          viewportHeight.current = event.nativeEvent.layout.height;
+        }}
+      >
         <PageTitle>{title}</PageTitle>
         {result.error ? <RefreshError error={result.error} /> : null}
-        <View style={styles.grid}>
+        <View
+          style={styles.grid}
+          onLayout={(event) => {
+            gridY.current = event.nativeEvent.layout.y;
+          }}
+        >
           {items.map((item, index) => (
             <MediaCard
               key={item.id}
@@ -78,7 +117,8 @@ export function LibraryScreen({
               addressable
               onSelect={() => onOpen(item)}
               defaultFocus={index === 0}
-              onFocusChange={(focused) => focused && scrollToRow(index)}
+              onExtent={(extent) => cardExtents.current.set(index, extent)}
+              onFocusChange={(focused) => focused && revealCard(index)}
             />
           ))}
         </View>

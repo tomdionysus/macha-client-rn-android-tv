@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Macha",
+    "icon": "./assets/icon.png",
     "slug": "macha-client-rn-tv",
     "version": "0.3.4",
     "orientation": "landscape",
@@ -10,6 +11,11 @@
     "assetBundlePatterns": ["**/*"],
     "android": {
       "package": "foundation.macha.client.tv",
+      "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-adaptive.png",
+        "backgroundColor": "#0e0e0f"
+      },
       "versionCode": 304,
       "permissions": [
         "android.permission.INTERNET",

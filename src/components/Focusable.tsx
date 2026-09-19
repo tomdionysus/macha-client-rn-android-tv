@@ -27,6 +27,15 @@ export interface FocusableProps {
    * the web client's `next.scrollIntoView(false)` after it moves selection.
    */
   onFocusChange?: (focused: boolean) => void;
+  /**
+   * This element's box within its parent, as laid out.
+   *
+   * For a scroller that has to follow focus. `useFocusable` already measures
+   * every focusable, but in *window* coordinates for the focus scorer, which is
+   * the wrong frame for `scrollTo` — and a second `onLayout` cannot be added to
+   * the view below from outside, since the first belongs to the registry.
+   */
+  onExtent?: (extent: { y: number; height: number }) => void;
   /** Directions this element keeps rather than yielding to the focus scorer. */
   ownsDirection?: (direction: TvDirection) => boolean;
   onDirection?: (direction: TvDirection) => void;
@@ -55,6 +64,7 @@ export const Focusable = forwardRef<View, FocusableProps>(function Focusable(
     focusedStyle,
     ring = true,
     onFocusChange,
+    onExtent,
     ownsDirection,
     onDirection,
   },
@@ -80,7 +90,11 @@ export const Focusable = forwardRef<View, FocusableProps>(function Focusable(
   return (
     <View
       ref={ref}
-      onLayout={onLayout}
+      onLayout={(event) => {
+        onLayout(event);
+        const { y, height } = event.nativeEvent.layout;
+        onExtent?.({ y, height });
+      }}
       style={[
         ring ? styles.ring : null,
         ring && focused ? styles.ringFocused : null,

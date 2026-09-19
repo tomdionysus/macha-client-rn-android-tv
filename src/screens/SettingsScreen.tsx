@@ -6,6 +6,7 @@ import { getBootstrapEndpoints, getDiscoveredEndpoints } from '../state/client';
 import { Focusable } from '../components/Focusable';
 import { failureTrailEnabled, setFailureTrailEnabled } from '../diagnostics/failureTrailSetting';
 import { PageTitle } from '../components/Status';
+import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
 
 /**
@@ -19,6 +20,8 @@ import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
  * is shown here where a person can check it against the file being played.
  */
 export function SettingsScreen(): React.JSX.Element {
+  const { scroller, viewportHeight, measureRow, revealRow } = usePageFocusScroll(SCROLL_LEAD);
+
   const [capabilities, setCapabilities] = useState<PlaybackCapabilities | undefined>();
   const [error, setError] = useState<Error | undefined>();
   // Seeded from storage once. The setting is only ever changed from this
@@ -37,7 +40,16 @@ export function SettingsScreen(): React.JSX.Element {
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={styles.page}>
+    <ScrollView
+      ref={scroller}
+      contentContainerStyle={styles.page}
+      // A television has no touch: the D-pad drives this, and the scroller
+      // follows focus rather than the other way round.
+      scrollEnabled={false}
+      onLayout={(event) => {
+        viewportHeight.current = event.nativeEvent.layout.height;
+      }}
+    >
       <PageTitle>Settings</PageTitle>
 
       <View style={styles.section}>
@@ -135,7 +147,7 @@ export function SettingsScreen(): React.JSX.Element {
         default because the trail is for whoever is debugging, not for
         whoever is watching.
       */}
-      <View style={styles.section}>
+      <View style={styles.section} onLayout={measureRow('diagnostics')}>
         <Text style={styles.label}>Diagnostics</Text>
         <Focusable
           onSelect={() => {
@@ -143,6 +155,7 @@ export function SettingsScreen(): React.JSX.Element {
             setFailureTrailEnabled(next);
             setTrailEnabled(next);
           }}
+          onFocusChange={(focused) => focused && revealRow('diagnostics')}
           style={styles.toggle}
           focusedStyle={styles.toggleFocused}
         >
@@ -162,6 +175,14 @@ export function SettingsScreen(): React.JSX.Element {
     </ScrollView>
   );
 }
+
+/**
+ * Breathing room above and below a control scrolled to.
+ *
+ * One line of text. Flush against the edge of a panel reads as cut off from
+ * three metres, where there is no scrollbar to say otherwise.
+ */
+const SCROLL_LEAD = rem(1.5);
 
 function Capability({ name, value }: { name: string; value: string }): React.JSX.Element {
   return (

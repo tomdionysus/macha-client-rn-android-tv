@@ -1,8 +1,9 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { newestCatalogueFirst, type MediaApi, type MediaSummary, type PlaybackProgress } from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaRow } from '../components/MediaRow';
+import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { pageGutter, rem } from '../styles/theme';
 
 /**
@@ -22,6 +23,7 @@ export function HomeScreen({
   onResume: (media: MediaSummary) => void;
 }): React.JSX.Element {
   const home = useRefreshableAsync(() => api.home(), [api]);
+  const { scroller, viewportHeight, measureRow, revealRow } = usePageFocusScroll(rem(1));
 
   if (!home.value) {
     return (
@@ -42,24 +44,54 @@ export function HomeScreen({
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.page} scrollEnabled={false}>
+    <ScrollView
+      ref={scroller}
+      contentContainerStyle={styles.page}
+      // A television has no touch. The page follows focus instead — without
+      // this the rows below the fold could be focused and never seen, which is
+      // how the selector came to sit on a card cut off by the bottom edge.
+      scrollEnabled={false}
+      onLayout={(event) => {
+        viewportHeight.current = event.nativeEvent.layout.height;
+      }}
+    >
       <PageTitle>Home</PageTitle>
       {home.error ? <RefreshError error={home.error} /> : null}
-      <MediaRow
-        title="Continue Watching"
-        items={progressItems}
-        onSelect={onResume}
-        progressFor={progressFor}
-        defaultFocusFirst
-      />
-      <MediaRow
-        title="Movies"
-        items={newestCatalogueFirst(home.value.movies).slice(0, 14)}
-        onSelect={onOpen}
-        defaultFocusFirst={progressItems.length === 0}
-      />
-      <MediaRow title="TV Shows" items={newestCatalogueFirst(home.value.shows).slice(0, 14)} onSelect={onOpen} />
-      <MediaRow title="Music" items={newestCatalogueFirst(home.value.albums).slice(0, 14)} onSelect={onOpen} />
+      <View onLayout={measureRow('continue')}>
+        <MediaRow
+          title="Continue Watching"
+          items={progressItems}
+          onSelect={onResume}
+          progressFor={progressFor}
+          defaultFocusFirst
+          onRowFocus={() => revealRow('continue')}
+        />
+      </View>
+      <View onLayout={measureRow('movies')}>
+        <MediaRow
+          title="Movies"
+          items={newestCatalogueFirst(home.value.movies).slice(0, 14)}
+          onSelect={onOpen}
+          defaultFocusFirst={progressItems.length === 0}
+          onRowFocus={() => revealRow('movies')}
+        />
+      </View>
+      <View onLayout={measureRow('shows')}>
+        <MediaRow
+          title="TV Shows"
+          items={newestCatalogueFirst(home.value.shows).slice(0, 14)}
+          onSelect={onOpen}
+          onRowFocus={() => revealRow('shows')}
+        />
+      </View>
+      <View onLayout={measureRow('music')}>
+        <MediaRow
+          title="Music"
+          items={newestCatalogueFirst(home.value.albums).slice(0, 14)}
+          onSelect={onOpen}
+          onRowFocus={() => revealRow('music')}
+        />
+      </View>
     </ScrollView>
   );
 }
