@@ -2,7 +2,8 @@ import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@machafoundation/core';
 import { Focusable } from '../components/Focusable';
-import { clamp, colour, font, pageGutter, radius, rem, type, vw } from '../styles/theme';
+import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
+import { clamp, colour, font, pageGutter, px, radius, rem, type, vw } from '../styles/theme';
 
 /**
  * Movie detail, from `.detail` / `.movie-detail-layout` in base.css.
@@ -36,6 +37,16 @@ export function DetailScreen({
         <Image source={{ uri: backdrop.url }} style={styles.backdrop} contentFit="cover" />
       ) : null}
 
+      {/* `.back-button`, which shares the nav link's shape and sits above the copy. */}
+      <Focusable
+        ring={false}
+        onSelect={onBack}
+        style={styles.backButton}
+        focusedStyle={styles.backButtonFocused}
+      >
+        <Text style={styles.backLabel}>← Back</Text>
+      </Focusable>
+
       <View style={styles.layout}>
         <View style={styles.poster}>
           {poster?.url ? (
@@ -59,23 +70,21 @@ export function DetailScreen({
             </Text>
           ) : null}
 
-          {/* `.play-actions { display: flex; gap: .65rem }` */}
+          {/*
+            `.play-actions.detail-play-controls` — **round icon buttons, not
+            labelled pills**. The web client draws a play glyph, and a restart
+            glyph beside it when there is a position to resume from; this had
+            "Resume", "Play from start" and "Back" as text, which is a different
+            control in the same place. Same `.media-control-button` the transport
+            row uses, which is why they look alike there and now here.
+          */}
           <View style={styles.actions}>
-            {canResume ? (
-              <ActionButton
-                label="Resume"
-                primary
-                defaultFocus
-                onSelect={() => onPlay(resumePositionMs)}
-              />
-            ) : null}
-            <ActionButton
-              label={canResume ? 'Play from start' : 'Play'}
-              primary={!canResume}
-              defaultFocus={!canResume}
-              onSelect={() => onPlay(0)}
+            <ControlButton
+              icon="play"
+              defaultFocus
+              onSelect={() => onPlay(canResume ? resumePositionMs : 0)}
             />
-            <ActionButton label="Back" onSelect={onBack} />
+            {canResume ? <ControlButton icon="restart" onSelect={() => onPlay(0)} /> : null}
           </View>
         </View>
       </View>
@@ -83,16 +92,20 @@ export function DetailScreen({
   );
 }
 
-/** `.primary-button` and `.secondary-button`. */
-function ActionButton({
-  label,
+/**
+ * `.media-control-button`: a 3.25rem circle with a glyph in it.
+ *
+ * The same rule as the transport row — `border: 1px solid #48484f`, background
+ * `#080809d6`, and on focus the accent fill with the focus border — because on
+ * the web they are literally the same selector.
+ */
+function ControlButton({
+  icon,
   onSelect,
-  primary,
   defaultFocus,
 }: {
-  label: string;
+  icon: PlayerIconName;
   onSelect: () => void;
-  primary?: boolean;
   defaultFocus?: boolean;
 }): React.JSX.Element {
   return (
@@ -100,15 +113,16 @@ function ActionButton({
       ring={false}
       onSelect={onSelect}
       defaultFocus={defaultFocus}
-      style={[styles.button, primary ? styles.primaryButton : styles.secondaryButton]}
-      focusedStyle={styles.buttonFocused}
+      style={styles.controlButton}
+      focusedStyle={styles.controlButtonFocused}
     >
-      <Text style={styles.buttonLabel}>{label}</Text>
+      <PlayerIcon name={icon} />
     </Focusable>
   );
 }
 
-const POSTER_WIDTH = clamp(190, vw(22), 310);
+/** `.movie-detail-poster { width: clamp(190px, 22vw, 310px) }`. */
+const POSTER_WIDTH = clamp(px(190), vw(22), px(310));
 
 const styles = StyleSheet.create({
   page: {
@@ -190,8 +204,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: rem(0.65),
+    gap: rem(0.7),
     marginTop: rem(1),
+  },
+  /**
+   * `.media-control-button { width: 3.25rem; height: 3.25rem; border-radius: 50%;
+   * border: 1px solid #48484f; background: #080809d6 }`.
+   */
+  controlButton: {
+    width: rem(3.25),
+    height: rem(3.25),
+    borderRadius: rem(3.25) / 2,
+    borderWidth: 1,
+    borderColor: '#48484f',
+    backgroundColor: '#080809d6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  /** `:focus-visible { background: #160004e8; border-color: #620014 }`. */
+  controlButtonFocused: {
+    backgroundColor: '#160004e8',
+    borderColor: '#620014',
+  },
+  /** `.back-button` shares `.topbar nav a`: `padding: .65rem .9rem; radius: .55rem`. */
+  backButton: {
+    alignSelf: 'flex-start',
+    marginLeft: pageGutter,
+    marginBottom: rem(0.6),
+    paddingVertical: rem(0.65),
+    paddingHorizontal: rem(0.9),
+    borderRadius: radius.control,
+  },
+  backButtonFocused: {
+    backgroundColor: colour.accentSurface,
+  },
+  backLabel: {
+    color: colour.textDim,
+    fontSize: type.body,
+    fontWeight: font.weightMedium,
   },
   // `.primary-button { padding: .8rem 1.25rem; border-radius: .55rem; font-weight: 650 }`
   button: {

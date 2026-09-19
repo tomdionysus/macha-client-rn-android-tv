@@ -7,7 +7,7 @@ import { MediaCard } from '../components/MediaCard';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
 import { useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { scrollTarget } from '../hooks/focusScroll';
-import { layout, pageGutter, rem, screenSize } from '../styles/theme';
+import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
 
 /**
  * The full catalogue grid, from `.media-grid` in base.css.
@@ -140,8 +140,10 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: rem(1.4),
-    columnGap: rem(1),
+    // `.media-grid { gap: 1.4rem 1rem }`, less the focus frame each card holds
+    // inside its own box. See `layout.rowGap`.
+    rowGap: Math.max(rem(0.5), rem(1.4) - CARD_FRAME * 2),
+    columnGap: layout.rowGap,
     paddingLeft: pageGutter,
     // The alphabet strip is pinned over this edge, so the grid keeps clear of
     // it rather than laying its last column underneath.

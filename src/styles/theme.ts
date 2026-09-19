@@ -171,6 +171,15 @@ export const radius = {
   pill: 999,
 } as const;
 
+/**
+ * How far a card's artwork stands inside the card's own box.
+ *
+ * The focus border plus its offset — see `MediaCard`'s `poster`. Declared here
+ * because the gaps between cards have to account for it, and two files reading
+ * the same three numbers by eye is how they stop agreeing.
+ */
+export const CARD_FRAME = 3 + px(2);
+
 export const layout = {
   /** `.topbar { min-height: 62px }`. */
   topbarHeight: px(62),
@@ -188,8 +197,22 @@ export const layout = {
   mediaCardWidth: clamp(px(145), vw(13), px(225)),
   /** `.episode-rail-item { flex: 0 0 clamp(300px, 31vw, 480px) }`. */
   episodeCardWidth: clamp(px(300), vw(31), px(480)),
-  /** `.media-row { gap: 1rem }`. */
-  rowGap: rem(1),
+  /**
+   * `.media-row { gap: 1rem }`, less what the focus frame takes.
+   *
+   * **The declared gap is no longer the visible one.** Each card carries a 3 dp
+   * focus border and 2 CSS px of padding *inside* its width, so the artwork
+   * stands about 4 dp in from the card's edge on every side and two neighbours
+   * sit eight dp further apart than the stylesheet says. That is what Tom read
+   * as too much space between titles, and it appeared the moment the border was
+   * thickened rather than being there all along.
+   *
+   * So the gap is stated against the *artwork*, which is what a viewer actually
+   * sees the space between. A negative result would mean the frame alone
+   * exceeds the web client's gap, which is a sign the frame has grown too far
+   * rather than something to lay out with — hence the floor.
+   */
+  rowGap: Math.max(rem(0.25), rem(1) - CARD_FRAME * 2),
   /** `.episode-rail { gap: 1.15rem }`. */
   episodeRailGap: rem(1.15),
 } as const;

@@ -1,25 +1,50 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { checkPlatformSurface, type PlaybackCapabilities } from '@machafoundation/core';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
-import { getBootstrapEndpoints, getDiscoveredEndpoints } from '../state/client';
+import { useMacha } from '../app/MachaProvider';
+import { useRefreshableAsync } from '../hooks/useAsync';
+import {
+  getBootstrapEndpoints,
+  getDiscoveredEndpoints,
+  setBootstrapEndpoints,
+} from '../state/client';
 import { Focusable } from '../components/Focusable';
+import { TvTextInput } from '../components/TvTextInput';
 import { failureTrailEnabled, setFailureTrailEnabled } from '../diagnostics/failureTrailSetting';
 import { PageTitle } from '../components/Status';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
+import { version as clientVersion } from '../../package.json';
 
 /**
- * Settings, and the place the decoder evidence is made visible.
+ * Settings, laid out as the web client's is.
  *
- * The capability panel is not decoration. The worst failure mode in this
- * client is silent: if the hardware probe returns something narrower than the
- * truth, the node transcodes a library that would have direct-played, the
- * picture still works, and nothing prompts anyone to look. A log line on a
- * television is not a symptom — so what was actually read off `MediaCodecList`
- * is shown here where a person can check it against the file being played.
+ * **Its shape, section for section**: the brand hero with the one line that
+ * says whether the system is working, a row of status cards for Server,
+ * Catalogue and Client, Connection — where the endpoints are *edited* rather
+ * than listed — and Diagnostics. This screen had a read-only endpoint list and
+ * two blocks that client does not have, which is what Tom read as "nothing like
+ * the web client" off the set.
+ *
+ * **The two blocks that stay are the reason this client exists.** Hardware
+ * decoding is what `MediaCodecList` actually answered, and the platform surface
+ * is what core's contract found here; neither has a web counterpart because
+ * neither question arises in a browser. They come last, so the screen reads the
+ * same as that one until it runs out of shared ground. The decoder panel is not
+ * decoration: the worst failure in this client is silent — a probe narrower
+ * than the truth means the node transcodes a library that would have
+ * direct-played, the picture still works, and nothing prompts anyone to look.
+ *
+ * **Endpoints are the one control a bricked set needs.** A television has no
+ * address bar, so when a cluster stops answering this is the only way to point
+ * the client somewhere else — which is why Settings stays reachable from behind
+ * the login wall (`App.tsx`), and why editing belongs here rather than in a
+ * developer build.
  */
 export function SettingsScreen(): React.JSX.Element {
+  const { services } = useMacha();
   const { scroller, measureViewport, measureRow, revealRow } = usePageFocusScroll(SCROLL_LEAD);
 
   const [capabilities, setCapabilities] = useState<PlaybackCapabilities | undefined>();
@@ -30,6 +55,15 @@ export function SettingsScreen(): React.JSX.Element {
   // Probed once: the answer cannot change while the app is running.
   const surface = useMemo(() => checkPlatformSurface(), []);
 
+  const server = useRefreshableAsync(() => services.serverApi.status(), [services.serverApi]);
+  const catalogue = useRefreshableAsync(
+    () => services.catalogueApi.status(),
+    [services.catalogueApi],
+  );
+
+  const [endpoints, setEndpoints] = useState(() => getBootstrapEndpoints().join(', '));
+  const [endpointNotice, setEndpointNotice] = useState<string | undefined>();
+
   useEffect(() => {
     androidTvPlatform
       .capabilities()
@@ -39,138 +73,265 @@ export function SettingsScreen(): React.JSX.Element {
       );
   }, []);
 
+  /**
+   * The one line a person actually reads on this screen.
+   *
+   * The web client's ladder in its order: an unreachable server outranks an
+   * unreachable catalogue, which outranks a catalogue still synchronising.
+   * Reproduced rather than reinvented, because "Ready" has to mean the same
+   * thing on both clients — a viewer comparing them is entitled to that much.
+   */
+  const overallState = server.error
+    ? 'Server unavailable'
+    : catalogue.error
+      ? 'Server online; catalogue unavailable'
+      : catalogue.value?.ready
+        ? 'Ready'
+        : catalogue.loading || server.loading
+          ? 'Checking system state…'
+          : 'Server online; catalogue synchronising';
+
+  const saveEndpoints = () => {
+    const parsed = endpoints
+      .split(/[\n,]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (parsed.length === 0) {
+      setEndpointNotice('Give at least one endpoint, for example http://macha-node:7438');
+      return;
+    }
+    setBootstrapEndpoints(parsed);
+    // Stated rather than implied. The registry is built from this list once, at
+    // startup, so the endpoints are saved now and adopted on the next launch —
+    // and a viewer who is not told that concludes the change did nothing.
+    setEndpointNotice('Saved. Restart the app to connect to these.');
+  };
+
   return (
     <View style={styles.fill} onLayout={measureViewport}>
-    <ScrollView
-      ref={scroller}
-      contentContainerStyle={styles.page}
-      // A television has no touch: the D-pad drives this, and the scroller
-      // follows focus rather than the other way round.
-      scrollEnabled={false}
-    >
-      <PageTitle>Settings</PageTitle>
+      <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
+        {/* `.settings-hero`: logo, eyebrow, name, and the state line. */}
+        <View style={styles.hero}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.heroLogo}
+            contentFit="contain"
+          />
+          <View style={styles.heroCopy}>
+            <Text style={styles.eyebrow}>Media server</Text>
+            <PageTitle>Macha</PageTitle>
+            <Text style={styles.heroState}>{overallState}</Text>
+          </View>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Cluster endpoints</Text>
-        {getBootstrapEndpoints().map((endpoint) => (
-          <Text key={endpoint} style={styles.value}>
-            {endpoint}
-          </Text>
-        ))}
-        {getDiscoveredEndpoints().length > 0 ? (
-          <>
-            <Text style={styles.label}>Discovered</Text>
-            {getDiscoveredEndpoints().map((endpoint) => (
-              <Text key={endpoint} style={styles.value}>
-                {endpoint}
+        {/* `.settings-status-grid` — three cards, in the same order. */}
+        <View style={styles.statusGrid}>
+          <StatusCard
+            label="Server"
+            state={server.error ? 'Unavailable' : server.value ? 'Online' : 'Checking…'}
+            rows={[
+              ['Version', server.value?.version ?? (server.loading ? 'Checking…' : 'Not reported')],
+              [
+                'Playback',
+                server.error
+                  ? 'Unavailable'
+                  : server.value?.playbackAvailable
+                    ? 'Available'
+                    : 'Unavailable',
+              ],
+            ]}
+            error={server.error?.message ?? server.value?.message ?? undefined}
+          />
+          <StatusCard
+            label="Catalogue"
+            state={
+              catalogue.error
+                ? 'Unavailable'
+                : catalogue.value?.ready
+                  ? 'Ready'
+                  : catalogue.value
+                    ? 'Synchronising'
+                    : 'Checking…'
+            }
+            rows={[
+              ['Items', catalogue.value ? String(catalogue.value.items) : '—'],
+              [
+                'Artwork',
+                catalogue.value
+                  ? `${catalogue.value.local_artwork_objects}/${catalogue.value.artwork_objects} local`
+                  : '—',
+              ],
+              ['Generation', catalogue.value ? String(catalogue.value.metadata_generation) : '—'],
+            ]}
+            error={catalogue.error?.message ?? catalogue.value?.error ?? undefined}
+          />
+          <StatusCard label="Client" state="Android TV" rows={[['Version', clientVersion]]} />
+        </View>
+
+        {/* `.settings-connection`, and the reason a television needs it. */}
+        <View style={styles.section} onLayout={measureRow('connection')}>
+          <Text style={styles.heading}>Connection</Text>
+          <Text style={styles.label}>Macha bootstrap API endpoints</Text>
+          <TvTextInput
+            value={endpoints}
+            onChangeText={(value) => {
+              setEndpoints(value);
+              setEndpointNotice(undefined);
+            }}
+            onSubmit={saveEndpoints}
+            placeholder="http://macha-node:7438"
+          />
+          <Focusable
+            onSelect={saveEndpoints}
+            onFocusChange={(focused) => focused && revealRow('connection')}
+            style={styles.button}
+            focusedStyle={styles.buttonFocused}
+          >
+            <Text style={styles.buttonLabel}>Save endpoints</Text>
+          </Focusable>
+          {endpointNotice ? <Text style={styles.notice}>{endpointNotice}</Text> : null}
+          {getDiscoveredEndpoints().length > 0 ? (
+            <>
+              <Text style={styles.label}>Discovered</Text>
+              {getDiscoveredEndpoints().map((endpoint) => (
+                <Text key={endpoint} style={styles.value}>
+                  {endpoint}
+                </Text>
+              ))}
+            </>
+          ) : null}
+        </View>
+
+        {/* `.settings-diagnostics`. */}
+        <View style={styles.section} onLayout={measureRow('diagnostics')}>
+          <Text style={styles.heading}>Diagnostics</Text>
+          <Focusable
+            onSelect={() => {
+              const next = !trailEnabled;
+              setFailureTrailEnabled(next);
+              setTrailEnabled(next);
+            }}
+            onFocusChange={(focused) => focused && revealRow('diagnostics')}
+            style={styles.toggle}
+            focusedStyle={styles.toggleFocused}
+          >
+            <View style={styles.toggleRow}>
+              <Text style={styles.value}>Show extended playback logging on errors</Text>
+              <Text style={[styles.toggleState, trailEnabled && styles.toggleStateOn]}>
+                {trailEnabled ? 'On' : 'Off'}
               </Text>
-            ))}
-          </>
-        ) : null}
-      </View>
+            </View>
+          </Focusable>
+          <Text style={styles.note}>
+            Prints the last warnings and errors under the failure message on the player. A television
+            has no console, so without this a failover and a dead node look identical from across the
+            room.
+          </Text>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Hardware decoding</Text>
-        {error ? <Text style={styles.error}>{error.message}</Text> : null}
-        {capabilities ? (
-          <>
-            <Capability name="Video" value={capabilities.videoCodecs.join(', ')} />
-            <Capability name="Audio" value={capabilities.audioCodecs.join(', ')} />
-            <Capability name="Containers" value={capabilities.containers.join(', ')} />
-            <Capability name="HLS video" value={(capabilities.hlsVideoCodecs ?? []).join(', ')} />
-            <Capability name="HLS audio" value={(capabilities.hlsAudioCodecs ?? []).join(', ')} />
-            <Capability name="Bit depth" value={String(capabilities.videoBitDepth ?? 8)} />
-            <Capability name="HDR" value={capabilities.hdr.length > 0 ? capabilities.hdr.join(', ') : 'SDR only'} />
-            <Capability
-              name="Dolby Vision"
-              value={
-                capabilities.dolbyVision && capabilities.dolbyVision.length > 0
-                  ? `profiles ${capabilities.dolbyVision.join(', ')}`
-                  : 'none'
-              }
-            />
-            <Capability
-              name="Decoder limit"
-              value={
-                capabilities.maxWidth && capabilities.maxHeight
-                  ? `${capabilities.maxWidth}×${capabilities.maxHeight}`
-                  : 'unreported'
-              }
-            />
-          </>
-        ) : (
-          <Text style={styles.value}>Reading MediaCodecList…</Text>
-        )}
-        <Text style={styles.note}>
-          Read from the platform decoder list, not a browser probe. AC-3 and E-AC-3 here mean this
-          set direct-plays surround audio the WebView client had to have transcoded.
-        </Text>
-      </View>
+        {/*
+          Past here is this platform's own, and has no web counterpart: a
+          browser cannot ask either question.
+        */}
+        <View style={styles.section} onLayout={measureRow('decoding')}>
+          <Text style={styles.heading}>Hardware decoding</Text>
+          {error ? <Text style={styles.error}>{error.message}</Text> : null}
+          {capabilities ? (
+            <>
+              <Capability name="Video" value={capabilities.videoCodecs.join(', ')} />
+              <Capability name="Audio" value={capabilities.audioCodecs.join(', ')} />
+              <Capability name="Containers" value={capabilities.containers.join(', ')} />
+              <Capability name="HLS video" value={(capabilities.hlsVideoCodecs ?? []).join(', ')} />
+              <Capability name="HLS audio" value={(capabilities.hlsAudioCodecs ?? []).join(', ')} />
+              <Capability name="Bit depth" value={String(capabilities.videoBitDepth ?? 8)} />
+              <Capability
+                name="HDR"
+                value={capabilities.hdr.length > 0 ? capabilities.hdr.join(', ') : 'SDR only'}
+              />
+              <Capability
+                name="Dolby Vision"
+                value={
+                  capabilities.dolbyVision && capabilities.dolbyVision.length > 0
+                    ? `profiles ${capabilities.dolbyVision.join(', ')}`
+                    : 'none'
+                }
+              />
+              <Capability
+                name="Decoder limit"
+                value={
+                  capabilities.maxWidth && capabilities.maxHeight
+                    ? `${capabilities.maxWidth}×${capabilities.maxHeight}`
+                    : 'unreported'
+                }
+              />
+            </>
+          ) : (
+            <Text style={styles.value}>Reading MediaCodecList…</Text>
+          )}
+          <Text style={styles.note}>
+            Read from the platform decoder list, not a browser probe. AC-3 and E-AC-3 here mean this
+            set direct-plays surround audio the WebView client had to have transcoded.
+          </Text>
+        </View>
 
-      {/*
-        Measured on the device rather than assumed. Core declares the platform
-        surface it may use, but that is a compile-time boundary — whether this
-        host supplies it is a separate question, and the answers differ per
-        host: Chromium 47 on the Samsung set has no AbortController at all and
-        is met by a polyfill the web client installs.
-      */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Platform surface</Text>
-        {surface.map((finding) => (
-          <View key={finding.name} style={styles.row}>
-            <Text style={styles.rowName}>{finding.name}</Text>
-            <Text
-              style={[
-                styles.rowValue,
-                finding.status === 'absent' && finding.required && styles.error,
-                !finding.required && finding.status !== 'present' && styles.rowValueMuted,
-              ]}
-            >
-              {finding.detail ?? finding.status}
-            </Text>
-          </View>
-        ))}
-        <Text style={styles.note}>
-          Required members must all be present; optional ones absent here are expected on Hermes and
-          are handled by core's own guards.
-        </Text>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.heading}>Platform surface</Text>
+          {surface.map((finding) => (
+            <View key={finding.name} style={styles.row}>
+              <Text style={styles.rowName}>{finding.name}</Text>
+              <Text
+                style={[
+                  styles.rowValue,
+                  finding.status === 'absent' && finding.required && styles.error,
+                  !finding.required && finding.status !== 'present' && styles.rowValueMuted,
+                ]}
+              >
+                {finding.detail ?? finding.status}
+              </Text>
+            </View>
+          ))}
+          <Text style={styles.note}>
+            Required members must all be present; optional ones absent here are expected on Hermes and
+            are handled by core's own guards.
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
 
-      {/*
-        The first editable control on this screen.
+/** `.settings-status-card`: a label, a state, and a short definition list. */
+function StatusCard({
+  label,
+  state,
+  rows,
+  error,
+}: {
+  label: string;
+  state: string;
+  rows: [string, string][];
+  error?: string;
+}): React.JSX.Element {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardLabel}>{label}</Text>
+      <Text style={styles.cardState}>{state}</Text>
+      {rows.map(([name, value]) => (
+        <View key={name} style={styles.row}>
+          <Text style={styles.rowName}>{name}</Text>
+          <Text style={styles.rowValue}>{value}</Text>
+        </View>
+      ))}
+      {error ? <Text style={styles.cardError}>{error}</Text> : null}
+    </View>
+  );
+}
 
-        It is here rather than behind a build flag because the person who
-        needs it is standing in front of the television with a remote, and a
-        flag would mean a rebuild, a reinstall and a lost repro. It is off by
-        default because the trail is for whoever is debugging, not for
-        whoever is watching.
-      */}
-      <View style={styles.section} onLayout={measureRow('diagnostics')}>
-        <Text style={styles.label}>Diagnostics</Text>
-        <Focusable
-          onSelect={() => {
-            const next = !trailEnabled;
-            setFailureTrailEnabled(next);
-            setTrailEnabled(next);
-          }}
-          onFocusChange={(focused) => focused && revealRow('diagnostics')}
-          style={styles.toggle}
-          focusedStyle={styles.toggleFocused}
-        >
-          <View style={styles.toggleRow}>
-            <Text style={styles.value}>Show evidence when playback fails</Text>
-            <Text style={[styles.toggleState, trailEnabled && styles.toggleStateOn]}>
-              {trailEnabled ? 'On' : 'Off'}
-            </Text>
-          </View>
-        </Focusable>
-        <Text style={styles.note}>
-          Prints the last warnings and errors under the failure message on the player. A television
-          has no console, so without this a failover and a dead node look identical from across the
-          room.
-        </Text>
-      </View>
-    </ScrollView>
+function Capability({ name, value }: { name: string; value: string }): React.JSX.Element {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowName}>{name}</Text>
+      <Text style={styles.rowValue}>{value || '—'}</Text>
     </View>
   );
 }
@@ -183,15 +344,6 @@ export function SettingsScreen(): React.JSX.Element {
  */
 const SCROLL_LEAD = rem(1.5);
 
-function Capability({ name, value }: { name: string; value: string }): React.JSX.Element {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowName}>{name}</Text>
-      <Text style={styles.rowValue}>{value || '—'}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
@@ -200,9 +352,75 @@ const styles = StyleSheet.create({
     paddingTop: rem(1),
     paddingBottom: rem(4),
   },
+  /** `.settings-hero { display: flex; align-items: center; gap: 1.2rem }`. */
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rem(1.2),
+    paddingHorizontal: pageGutter,
+    marginBottom: rem(1.6),
+  },
+  heroLogo: {
+    width: rem(4.6),
+    height: rem(4.6),
+  },
+  heroCopy: {
+    flex: 1,
+  },
+  /** `.eyebrow { text-transform: uppercase; letter-spacing: .08em }`. */
+  eyebrow: {
+    color: colour.textFaint,
+    fontSize: type.eyebrow,
+    textTransform: 'uppercase',
+    letterSpacing: type.eyebrow * 0.08,
+  },
+  heroState: {
+    color: colour.textDim,
+    fontSize: type.subtitle,
+  },
+  /** `.settings-status-grid { display: grid; gap: .9rem }`, laid across on a TV. */
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: rem(0.9),
+    paddingHorizontal: pageGutter,
+    marginBottom: rem(2),
+  },
+  card: {
+    flexGrow: 1,
+    flexBasis: rem(16),
+    padding: rem(0.9),
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colour.hairline,
+    backgroundColor: colour.surface,
+  },
+  cardLabel: {
+    color: colour.textFaint,
+    fontSize: type.eyebrow,
+    textTransform: 'uppercase',
+    letterSpacing: type.eyebrow * 0.08,
+  },
+  cardState: {
+    color: colour.heading,
+    fontSize: type.subtitle,
+    fontWeight: font.weightMedium,
+    marginBottom: rem(0.5),
+  },
+  cardError: {
+    marginTop: rem(0.4),
+    color: colour.error,
+    fontSize: type.faint,
+  },
   section: {
     paddingHorizontal: pageGutter,
     marginBottom: rem(2.2),
+  },
+  heading: {
+    color: colour.heading,
+    fontSize: type.h2,
+    fontWeight: font.weightMedium,
+    marginBottom: rem(0.6),
   },
   // `.settings label { display: block; color: var(--text-dim); margin: 1rem 0 .45rem }`
   label: {
@@ -215,6 +433,28 @@ const styles = StyleSheet.create({
     color: colour.text,
     fontSize: type.body,
     marginBottom: rem(0.2),
+  },
+  notice: {
+    marginTop: rem(0.5),
+    color: colour.textDim,
+    fontSize: type.small,
+  },
+  /** `.primary-button`. */
+  button: {
+    alignSelf: 'flex-start',
+    marginTop: rem(0.8),
+    paddingVertical: rem(0.5),
+    paddingHorizontal: rem(1),
+    borderRadius: radius.control,
+    backgroundColor: colour.accentSurface,
+  },
+  buttonFocused: {
+    backgroundColor: colour.accentSurfaceStrong,
+  },
+  buttonLabel: {
+    color: colour.text,
+    fontSize: type.body,
+    fontWeight: font.weightMedium,
   },
   // `.player-option-group { grid-template-columns: 6.5rem 1fr }`
   row: {
@@ -249,11 +489,6 @@ const styles = StyleSheet.create({
     color: colour.error,
     fontWeight: font.weightMedium,
   },
-  /**
-   * The border is always present and only its colour changes on focus, as
-   * `Focusable` documents: the focus scorer reads these rectangles, so a
-   * control that resized when focused would move the targets around it.
-   */
   toggle: {
     alignSelf: 'flex-start',
     minWidth: rem(24),

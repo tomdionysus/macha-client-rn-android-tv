@@ -5,7 +5,7 @@ import { MediaCard } from '../components/MediaCard';
 import { TvTextInput } from '../components/TvTextInput';
 import { ErrorMessage, Loading, PageTitle } from '../components/Status';
 import { scrollTarget } from '../hooks/focusScroll';
-import { layout, pageGutter, rem, screenSize } from '../styles/theme';
+import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
 
 /**
  * Search, from the web client's screen of the same name.
@@ -175,8 +175,10 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: rem(1.4),
-    columnGap: rem(1),
+    // `.media-grid { gap: 1.4rem 1rem }`, less the focus frame each card holds
+    // inside its own box. See `layout.rowGap`.
+    rowGap: Math.max(rem(0.5), rem(1.4) - CARD_FRAME * 2),
+    columnGap: layout.rowGap,
     paddingHorizontal: pageGutter,
   },
 });
