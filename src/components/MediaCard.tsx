@@ -111,7 +111,15 @@ const styles = StyleSheet.create({
     aspectRatio: 2 / 3,
     borderRadius: radius.poster,
     overflow: 'hidden',
-    backgroundColor: colour.surface2,
+    /**
+     * **No fill of its own.** It had `surface-2`, which is the colour a poster
+     * with no artwork shows — and once this element gained padding to hold the
+     * focus border off the picture, that fill became a grey frame around every
+     * card on screen, focused or not. The fill belongs to what it stands in
+     * for, so it now sits on the artwork and the placeholder rather than on the
+     * frame around them.
+     */
+    backgroundColor: 'transparent',
     /**
      * Thicker than the web client's, and standing off the artwork.
      *
@@ -143,12 +151,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: radius.poster,
+    backgroundColor: colour.surface2,
   },
   placeholder: {
     width: '100%',
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: radius.poster,
+    backgroundColor: colour.surface2,
   },
   // `.poster-placeholder { font-size: 4rem; font-weight: 700; color: #ffffff16 }`
   placeholderGlyph: {

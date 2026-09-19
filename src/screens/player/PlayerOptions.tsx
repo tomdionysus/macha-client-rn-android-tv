@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type {
   PlaybackMode,
@@ -33,17 +34,50 @@ import {
  */
 export const OPTIONS_SCOPE = 'player-options';
 
+/**
+ * How a viewer leaves the panel downwards.
+ *
+ * **Back closed it and nothing else did**, so a viewer who had walked down to
+ * the subtitle row and pressed Down again met a wall: the panel owns the D-pad
+ * outright while it is open, so there was no candidate below and the press did
+ * nothing at all. Reported off the set. Down from the last row now returns to
+ * the transport, which is where Down from the bottom of anything should go.
+ *
+ * Carried through context rather than threaded as a prop because the options
+ * that need it are generated inside `map`s three groups deep, and only the last
+ * group's are entitled to it — which group that is depends on what this session
+ * can actually change.
+ */
+const ExitDown = createContext<(() => void) | undefined>(undefined);
+
 export function PlayerOptions({
   session,
   pendingPreferences,
   instruction,
   onApply,
+  onDismiss,
 }: {
   session: PlaybackSession;
   pendingPreferences?: PlaybackPreferencesUpdate;
   instruction?: PlaybackInstructionReport;
   onApply: (update: PlaybackUpdate) => void;
+  /** Down from the last row, which is how the panel is left without Back. */
+  onDismiss: () => void;
 }): React.JSX.Element {
+  const hasQuality = session.options.canChangeQuality;
+  const hasAudio = session.options.audioStreams.length > 0;
+  const hasSubtitles = session.options.subtitleStreams.length > 0;
+  const hasSource = session.options.canSwitchMedia && session.options.mediaIds.length > 1;
+  const lastGroup = hasSource
+    ? 'source'
+    : hasSubtitles
+      ? 'subtitles'
+      : hasAudio
+        ? 'audio'
+        : hasQuality
+          ? 'quality'
+          : 'mode';
+
   const effective = { ...session.preferences, ...pendingPreferences };
   const selectedAudio = pendingPreferences?.audioStream ?? session.selected.audioStream;
   const selectedSubtitle = pendingPreferences?.subtitleStream === null
@@ -75,7 +109,7 @@ export function PlayerOptions({
   return (
     <View style={styles.panel}>
       <ScrollView contentContainerStyle={styles.groups} scrollEnabled={false}>
-        <Group label="Mode">
+        <Group label="Mode" exitDown={lastGroup === 'mode' ? onDismiss : undefined}>
           <Option label="Auto" selected={!chosenByViewer} onSelect={() => applyMode('choose')} defaultFocus />
           {session.options.modes.map((candidate) => (
             <Option
@@ -91,7 +125,7 @@ export function PlayerOptions({
         {assumed ? <Note text={assumed} warning /> : null}
 
         {session.options.canChangeQuality ? (
-          <Group label="Quality">
+          <Group label="Quality" exitDown={lastGroup === 'quality' ? onDismiss : undefined}>
             <Option
               label="Original"
               selected={effective.maxHeight === null && effective.maxBitrate === null}
@@ -110,7 +144,7 @@ export function PlayerOptions({
 
         {session.options.audioStreams.length > 0 ? (
           <>
-            <Group label="Audio">
+            <Group label="Audio" exitDown={lastGroup === 'audio' ? onDismiss : undefined}>
               {session.options.audioStreams.map((stream) => (
                 <Option
                   key={stream.index}
@@ -125,7 +159,7 @@ export function PlayerOptions({
         ) : null}
 
         {session.options.subtitleStreams.length > 0 ? (
-          <Group label="Subtitles">
+          <Group label="Subtitles" exitDown={lastGroup === 'subtitles' ? onDismiss : undefined}>
             <Option
               label="Off"
               selected={selectedSubtitle < 0}
@@ -143,7 +177,7 @@ export function PlayerOptions({
         ) : null}
 
         {session.options.canSwitchMedia && session.options.mediaIds.length > 1 ? (
-          <Group label="Source">
+          <Group label="Source" exitDown={lastGroup === 'source' ? onDismiss : undefined}>
             {session.options.mediaIds.map((mediaId, index) => (
               <Option
                 key={mediaId}
@@ -159,11 +193,21 @@ export function PlayerOptions({
   );
 }
 
-function Group({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
+function Group({
+  label,
+  children,
+  exitDown,
+}: {
+  label: string;
+  children: React.ReactNode;
+  exitDown?: () => void;
+}): React.JSX.Element {
   return (
     <View style={styles.group}>
       <Text style={styles.groupLabel}>{label}</Text>
-      <View style={styles.groupOptions}>{children}</View>
+      <View style={styles.groupOptions}>
+        <ExitDown.Provider value={exitDown}>{children}</ExitDown.Provider>
+      </View>
     </View>
   );
 }
@@ -179,12 +223,18 @@ function Option({
   onSelect: () => void;
   defaultFocus?: boolean;
 }): React.JSX.Element {
+  const exitDown = useContext(ExitDown);
+
   return (
     <Focusable
       ring={false}
       scope={OPTIONS_SCOPE}
       defaultFocus={defaultFocus}
       onSelect={onSelect}
+      // Only the last group's options claim Down, and only to leave: anywhere
+      // else it is the scorer's, moving to the group below.
+      ownsDirection={exitDown ? (direction) => direction === 'down' : undefined}
+      onDirection={exitDown ? (direction) => direction === 'down' && exitDown() : undefined}
       style={[styles.option, selected && styles.optionSelected]}
       focusedStyle={styles.optionFocused}
     >

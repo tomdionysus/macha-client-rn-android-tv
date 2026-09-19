@@ -413,6 +413,10 @@ export function PlayerScreen({
                 runtime.update(update);
                 showChrome();
               }}
+              onDismiss={() => {
+                setOptionsOpen(false);
+                showChrome();
+              }}
             />
           ) : null}
 

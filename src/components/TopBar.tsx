@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import { Focusable } from './Focusable';
+import { SettingsIcon, UserIcon } from './NavIcons';
 import { px, colour, font, layout, pageGutter, radius, rem, type } from '../styles/theme';
 
 export interface NavItem {
@@ -11,20 +12,36 @@ export interface NavItem {
 /**
  * The application top bar, from `.topbar` in base.css.
  *
- * The web client's three-column grid — brand, centred nav, platform badge —
+ * The web client's three-column grid — brand, centred nav, trailing controls —
  * is reproduced with flex, since the grid there exists only to keep the nav
  * optically centred while the outer cells size to content.
+ *
+ * **The platform badge is gone, as it is there.** That client's own note says
+ * it "labelled the build on every screen for the benefit of nobody but a
+ * developer", and Status reports the platform beside the codec probes that give
+ * it meaning. This carried "Android TV" in the same slot for the same bad
+ * reason.
+ *
+ * The trailing pair is that client's `topbar-trailing`: who the viewer is, and
+ * a cog to the settings screen. Identity is a glyph and a name rather than an
+ * avatar, because *am I signed in as the right person* is the one question it
+ * exists to answer at a glance.
  */
 export function TopBar({
   items,
   active,
   onSelect,
-  badge,
+  username,
+  onOpenSettings,
+  settingsActive,
 }: {
   items: NavItem[];
   active: string;
   onSelect: (key: string) => void;
-  badge?: string;
+  /** Who the session belongs to, when it belongs to anyone. */
+  username?: string;
+  onOpenSettings: () => void;
+  settingsActive?: boolean;
 }): React.JSX.Element {
   return (
     <View style={styles.topbar}>
@@ -51,7 +68,27 @@ export function TopBar({
         ))}
       </View>
 
-      <View style={styles.badgeCell}>{badge ? <Text style={styles.badge}>{badge}</Text> : null}</View>
+      {/* `.topbar-trailing { display: flex; align-items: center; gap: .75rem }` */}
+      <View style={styles.trailing}>
+        {username ? (
+          <View style={styles.account}>
+            <UserIcon />
+            <Text style={styles.accountName} numberOfLines={1}>
+              {username}
+            </Text>
+          </View>
+        ) : null}
+        <Focusable
+          ring={false}
+          onSelect={onOpenSettings}
+          style={[styles.settings, settingsActive && styles.navItemActive]}
+          focusedStyle={styles.navItemFocused}
+        >
+          {({ focused }) => (
+            <SettingsIcon colour={settingsActive || focused ? colour.text : colour.textDim} />
+          )}
+        </Focusable>
+      </View>
     </View>
   );
 }
@@ -118,15 +155,36 @@ const styles = StyleSheet.create({
   navLabelActive: {
     color: colour.text,
   },
-  badgeCell: {
+  /** `.topbar-trailing { display: flex; align-items: center; gap: .75rem; margin-left: auto }`. */
+  trailing: {
     minWidth: px(110),
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: rem(0.75),
   },
-  // `.platform-badge { text-transform: uppercase; font-size: .72rem; letter-spacing: .14em }`
-  badge: {
-    color: colour.textFaint,
-    textTransform: 'uppercase',
-    fontSize: type.badge,
-    letterSpacing: type.badge * 0.14,
+  /**
+   * `AccountMenu`'s trigger, reduced to what a remote can use.
+   *
+   * That client opens an overflow with sign-out and account links; there is no
+   * `OverflowMenu` here yet (§4.3), and identity still has to be visible —
+   * *am I signed in as the right person* is the question it exists to answer.
+   * So the name is shown and the menu is not, rather than the control being
+   * left out until the menu exists.
+   */
+  account: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rem(0.4),
+    maxWidth: rem(11),
+  },
+  accountName: {
+    color: colour.textDim,
+    fontSize: type.small,
+  },
+  /** `.topbar-settings { padding: .3rem; border-radius: .45rem }`. */
+  settings: {
+    padding: rem(0.3),
+    borderRadius: radius.small,
   },
 });

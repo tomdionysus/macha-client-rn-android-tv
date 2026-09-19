@@ -16,30 +16,52 @@ import { DetailScreen } from './screens/DetailScreen';
 import { SeriesScreen, SeasonScreen } from './screens/SeriesScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { SearchScreen } from './screens/SearchScreen';
+import { StatusScreen } from './screens/StatusScreen';
+import { MusicScreen } from './screens/MusicScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { OfflineScreen } from './screens/OfflineScreen';
 import { useCurrentSession } from './app/useCurrentSession';
 import { accessState, useAccessLatched, useSessionFacts } from './app/access';
 import { colour, screenSize } from './styles/theme';
 
+/**
+ * The web client's navigation, less the two that do not belong on a remote.
+ *
+ * Its list is Home, Movies, TV Shows, Music, Search, Import, Status, Manage.
+ * **Import and Manage are out regardless of what the account may do** (Tom,
+ * 2026-09-19) — that client already drops Import on a TV build for the reason
+ * it states in `App.tsx`: importing wants a keyboard, a file browser and
+ * somebody willing to type paths, none of which a remote has. Manage is the
+ * same argument, and §3.3 had already ruled a 10-foot UI a poor place to retag
+ * a film.
+ *
+ * Settings is not here and is not missing: it is the cog at the trailing edge,
+ * as it is there.
+ */
 const NAV: NavItem[] = [
   { key: 'home', label: 'Home' },
   { key: 'movies', label: 'Movies' },
   { key: 'shows', label: 'TV Shows' },
-  { key: 'settings', label: 'Settings' },
+  { key: 'music', label: 'Music' },
+  { key: 'search', label: 'Search' },
+  { key: 'status', label: 'Status' },
 ];
 
 type Route =
   | { name: 'home' }
   | { name: 'movies' }
   | { name: 'shows' }
+  | { name: 'music' }
+  | { name: 'search' }
+  | { name: 'status' }
   | { name: 'settings' }
   | { name: 'detail'; media: MediaSummary }
   | { name: 'series'; media: MediaSummary }
   | { name: 'season'; media: MediaSummary }
   | { name: 'player'; media: MediaSummary };
 
-const TOP_LEVEL = new Set(['home', 'movies', 'shows', 'settings']);
+const TOP_LEVEL = new Set(['home', 'movies', 'shows', 'music', 'search', 'status', 'settings']);
 
 /**
  * Which screen a catalogue item opens.
@@ -58,7 +80,7 @@ function Shell(): React.JSX.Element {
   const { services, continueWatching, sessionReady } = useMacha();
   // Identity, for display only. The gate below does not consult it: roles now
   // arrive with the token, so there is no whoami race to get wrong.
-  const { refresh: refreshSession } = useCurrentSession(services.usersApi, sessionReady);
+  const { session, refresh: refreshSession } = useCurrentSession(services.usersApi, sessionReady);
   // Three outcomes, not two: the server said no, nothing answered, or the
   // question is still open. Every input is a fact core states — nothing here
   // infers access from an absent token, which is the mistake that put a login
@@ -178,6 +200,12 @@ function Shell(): React.JSX.Element {
     <LibraryScreen api={services.mediaApi} kind="movies" onOpen={open} />
   ) : route.name === 'shows' ? (
     <LibraryScreen api={services.mediaApi} kind="shows" onOpen={open} />
+  ) : route.name === 'music' ? (
+    <MusicScreen api={services.mediaApi} onOpen={open} />
+  ) : route.name === 'search' ? (
+    <SearchScreen api={services.mediaApi} onOpen={open} />
+  ) : route.name === 'status' ? (
+    <StatusScreen api={services.clusterStatusApi} />
   ) : route.name === 'settings' ? (
     <SettingsScreen />
   ) : route.name === 'detail' ? (
@@ -267,7 +295,9 @@ function Shell(): React.JSX.Element {
         items={NAV}
         active={TOP_LEVEL.has(route.name) ? route.name : 'home'}
         onSelect={(key) => replaceTop({ name: key } as Route)}
-        badge="Android TV"
+        username={session?.username}
+        settingsActive={route.name === 'settings'}
+        onOpenSettings={() => replaceTop({ name: 'settings' })}
       />
       <View style={styles.main}>{body}</View>
     </View>
