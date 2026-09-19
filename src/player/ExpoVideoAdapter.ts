@@ -2,6 +2,7 @@ import { createVideoPlayer, type VideoPlayer, type VideoSource } from 'expo-vide
 import {
   ENDPOINT_TRANSPORT_ALLOWANCE_MS,
   generationAttemptBudgetMs,
+  machaHost,
   MediaStallWatchdog,
   MediaStartWatchdog,
   PlaybackSourceError,
@@ -97,14 +98,26 @@ export class ExpoVideoAdapter implements Player {
   private volume = 1;
 
   /**
-   * The cover the element last reported, in media time.
+   * The cover the element last reported, in media time, and when it said so.
    *
    * Kept from the event stream rather than read when it is wanted, because it
    * is wanted exactly when the player has failed — and a player in its error
-   * state may report nothing about a buffer it is still holding. The last good
-   * sample is the honest estimate of what a recovery has to work behind.
+   * state may report nothing about a buffer it is still holding. Core reads its
+   * own `elementRunwayMs()` off the last event for the same reason, so this is
+   * that quantity rather than an approximation of it: core's runway is the
+   * element's plus a host read-ahead's, and there is no read-ahead here.
+   *
+   * **The instant matters as much as the figure.** A last known value does not
+   * decay and the buffer it describes does, so a stale sample over-reports
+   * cover by however long it has been standing — which is the dangerous
+   * direction for anything spending that cover, because it grants a budget that
+   * no longer exists. Found by the core session while reading this for a
+   * different question; it has the same exposure at its own deferral decision.
+   * The monotonic clock, because this is a duration.
    */
   private lastForwardBufferMs = 0;
+
+  private lastForwardBufferAt?: number;
 
   /**
    * Whether the viewer wants this playing.
@@ -277,6 +290,7 @@ export class ExpoVideoAdapter implements Player {
       forwardBufferMs: Math.max(0, bufferedEndMs - positionMs),
     };
     this.lastForwardBufferMs = snapshot.forwardBufferMs ?? 0;
+    this.lastForwardBufferAt = machaHost().now();
     for (const listener of this.listeners) listener(snapshot);
   }
 
@@ -340,6 +354,7 @@ export class ExpoVideoAdapter implements Player {
     this.parked = undefined;
     this.sourceVerdict = undefined;
     this.lastForwardBufferMs = 0;
+    this.lastForwardBufferAt = undefined;
     this.video.keepScreenOnWhilePlaying = true;
 
     // A promotion arrives as an ordinary `play()` carrying the source we were
@@ -796,22 +811,37 @@ export class ExpoVideoAdapter implements Player {
    * **The floor is one transport allowance**, and it is what makes this worth
    * doing at all with no cover left. A node that is going to answer answers
    * within a round trip — a `404` is a refusal, not a hold — so the floor costs
-   * nothing in the case it exists for, and bounds the case where the node has
-   * stopped answering entirely. The alternative below the lead time is to
-   * report `unknown` and fail over to a node that must cold-start, which core
-   * measured at 9 s against a floor of 4. **Asserted from those two figures,
-   * not measured here.**
+   * nothing in the case it exists for and bounds the case where the node has
+   * stopped answering at all.
    *
-   * The runway is the last figure the event stream carried rather than one read
-   * now, because a player in its error state may report nothing about a buffer
-   * it still holds.
+   * *What it is weighed against was wrong here first, and is worth stating
+   * correctly.* The comparison is not with a cold start: a terminal `unknown`
+   * with no cover is endpoint evidence, so it goes to failover, and negotiating
+   * a generation on the new node is bounded by `generationAttemptBudgetMs()` —
+   * the node's `startupTimeoutMs`, 15 s by default, plus the transport
+   * allowance. **Roughly 19 s on a node holding nothing for this title**,
+   * against a `not-found` at zero cover, which regenerates on the node already
+   * warm and already configured for the session. Four seconds spent to avoid
+   * nineteen. The two figures this first cited — 9 s and 4 s — are both real
+   * measurements of other things, which the core session went and read: the 9 s
+   * is a join point built past a node's look-ahead frontier, and the 4 s is
+   * this very allowance elapsing on a dead node.
+   *
+   * The runway is the last figure the event stream carried, **less the time
+   * since it was carried**: a stale sample describes a buffer that has been
+   * draining ever since, and over-reporting it here grants a walk more time
+   * than the viewer actually has.
    */
   private classificationBudgetMs(): number {
     const leadMs = replacementLeadTimeMs(
       undefined,
       this.activeSource?.budgets?.deadlineMs ?? generationAttemptBudgetMs(),
     );
-    return Math.max(this.lastForwardBufferMs - leadMs, ENDPOINT_TRANSPORT_ALLOWANCE_MS);
+    const ageMs = this.lastForwardBufferAt === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, machaHost().now() - this.lastForwardBufferAt);
+    const runwayMs = Math.max(0, this.lastForwardBufferMs - ageMs);
+    return Math.max(runwayMs - leadMs, ENDPOINT_TRANSPORT_ALLOWANCE_MS);
   }
 
   private async kindForTerminalError(budgetMs: number): Promise<PlaybackFailureKind> {

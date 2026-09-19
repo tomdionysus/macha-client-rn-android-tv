@@ -223,10 +223,24 @@ immediately below it, and `beginMissingSessionRecovery` does nothing at all if
 another recovery already owns the source — so a verdict can be not merely late
 but void. The probe budget is `runway - leadTime` from core's own
 `replacementLeadTimeMs`, floored at one transport allowance so that asking is
-still worth it with no cover left: a node that will answer answers within a
-round trip, while the alternative is failing over to a node that must cold-start
-at 9 s. The runway is the last figure the event stream carried, because a player
-in its error state may report nothing about a buffer it still holds.
+still worth it with no cover left. What the floor buys took two attempts to
+state: not the avoidance of a cold start, but of `generationAttemptBudgetMs()` —
+a terminal `unknown` with no cover is endpoint evidence, goes to failover, and
+negotiating on the new node is bounded by its `startupTimeoutMs` plus transport,
+about 19 s by default, where a `not-found` regenerates on a node already warm.
+Four seconds to avoid nineteen. **The 9 s and 4 s this was first justified with
+are genuine measurements of other things entirely** — a join built past a node's
+look-ahead frontier, and the transport allowance elapsing on a dead node — which
+is the same failure as reasoning from the wrong gate, committed again with
+numbers instead of kinds, and caught the same way: somebody read them.
+
+The runway is the last figure the event stream carried, **less the time since it
+was carried**. The first half is core's own shape — `elementRunwayMs()` reads
+its last event, because a player in its error state may report nothing about a
+buffer it still holds — and the second half is a hazard the core session found
+while reading this: a last known value does not decay and the buffer it
+describes does, so a stale sample grants a walk more time than the viewer has.
+Core carries the same exposure at its deferral decision.
 
 **Provenance, because it decides what a comparison means.** Their 404 policy is
 in their source and **not deployed** — the nodes run 0.17.1 and it ships in

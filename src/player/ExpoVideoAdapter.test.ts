@@ -757,6 +757,39 @@ describe('classifying a terminal error the player could not', () => {
     }
   });
 
+  it('does not spend cover that has drained since the element last spoke', async () => {
+    // A last known value does not decay and the buffer it describes does. Found
+    // by the core session, which has the same exposure at its own deferral
+    // decision: a stale sample grants a walk more time than the viewer has.
+    vi.useFakeTimers();
+    try {
+      const adapter = new ExpoVideoAdapter();
+      const failures: PlaybackSourceError[] = [];
+      adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
+      await adapter.play(source());
+
+      // Ninety seconds of cover reported, then ninety seconds of silence.
+      fake.currentTime = 10;
+      fake.bufferedPosition = 100;
+      fake.playing = true;
+      fake.emit('timeUpdate');
+      await vi.advanceTimersByTimeAsync(90_000);
+
+      vi.stubGlobal('fetch', ((_url: string, init?: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      })) as unknown as typeof fetch);
+
+      fake.emit('statusChange', { status: 'error', error: { message: 'Source error' } });
+      await vi.advanceTimersByTimeAsync(ENDPOINT_TRANSPORT_ALLOWANCE_MS + 100);
+
+      // The cover is gone, so this is the floor case and not the long one.
+      expect(failures).toHaveLength(1);
+      expect(failures[0]?.kind).toBe('unknown');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not carry a verdict into the generation that replaces it', async () => {
     // The latch lives for one attached source and no longer. The web session
     // observes that a stream URL carries a per-generation index, which would

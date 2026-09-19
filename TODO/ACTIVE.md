@@ -497,13 +497,30 @@ every second spent asking comes off the cover the deferral was protecting; and
 owns the source, so a verdict arriving after one has started is not late but
 **void**. The budget is therefore `runway - leadTime`, computed from core's own
 `replacementLeadTimeMs` against this node's attempt budget, with a floor of one
-`ENDPOINT_TRANSPORT_ALLOWANCE_MS`. The floor is what makes asking worth it with
-no cover left: a node that will answer answers within a round trip, and the
-alternative is an `unknown` that fails over to a node which must cold-start —
-9 s measured by core, against a floor of 4. **Asserted from those two figures,
-not measured here.** The runway itself is the last figure the event stream
-carried, not one read after the failure, because a player in its error state
-may report nothing about a buffer it still holds.
+`ENDPOINT_TRANSPORT_ALLOWANCE_MS`.
+
+**The floor's justification was wrong the first time and is worth stating
+correctly**, because the corrected version is the stronger argument. It is not
+a comparison with a cold start. A terminal `unknown` with no cover is endpoint
+evidence, so it goes to failover, and negotiating a generation on the new node
+is bounded by `generationAttemptBudgetMs()` — the node's `startupTimeoutMs`,
+15 s by default, plus the transport allowance. **About 19 s on a node holding
+nothing for this title**, against a `not-found` at zero cover, which regenerates
+on the node that is already warm and already configured. Four seconds spent to
+avoid nineteen. The two figures first cited here — 9 s and 4 s — are real
+measurements of other things: a join point built past a node's look-ahead
+frontier, and this same allowance elapsing on a dead node. The core session went
+and read both, which is the only reason it is right now.
+
+**The runway is the last figure the event stream carried, less the time since it
+was carried.** Core reads its own `elementRunwayMs()` off its last event for the
+same reason — a player in its error state may report nothing about a buffer it
+still holds — so this is core's quantity on a host with no read-ahead rather
+than an approximation of it. The subtraction is the core session's finding,
+made while reading this for a different question: **a last known value does not
+decay and the buffer it describes does**, so a stale sample grants a walk more
+time than the viewer has. Core has the same exposure at its own deferral
+decision and has recorded it there.
 
 **A pause no longer ends on a failure screen.** The web client measured exactly
 that — a paused generation judged dead seven seconds in, then a failover that
