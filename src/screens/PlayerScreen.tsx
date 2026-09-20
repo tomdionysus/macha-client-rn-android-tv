@@ -307,6 +307,24 @@ export function PlayerScreen({
    * for and did not get can show, and a default would read as an answer.
    */
   const streamStatus = describePlaybackSession(playback?.session, event?.streamOrigin);
+
+  /**
+   * The session the node issued, shown only with Diagnostics on.
+   *
+   * **Because there is no other way to learn it.** Reproducing a reaped
+   * session means deleting it out from under a paused client — the web
+   * client's recipe, and the only way to do it without waiting out the node's
+   * thirty-minute `session_idle` — and that needs the id. The node will not
+   * give it: `GET /api/v1/playback/sessions` is not a route, and
+   * `/playback/status` reports a count and no ids. The id is in the stream
+   * URL, which this client logs to the failure trail, which only renders once
+   * playback has already failed — by which time the session under test is
+   * gone.
+   *
+   * Read once per render rather than subscribed to: the setting is changed on
+   * the Settings screen, which cannot be reached without leaving the player.
+   */
+  const diagnostics = failureTrailEnabled();
   const streamLines = useMemo(
     () => [
       [streamStatus?.container, streamStatus?.endpoint].filter(Boolean).join(' : '),
@@ -389,11 +407,18 @@ export function PlayerScreen({
                     : 'Preparing new stream…'}
                 </Text>
               ) : (
-                streamLines.map((line) => (
-                  <Text key={line} style={styles.streamLine}>
-                    {line}
-                  </Text>
-                ))
+                <>
+                  {streamLines.map((line) => (
+                    <Text key={line} style={styles.streamLine}>
+                      {line}
+                    </Text>
+                  ))}
+                  {diagnostics && playback?.session ? (
+                    <Text style={styles.streamLine} numberOfLines={1}>
+                      session {playback.session.sessionId}
+                    </Text>
+                  ) : null}
+                </>
               )}
             </View>
           </View>

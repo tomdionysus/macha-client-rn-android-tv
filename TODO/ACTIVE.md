@@ -268,6 +268,63 @@ its own `User-Agent` and range headers, which are real traffic and neither
 custom nor ours. Capture a real fragment request and tell the NPM session, who
 tracks this across all four clients.
 
+### 1.0 THE REAPED SESSION, RUN — and the recovery takes the expensive path
+
+**Measured 2026-09-20 on the TCL at `10.35.1.133`, client 0.4.0, server 0.46.2.**
+The first time any failover path in this client has met a real node.
+
+**Method.** *Life of Brian*, which the chooser negotiated to a remux —
+`FMP4`, `VIDEO COPY · HEVC · 1920×1040 · 9.8 Mb/s`, `AUDIO TRANSCODE · DTS 5.1
+→ AAC 5.1` — served by `http://10.35.1.50:7438`. Paused through the UI at
+0:15 (the media key: see the note on chrome below). Then, with the client
+paused and believing in its session, deleted it on the owning node:
+`GET 200 → DELETE 204 → GET 404`. Resumed. The session id came from the
+on-screen diagnostic added the same afternoon, because the node exposes no way
+to learn it (§1.4b).
+
+**What the viewer saw: nothing.** Playback ran on out of the buffer and kept
+going. No failure screen, no spinner anybody would notice, no stated error.
+Law 2 was satisfied at the surface.
+
+**What actually happened underneath is the finding.** The recovery did *not*
+regenerate on the node that had reaped the session. It **failed over to a
+different endpoint and rebuilt the generation worse**:
+
+| | before the delete | after the recovery |
+| --- | --- | --- |
+| endpoint | `http://10.35.1.50:7438` (this site) | `https://ramaroja.macha.network` → **`10.34.1.50`** (the other site) |
+| video | **COPY** · HEVC | **TRANSCODE** · HEVC 9.8 Mb/s → H264 |
+| audio | transcode DTS 5.1 → AAC 5.1 | unchanged |
+| session | `…::bf65f8dfa0a93a4c9f8e9a66dfd66d15` | `…::61bbd1356b699d636501ed9fd6e79e28` |
+
+Confirmed from the nodes: `10.35.1.50` reported `sessions: 0` throughout the
+recovery and after it, while `10.34.1.50` reported `sessions: 2` and
+**`running_video_transcode_pipelines: 1`** — so the replacement is on the
+cross-site node and is burning its single video transcode slot to re-encode a
+stream the panel had been decoding natively.
+
+**Why that matters beyond one film.** A reaped session is a statement about a
+session, not about the node, and `not-found` exists so the client asks that node
+again rather than condemning it. What this client did instead was leave a
+healthy local node for a distant one and turn a copy into a transcode. On a
+cluster where `max_video_transcodes` is 1, that also takes the slot away from
+whoever asks next.
+
+**What is not yet known: which path produced it.** The probable explanation is
+that `expo-video` never raised a *terminal* error at all — a `404` on a fragment
+presents to it as a stall — so `reportTerminalPlayerFailure` was never called,
+the classification probe never ran, and core recovered through the
+**degradation** channel instead: stall watchdog → standby prepared elsewhere →
+promotion. That would explain the endpoint change exactly, and it would mean the
+`not-found` work cannot reach this platform's commonest reaped-session case at
+all. **It is a hypothesis.** Confirming it needs the failure trail, which only
+renders under a failure message, and this recovery never produced one — so the
+next step is a diagnostic that can be read without a failure, not another run.
+
+**Timing**, for whoever reads this next: resumed 13:42:01, still on the old
+session at 13:42:35 (position 1:10), on the new one by 13:44:58 (position 3:11).
+Roughly two minutes of media played across the swap, so the buffer covered it.
+
 ### 1.4a The node's "unused session" reaper does not fire for direct play
 
 **Measured 2026-09-20 on `10.34.1.50`, server `0.46.2`.** The node reports
@@ -277,9 +334,18 @@ that node rather than theoretical.
 
 A **direct-play** session was then paused deliberately and watched for **four
 and a half minutes**: `sessions` stayed `1` and `unused_sessions_reclaimed`
-stayed `2` throughout. So either "unused" means something narrower than "the
-client has stopped asking", or a direct session — which has no pipeline — is
-exempt from it.
+stayed `2` throughout.
+
+**Answered by the server session the same day, and the name is the trap.**
+`session_unused_idle_ms` means *"has never served a stream object"*, not *"has
+been idle"*. A session carries a `stream_served` flag set the first time it
+serves anything — playlist, fragment, subtitle, or a Direct Play ranged body —
+and never cleared after. Once set, the session gets the full
+`session_idle_ms` of thirty minutes. Direct play sets it explicitly, with the
+rationale that "a single ranged body can outlive several idle windows without
+another request". So the short clock exists to stop a session that was created
+and abandoned from holding a transcode entitlement; it was never going to reap
+a paused viewer.
 
 **It matters for testing rather than for viewers.** The two-minute clock looked
 like a way to reproduce a reaped session without waiting out `session_idle`,
