@@ -93,10 +93,16 @@ player the whole time a film runs, polled rather than rendered so a stall
 cannot freeze the thing that reports the stall. It has passed the three checks
 and **has never been on a television**.
 
-So the next action is the run, not the build: install a fresh APK, put
-Diagnostics on, reproduce the reap of §1.0 with the session id the chrome
-shows, and read which channel the recovery came through. §1.0c lists which
-lines mean which.
+So the next action is the run, not the build: install a fresh APK — which now
+also carries core's recovery fix, §1.0d — put Diagnostics on, reproduce the
+reap of §1.0 with the session id the chrome shows, and read which channel the
+recovery came through. §1.0c lists which lines mean which.
+
+**The set was unreachable when this was written** (2026-09-20, 18:05): no ICMP
+reply from `10.35.1.133` and `adb connect` timed out. That is the ordinary
+state — both sets are frequently powered off and network adb has to be switched
+on at the set each time — so it says nothing about the work. The run is waiting
+on the television being on, and nothing else.
 
 If it turns out to be a stall — which is what the endpoint change and the
 server's journal both point at — then **the `not-found` kind cannot reach the
@@ -432,9 +438,21 @@ this can be read. The Settings note now says so.
 ### 1.0d Two things core wants from this hardware
 
 Core built the fix for §1.0's transcode on 2026-09-20 and it is on core's
-`develop`, unreleased — which, because this repo's `develop` is linked to
-`file:../macha-ts`, means **it arrives here on the next rebuild rather than on
-a version bump**. Three changes: the per-stream transforms are restated on
+`develop` as `32da3e0`, unreleased — and because this repo's `develop` is
+linked to `file:../macha-ts`, **it is already in this tree**. Verified rather
+than assumed, 2026-09-20: `node_modules/@machafoundation/core` is a symlink to
+`../macha-ts` (the lockfile says `"link": true`, so there is no cached copy to
+go stale), the checkout on disk is at `32da3e0`, and `withRestatedTransforms`
+is present in the `dist/` this client actually imports. **The APK on the
+television predates all of it.**
+
+Core asked for that check because the rule the link broke was written after a
+real incident — a lockfile caching a link at `0.7.0` against a `0.11.1`
+checkout, with a green suite hiding it — and `AGENTS.md` still forbade the link
+outright while `develop` carried one. `AGENTS.md` is corrected now, with the
+three commands that check the resolved copy; the one that matters is the last,
+because core's `dist/` is built rather than committed and can lag its own
+`src`. Three changes: the per-stream transforms are restated on
 every recovery from the instruction core chose (not from `session.transform`,
 which would make a server-side downgrade permanent); a single step down when a
 replacement node refuses the copy with a `400`, so the fix cannot trade a
@@ -449,7 +467,29 @@ What only this set can answer:
    making the refusal visible. Core's reading says accept. Re-run §1.0 after
    the rebuild and read the control bar.
 2. **A `400` refusal on the copy, if it happens** — core asked for the
-   evidence, and it is now a path that shows on the live trail.
+   evidence, and it is now a path that shows on the live trail. Capture body,
+   status and `code`.
+3. **What the create actually requested, beside what the node echoed.** Core's
+   question, and it is the sharper one: *Life of Brian* showed as a `remux`
+   whose audio was `TRANSCODE · DTS 5.1 → AAC 5.1`, and a remux copies every
+   stream by definition. So either the node substituted, or that generation was
+   a `transcode` carrying `video: copy` and the mode label and the echo
+   disagree. Which of the two it is **changes what core's fix should send**, and
+   only the set can say.
+
+Core has confirmed, from its own call sites, that the restatement reaches only
+`failover`, `regenerate` and `prepareAlternate` — the viewer's `update()` path
+still lets `video`/`audio` clear, so the options panel's bare `{ mode }` press
+stands and the `MODE_TRANSFORMS` deletion was not quietly undone. There is a
+second guard inside the recovery path: the restatement applies only when the
+instruction report describes the same mode being sent, so a viewer's pending
+mode change is never carried by a recovery. **Answered, not to be re-derived.**
+
+**Still open with the server session, core's question not mine:** the PATCH
+half is confirmed — `parse_preferences` clears `video`, `audio`, `max_height`
+and `max_bitrate` when `mode` is named, against 0.39.1 — but the fix rests on
+the *creation* half, that naming `video: 'copy'` beside `mode` on a **new**
+session is honoured rather than normalised away. Nobody here has read that.
 
 And one thing this client owes core, asked the same day: **`instruction` is
 rendered here only as the options panel's notes** — "Chosen by you", the

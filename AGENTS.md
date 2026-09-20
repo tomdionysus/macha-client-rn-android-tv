@@ -81,11 +81,32 @@ below the threshold it was testing. Read the failure message, not the colour.
   `plugins/withAndroidTvOnly.js`.
 - `react-native` is an alias for `react-native-tvos`; its prerelease version
   fails peer ranges, hence `legacy-peer-deps` in `.npmrc`.
-- **`@machafoundation/core` comes from the registry.** No `file:` link, no
-  `npm link`, and a local `../macha-ts` checkout does not feed this tree — the
-  cycle is deliberately what a user sees on install. The stale-`dist` class of
-  fault is gone with it. For an unreleased core change, core publishes under a
+- **`@machafoundation/core` comes from the registry on `main`, and from the
+  sibling checkout on `develop`.** This rule read "no `file:` link, no
+  `npm link`, ever" until 2026-09-20, when Tom linked `develop` to
+  `../macha-ts` deliberately — "the projects need to work together" — and core
+  development continues from it. `main` stays on `^0.14.0` from the registry
+  because it is what other people install, so **restore the registry version
+  and re-run the three checks against *that* before anything merges there.**
+  For an unreleased core change without the link, core publishes under a
   dist-tag: `npm install @machafoundation/core@next`.
+- **Check the resolved copy, not the version string.** The reason the link was
+  forbidden is a real incident: a lockfile cached a link at `0.7.0` while the
+  checkout on disk was `0.11.1`, and a green suite hid the mismatch. It cannot
+  happen in the shape the tree currently holds — `node_modules/@machafoundation/core`
+  is a symlink to `../macha-ts` and the lockfile says `"link": true`, so there
+  is no cached copy to go stale — but core's `dist/` is built rather than
+  committed, so **the artifact can lag the source it was built from.** Before
+  measuring anything that turns on which core answered:
+
+      ls -l node_modules/@machafoundation/core        # symlink, or a copy?
+      git -C ../macha-ts log --oneline -1             # which core is on disk
+      grep -rl <the new symbol> node_modules/@machafoundation/core/dist
+
+  The last line is the one that matters: this client imports core's `dist`, so
+  a change present in `src` and absent from `dist` is a change the television
+  will not be running. Verify the artifact, not the source — the same rule as
+  the APK two bullets up.
 - Expo's synchronous `Function` has no `runOnQueue`; only `AsyncFunction` does.
   `PlayerEngine` marshals onto ExoPlayer's looper itself.
 
