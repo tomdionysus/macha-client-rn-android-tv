@@ -302,6 +302,114 @@ had never been built from, so there was nothing to preserve.
 - **Main-looper marshalling inside the engine**, since Expo's synchronous
   `Function` has no `runOnQueue`.
 
+## The first failover on hardware, and 0.4.0 (2026-09-20)
+
+**0.4.0 is tagged, pushed and on the television** — the release commit carries
+the version bump, the tag is annotated bare semver on `main`, and the install
+script asserted `versionCode 400` against the APK rather than trusting it.
+
+### The reaped session, run
+
+The test this client had been unable to run: a session deleted out from under a
+paused viewer, which is the reaper's state without the thirty-minute wait. Full
+reading in `TODO/ACTIVE.md` §1.0. The short of it:
+
+- **The viewer saw nothing.** Playback ran out of the buffer and kept going, no
+  failure screen. Law 2 held at the surface, which is the part that matters most
+  and the part nobody had ever observed here.
+- **The recovery took the expensive path.** It left the healthy local node for a
+  cross-site one and rebuilt a video **copy** as a **transcode**, burning that
+  node's only video transcode slot to re-encode a stream the panel decodes
+  natively.
+- **The cause of the transcode is core's and is now known**: a recovery POST
+  names `mode` without `video`/`audio`, and the server clears per-stream
+  transforms when `mode` is named. Core found it by reading, the same evening,
+  and is deliberately not patching it until a prior question is settled.
+- **Why it was a failover rather than a same-node regeneration is still open**,
+  and the endpoint change is the tell: `not-found` regenerates on the same node,
+  a stall goes to the standby path, which is by construction elsewhere. If
+  `expo-video` cannot raise a terminal error for a `404` on a fragment, the
+  `not-found` contract cannot reach this platform at all — nor Media3, AVPlayer
+  or a native HLS element anywhere else.
+
+### What made it possible
+
+- **A session-id diagnostic** on the player, behind the Diagnostics toggle. The
+  node exposes no way to learn a session id — no list route, and `status`
+  reports a count — so a client-side tester could not run the web session's
+  recipe at all. Tom asked for it; it took ten minutes and it is what turned an
+  impossible test into a routine one.
+- **The bootstrap list is this site only** (`10.35.1.50`), Tom's call. Until
+  then the set was served cross-site by `10.34.1.50` while its own node sat
+  discovered and unused, and every latency reading was of the wrong path.
+
+### Measurements
+
+- **`session_unused_idle_ms` means "has never served a stream object"**, not
+  "has been idle" — the server session's answer, after a paused direct-play
+  session survived four and a half minutes against a 120 s clock. A session sets
+  `stream_served` the first time it serves anything and then holds the full
+  thirty minutes. The short clock exists to stop an abandoned session holding a
+  transcode entitlement, not to reap paused viewers.
+- **Decoder instance limits are ambiguous from `dumpsys`** and the shell check
+  cannot settle §1.3: the main hardware decoder reports both `6` and `1` for
+  every video type, with no structure saying which belongs to which profile
+  group. The answer is an allocation attempt in the app, which is Tier 3's own
+  experiment.
+- **Closing the player releases the transcode slot** — `running_video_transcode_pipelines`
+  went 1 → 0 on the node, so `terminateForPageExit` does what it claims.
+
+### Navigation faults found by using it
+
+None of these is fixed; all were found by driving the set rather than by reading.
+
+- **Down from the password field lands on "Server settings", not "Sign in"** —
+  the geometry favours it, and it is how this session signed in as nobody the
+  first time and then read the 403s as a broken account.
+- **Leaving to Server settings and coming back clears both fields.**
+- **From the Settings screen the top nav bar cannot be reached at all.**
+- **A key press while the chrome is hidden only wakes it**, which is correct and
+  is the web client's behaviour — but it means the transport buttons need two
+  presses within the four-second window, and every press this session made was
+  slower than that, so pause never fired until the media key was used.
+
+### Four things this session got wrong
+
+- **Committed the `file:` link to `develop` with a `git add -A`.** Caught while
+  restoring the registry version, which is the check that found it. `main` was
+  never affected. It then turned out Tom wanted the link, so it stays — but it
+  was luck rather than judgement, and the next `add -A` should be an `add` of
+  named paths.
+- **Proposed the wrong cause for the transcode.** The theory was that the
+  recovery re-ran the chooser without facts. It does not re-run the chooser at
+  all: it passes the previous session's preference echo and the *node* chooses,
+  with less than core knew.
+- **Read "hevc allows one decoder instance" off an `awk` that paired decoder
+  names to numbers wrongly** — the `1`s belonged to the vp8, secure and Dolby
+  Vision decoders. Reported, then withdrawn an hour later.
+- **Said there was no RN test account in memory as though that settled it.**
+  There was no *RN* account, but the web client's `webclient` was recorded in
+  its own project memory with its credentials in `.env.local`, and the right
+  first move was to look there rather than to report an absence.
+
+### Cross-session
+
+The server session **checked its own half and cleared it** — the documented
+remux→transcode substitution did not fire for this session, proven from the
+node's journal — which is what narrowed the transcode to the client half in one
+step rather than three. It also asked for a priority ranking and took this
+client's: the metadata read-only windows first, because they cost a viewer
+nothing and an ingest everything, and that reasoning is now the stated reason
+for the ordering in their backlog.
+
+**Owed to this client when work resumes:** a saturated-node probe, which needs a
+real torrent completed first — their four synthetic attempts are marked void in
+their own backlog because a generator that reads from memory cannot reproduce a
+load that reads one disk and writes another. And they have asked for wall-clock
+stall timings rather than HTTP statuses, since this client cannot see statuses
+from its own player: their journal has the status, this client has the clock,
+and the join is a better instrument than either.
+
 ## Core `0.14.0`, and two failures a viewer would have blamed on the node (2026-09-19)
 
 Taken from `0.12.0` in one session, and it was a port rather than a version

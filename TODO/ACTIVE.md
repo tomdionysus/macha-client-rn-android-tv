@@ -15,12 +15,29 @@ installed** — the set is still running a 304 build. Sign-in, the library, deta
 and playback all work; a film direct-plays with 5.1 intact (§1.2). Core is
 `0.14.0`.
 
-**Nothing about failover has ever run against a node.** No watchdog has fired,
-no standby has been promoted, and 2026-09-19 added three more paths that have
-never met hardware: the park, the classification probe and the promotion gate
-(§2.6). This is the largest block of untested behaviour in the client and it
-sits directly on Law 2 — *thou shalt not make the viewer wait* — because every
-one of those paths decides what a viewer sees when a node stops answering.
+**Failover has now run once, and it recovered the expensive way** (§1.0,
+2026-09-20). A session reaped underneath a paused viewer was recovered with
+nothing visible on screen — Law 2 held — but the client left a healthy local
+node for a cross-site one and turned a video copy into a transcode. The rest of
+the failover surface is still unexercised: no stall watchdog has fired on its
+own, no standby has been promoted deliberately, and whether the park path is
+ever reached here is the open question §1.0 ends on.
+
+### Where the tree is, for whoever picks this up
+
+- **`develop` carries `"@machafoundation/core": "file:../macha-ts"`** — a
+  deliberate link to the sibling checkout, Tom's call on 2026-09-20 ("the
+  projects need to work together"), and core development continues from it.
+  **`main` is on `^0.14.0` from the registry and must stay that way**: it is
+  what other people are looking at. Before anything merges to `main`, restore
+  the registry version and run the three checks against *that*.
+- The link reached a commit by accident first (`cc93e43`, a `git add -A`), was
+  going to be reverted, and then turned out to be what Tom wanted. Recorded so
+  the next reader does not "fix" it.
+- **The APK on the television was built against the linked core**, so it
+  contains core's unreleased `develop`. It is `versionCode 400` like the 0.4.0
+  release and the package manager cannot tell them apart. **Rebuild before
+  trusting anything measured on it as release behaviour.**
 
 ### Rationalised 2026-09-20 — anomalies found
 
@@ -64,18 +81,31 @@ the parity work. Recorded so the next reader knows what was wrong here and why.
 
 ### The single next action
 
-**Provoke the pause case on the set, with the trail on.** Pause a film past
-the node's `session_idle` (thirty minutes), resume, and read what the trail
-says. One sitting exercises the park, the classification probe, core's
-`sessionAlive`/`regenerate`, and the promotion gate — none of which has ever
-run against a node — and it answers the two questions the web session is
-waiting on (below) and §1.7 for free. Until it is done, everything in §2.6 is
-asserted, and this client's answer to Law 2 is a theory.
+**Find out whether a reaped session reaches this client as a terminal error or
+as a stall** — it is the one thing §1.0 could not settle, and everything about
+the `not-found` contract on this platform turns on it.
 
-**Before it:** install 0.4.0 (built, versionCode 400, so the device can tell
-it from 304), and settle anomaly 3 — either add `http://10.35.1.50:7438` to the
-bootstrap list or set it on the set through Settings — or the sitting measures
-a cross-site path and proves nothing about the client.
+The recovery in §1.0 produced no failure screen, and the failure trail only
+renders under one, so the evidence was unreadable at exactly the moment it
+mattered. **What is needed is a diagnostic that can be read without a failure**:
+the last few trail lines on screen while Diagnostics is on, or the classified
+kind shown beside the session id the player already displays. Small, and it
+makes every later failover test legible.
+
+If it turns out to be a stall — which is what the endpoint change and the
+server's journal both point at — then **the `not-found` kind cannot reach the
+commonest reaped-session case on any host whose player hides transport
+errors**: Media3, AVPlayer and a native HLS element alike. That is core's
+problem rather than this client's, and it is already with them.
+
+**The transcode half of §1.0 is answered and is core's**: the recovery POST
+names `mode` without `video`/`audio`, and the server clears per-stream
+transforms when `mode` is named. Core has it and is deliberately not patching it
+until it is settled whether the transforms should be restated from the
+instruction core chose or from the node's own echo. **Nothing for this client to
+do** beyond confirming, once the diagnostic exists, that a recovery on this
+platform still arrives through the degradation channel — which is what made it a
+cross-node failover rather than a same-node regeneration in the first place.
 
 **Then, in the same sitting**, because they all want the set up and the trail
 readable: §1.2's two remaining captures, §1.3 decoder instances (which gates
@@ -310,7 +340,35 @@ healthy local node for a distant one and turn a copy into a transcode. On a
 cluster where `max_video_transcodes` is 1, that also takes the slot away from
 whoever asks next.
 
-**What is not yet known: which path produced it.** The probable explanation is
+**The transcode has a cause, found by the core session the same evening**
+(2026-09-20, by reading rather than measuring). Core's recovery POST carries
+`mode` and **not** `video`/`audio`: `completePreferences` sends `mode`,
+`maxHeight`, `maxBitrate` and the stream/language selections, while the
+per-stream transforms are only merged on the *initial* create, from
+`instructionPreferences(instruction)`. And the server rule since 0.34.0 — which
+core's own docblock states — is that a request naming `mode` **restates the
+whole transform**, clearing `video` and `audio` unless they are named again.
+The segment container was restated for exactly that reason; the transforms were
+not. So a recovery says "remux", drops the `video: 'copy'` that made it a copy,
+and the node re-plans video from nothing. That matches the server's journal
+precisely: the plan resolved to transcode from the preferences it was given,
+with no substitution fired.
+
+**And my own candidate was wrong, which is worth keeping.** I proposed the
+recovery might be re-running the chooser without facts. It does not re-run the
+chooser at all — neither `recoverFromSourceFailure` nor `prepareAlternate`
+touches `choosePlaybackInstruction`; they pass the previous session's preference
+echo, and the *node* chooses, with less than core knew. The `withoutFacts`
+marker is a real condition and not this one.
+
+**Core is not patching it blind**, and the reason is a good one: the same
+preference list is used by failover, regeneration and standby preparation, and
+it is not yet established whether the transforms should be restated from the
+instruction core chose or from the session echo the node returned. Those differ
+after a server-side substitution, and restating a node's own downgrade would
+make one bad plan permanent.
+
+**What is still not known: which path produced the recovery.** The probable explanation is
 that `expo-video` never raised a *terminal* error at all — a `404` on a fragment
 presents to it as a stall — so `reportTerminalPlayerFailure` was never called,
 the classification probe never ran, and core recovered through the
