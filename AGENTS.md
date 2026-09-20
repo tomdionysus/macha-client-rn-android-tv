@@ -55,6 +55,21 @@ device or a node; "asserted" means taken from an implementation or a contract.
 Confident theories have died on contact with measurement here more than once,
 and the fix that mattered came from a log rather than from reasoning.
 
+**The same distinction applies to claims about the other repositories**, and it
+was added because it kept being the thing that went wrong: three mistakes in two
+days here were all statements about another tree, made without opening it, and
+filed next to verified facts because nothing in a peer's compressed sentence
+marks which it is. So a claim about `macha-ts`, `macha-client` or
+`macha-client-rn` names the file it was read from, or says that nobody has read
+it.
+
+**Prove a test red before trusting it green — and check *why* it is red.** This
+repo already lands the fix behind a test seen failing first. The refinement,
+from core and the web client the same week: a test can go red for a reason that
+has nothing to do with the defect, and then its green proves nothing. Core
+shipped one that passed against broken code because the figure it used sat
+below the threshold it was testing. Read the failure message, not the colour.
+
 ## Things that have already caught someone out
 
 - The target TV is **`armeabi-v7a` only**. Check any new native dependency
