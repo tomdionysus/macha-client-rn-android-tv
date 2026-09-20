@@ -1,5 +1,123 @@
 # Completed
 
+## 2026-09-20 (evening) — the reaped session, read on screen: it is a terminal error, and core's fix holds
+
+**The question §1.0 could not settle is answered, and the answer is the
+opposite of the hypothesis.** Measured on the TCL at `10.35.1.133`, client
+`0.4.0` built against core `32da3e0` (APK verified byte-identical on the set by
+`md5sum` against the local build, because both are `versionCode 400`), server
+`0.46.2`, nodes `10.35.1.50` and `ramaroja.macha.network` (`10.34.1.50`).
+
+**A reaped session reaches this client as a terminal error.** The trail, read
+off the screen while the film was still playing:
+
+    2748.3s playback failure       {"message":"A playback exception has occurred:
+                                    Source error Response code: 404","kind":"unknown"}
+    2748.3s playback.coordinator source-failover-start  {"mediaId":"tmdb:movie:583",…}
+    2755.5s playback source-budgets {"url":"http://10.35.1.50:7438/api/v1/playback/
+                                     stream/f2c7e503…/1/master.m…"}
+
+`expo-video` **did** raise a terminal error, and it carried the status in its
+message. There is no `stalled` line and no `alternate-promoted-on-degradation`:
+the recovery went through the **failure** channel, not the degradation one. The
+§1.0 hypothesis — that a `404` on a fragment presents to this player as a stall,
+so `reportTerminalPlayerFailure` never runs and `not-found` cannot reach this
+platform — **is wrong**, and the note that carried it to core has been
+corrected.
+
+**But the kind is `unknown`.** The message says `Response code: 404` and the
+classification still produced `kind: "unknown"`, so the `not-found` path did not
+fire even though the error arrived and the evidence was in it. That is this
+client's own defect rather than core's, it is now the open question in its
+place, and it is recorded as §2.8.
+
+**Core's recovery fix works on hardware.** The replacement generation kept the
+video copy — read three ways, which is why it is stated flatly:
+
+| | before the reap | after the recovery |
+| --- | --- | --- |
+| endpoint | `https://ramaroja.macha.network` (`10.34.1.50`) | **`http://10.35.1.50:7438`** (this site) |
+| video | COPY · HEVC 1920×1040 · 9.8 Mb/s | **COPY · HEVC 1920×1040 · 9.8 Mb/s** |
+| audio | TRANSCODE · DTS 5.1 → AAC 5.1 384 kb/s | unchanged |
+| session | `…::8f5b81e2012f6de51d2b4e1b654f8316` | `…::f2c7e503d6b7d5ca8f7343938a561513` |
+
+The node agrees with the screen: `preferences.video: "copy"`,
+`output.video.transform: "copy"`, and `running_video_transcode_pipelines: 0` on
+both nodes afterwards. §1.0's expensive recovery — a copy turned into a full
+re-encode on the cross-site node's only video slot — **did not happen**.
+
+**The viewer saw nothing, again, and this time for a measured reason.** Paused
+at 29:19 with about six minutes of buffer, reaped (`GET 200 → DELETE 204 →
+GET 404`), resumed at 19:52:52. Playback ran on out of the buffer for roughly
+five minutes before the player asked for a fragment that was not there; the
+failure and the new source are **7.2 s apart**, and the buffer covered it. No
+failure screen at any point.
+
+**The recovery came back to the local node**, which is the other half of what
+§1.0 got wrong about itself. See below.
+
+### What the trail caught that nobody was looking for
+
+The first two lines of the same session, from before the film even started:
+
+    468.3s playback.api http-error-response  {"requestId":1,"method":"POST",
+                                              "path":"/api/v1/playback/sessions?…
+    468.3s playback.cluster generation-attempt-failed  {"endpointId":"http://10.35.1.50:7438",…}
+
+**The local node refused the session create, and the film started cross-site
+because of it** — not because anything failed over, and not because the
+bootstrap list was wrong (it now reads `http://10.35.1.50:7438`, the set's own
+site, so anomaly 3 is closed as configuration). §1.0 recorded the cross-site
+placement as a failover decision. It was an admission refusal.
+
+Why, probed directly against `10.35.1.50` with the `tvtest` token, same title:
+
+| request | answer |
+| --- | --- |
+| `{"mode":"remux"}` | **400** `fragmented MP4 cannot carry a copied dts audio stream; ask for preferences.audio=transcode` |
+| `{"mode":"remux","video":"copy","audio":"transcode"}` | **400** `remux repackages and copies every stream: to re-encode one, ask for mode=transcode with video=copy or audio=copy` |
+| `{"mode":"transcode","video":"copy","audio":"transcode"}` | **201**, `output.video.transform: copy` |
+
+So this node will copy this video happily — **it refuses the *remux*, not the
+copy** — which also answers core's question about whether the replacement would
+have accepted `video: 'copy'`: on this title, on this node, yes.
+
+**Which shape the client actually sent is not yet proven**, because the trail
+truncated the line one field short of the status. The leading hypothesis is that
+the chooser asked for a remux on a title whose DTS audio cannot be copied into
+fMP4 — the exact 400 above — and that the second endpoint got a corrected
+instruction. `LIVE_DETAIL_CHARS` (240, against the overlay's 110) exists to read
+that line on the next start, and it was added because of this.
+
+### Three smaller things, all measured the same sitting
+
+- **`describePlaybackSession` never said "remux".** The first line is
+  `CONTAINER : endpoint`, so the screen read `FMP4 : …`. The "negotiated to a
+  remux" in §1.0 was our own inference, and core's fork — node substitution
+  versus a label disagreeing with the echo — dissolves: the generation was
+  `mode: transcode, video: copy` the whole time, confirmed from the node.
+- **The unused-session reaper is real and fast.** A probe session created and
+  never streamed from was gone inside two minutes, `unused_sessions_reclaimed`
+  going `0 → 1`, which is §1.4a's mechanism seen from the other side.
+- **Back from a top-level screen exits the app** — confirmed on *Settings*,
+  not just Home, and it is what §1.1 said. Tom's rule for the player was given
+  the same evening and is implemented: panel, then chrome, then leave.
+
+### And four traps this sitting walked into, for whoever is next
+
+1. **The screensaver takes the foreground** during any pause long enough to
+   matter. Disabled for the sitting with `settings put secure
+   screensaver_enabled 0`; **restore it**.
+2. **A relaunch restores the last route.** Coming back to Settings put focus in
+   the endpoint field with the IME open — one stray keystroke from editing the
+   cluster address. `am force-stop` first.
+3. **Focus after a launch is wherever it was left**, not the nav bar, so a
+   counted run of D-pad presses lands somewhere else entirely. Screencap first,
+   press second.
+4. **Wall-clock is not film time.** Probing two nodes between captures put
+   twenty-eight minutes into the film; the timings above are from the trail's
+   own elapsed clock, not from how long the work felt.
+
 What has actually landed, and — following the phone client's convention —
 **the experiments that failed and the theories that were withdrawn**, since
 those are the entries that stop the next person repeating them.

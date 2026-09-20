@@ -33,7 +33,7 @@ const TRAIL_ENTRIES = 12;
  */
 const DETAIL_CHARS = 110;
 
-function detailOf(entry: ClientLogEntry): string | undefined {
+function detailOf(entry: ClientLogEntry, limit: number): string | undefined {
   const { data } = entry;
   if (data === undefined || data === null) return undefined;
   if (typeof data !== 'object') return String(data);
@@ -45,7 +45,7 @@ function detailOf(entry: ClientLogEntry): string | undefined {
       value instanceof Error ? value.message : value
     ));
     if (!text || text === '{}') return undefined;
-    return text.length > DETAIL_CHARS ? `${text.slice(0, DETAIL_CHARS)}…` : text;
+    return text.length > limit ? `${text.slice(0, limit)}…` : text;
   } catch {
     // Circular structures and getters that throw. A trail entry with no
     // detail is still worth showing; losing the whole screen to a log line is
@@ -56,6 +56,7 @@ function detailOf(entry: ClientLogEntry): string | undefined {
 
 export function playbackFailureTrail(
   entries: readonly ClientLogEntry[] = clientDiagnosticsConsole().snapshot(),
+  detailChars: number = DETAIL_CHARS,
 ): PlaybackFailureTrailEntry[] {
   return entries
     .filter((entry) => entry.level === 'warn' || entry.level === 'error')
@@ -64,7 +65,7 @@ export function playbackFailureTrail(
       atMs: entry.elapsedMs,
       level: entry.level,
       event: `${entry.scope} ${entry.event}`,
-      detail: detailOf(entry),
+      detail: detailOf(entry, detailChars),
     }));
 }
 
@@ -97,3 +98,21 @@ export function trailSignature(trail: readonly PlaybackFailureTrailEntry[]): str
   const last = trail.at(-1);
   return last ? `${trail.length}:${last.atMs}:${last.event}` : '';
 }
+
+/**
+ * How much of a line the live trail keeps, against the overlay's 110.
+ *
+ * Measured, not chosen: the first failover read on hardware (2026-09-20) cut
+ * `playback.api http-error-response` at
+ * `…?idempotency_key=mua0un2b-yk561ok4qj","elapsed…` — one field short of the
+ * status code, which was the only thing on the line anybody needed. A node
+ * refusing a session and a node that is simply slow are the same line at 110
+ * characters.
+ *
+ * The overlay's limit stays where it is. It sits under a failure message with
+ * the viewer's whole attention on it and wraps into the middle of the screen;
+ * this band is at the top edge of a picture, is read by somebody holding a
+ * laptop, and every line is still truncated to one row on screen — so the
+ * cost of a longer allowance is width, not legibility.
+ */
+export const LIVE_DETAIL_CHARS = 240;

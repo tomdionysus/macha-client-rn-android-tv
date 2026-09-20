@@ -17,6 +17,7 @@ import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
 import {
+  LIVE_DETAIL_CHARS,
   LIVE_TRAIL_ENTRIES,
   playbackFailureTrail,
   trailSignature,
@@ -132,6 +133,19 @@ export function PlayerScreen({
     hideTimer.current = setTimeout(() => setChromeVisible(false), CHROME_HIDE_MS);
   }, []);
 
+  /**
+   * Put the chrome away now, as the auto-hide would have done later.
+   *
+   * The timer is cleared with it: a Back that hid the chrome and left the
+   * timer armed would fire a `setChromeVisible(false)` against a chrome the
+   * viewer had already brought back with the next press.
+   */
+  const hideChrome = useCallback(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = undefined;
+    setChromeVisible(false);
+  }, []);
+
   useEffect(() => {
     showChrome();
     return () => {
@@ -213,22 +227,43 @@ export function PlayerScreen({
   }, [optionsOpen]);
 
   /**
-   * Back closes the panel before it closes the player.
+   * Back unwinds what is on screen, one layer per press, before it leaves.
+   *
+   * Tom's rule, given on the set (2026-09-20): **if the controls are up, Back
+   * puts them away; the next Back leaves the film.** A television remote has
+   * one Back and three things it could mean here, and the viewer's own reading
+   * is positional — whatever is covering the picture goes first, and only a
+   * press against a clean picture means "I have finished watching".
+   *
+   * The ladder is panel, chrome, player. It replaces a handler that consumed
+   * Back only while the options panel was open and otherwise let the app-level
+   * handler tear the session down — so a viewer who pressed Info, read the
+   * stream lines and pressed Back lost the film instead of the overlay.
    *
    * Registered here rather than folded into the app-level handler because
    * `BackHandler` invokes listeners in reverse registration order, and this
-   * screen mounts after the root — so this runs first and can consume the press
-   * while the panel is open. Without it, Back would close the whole player out
-   * from under a viewer who only meant to dismiss the options.
+   * screen mounts after the root — so this runs first and can consume the
+   * press. Returning `false` on the last rung is what hands the press back to
+   * the app, which writes the resume point and stops the session.
+   *
+   * Always registered, because the ladder now has a rung for the ordinary
+   * case. The hide is the chrome's own, timer and all: leaving the auto-hide
+   * timer running would have it fire against a chrome already gone.
    */
   useEffect(() => {
-    if (!optionsOpen) return undefined;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      setOptionsOpen(false);
-      return true;
+      if (optionsOpen) {
+        setOptionsOpen(false);
+        return true;
+      }
+      if (chromeVisibleRef.current) {
+        hideChrome();
+        return true;
+      }
+      return false;
     });
     return () => subscription.remove();
-  }, [optionsOpen]);
+  }, [optionsOpen, hideChrome]);
 
   const event = playback?.event;
   const duration = event?.durationMs ?? media.durationMs ?? 0;
@@ -381,7 +416,7 @@ export function PlayerScreen({
     }
     let signature = '';
     const read = () => {
-      const next = playbackFailureTrail().slice(-LIVE_TRAIL_ENTRIES);
+      const next = playbackFailureTrail(undefined, LIVE_DETAIL_CHARS).slice(-LIVE_TRAIL_ENTRIES);
       const nextSignature = trailSignature(next);
       if (nextSignature === signature) return;
       signature = nextSignature;
@@ -836,7 +871,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: pageGutter,
     top: rem(1),
-    maxWidth: '50%',
+    maxWidth: '72%',
     gap: rem(0.15),
     paddingVertical: rem(0.4),
     paddingHorizontal: rem(0.6),
