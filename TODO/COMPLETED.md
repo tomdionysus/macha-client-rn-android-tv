@@ -1,5 +1,63 @@
 # Completed
 
+## 2026-09-20 (night) — the regenerate path, frozen once and recovered once, and the trail that can now tell the difference
+
+**Three runs of the same reap in one evening, three different outcomes**, all
+on the TCL, all *Life of Brian* on `10.35.1.50`:
+
+| build | classification | path | outcome |
+| --- | --- | --- | --- |
+| core `32da3e0` | `unknown` | failover, cross-site | recovered in 7.2 s, copy kept, invisible |
+| core `10a1d93` (walk fix) | `not-found` | regenerate, same node | **frozen indefinitely** — Tom watched it; this session had reported it as recovering |
+| core `0e787f8` (close bounded, two lines at warn) + `info` trail | `not-found` | regenerate, same node | **recovered in 1.2 s**, copy kept, and the bound was not exercised |
+
+The second row is the finding of the night and it is in `ACTIVE.md` as P-1:
+a correct classification opened a path nobody had run, and the path hung.
+Core found the one unbounded await on it — regeneration waits on the close of
+the dead session, failover never does — and bounded it. The third row shows
+the path working when the close settles, and shows the bound *not* needed
+that time, so the freeze is **not reproduced**, not fixed. Five more reaps
+across two sittings are the plan.
+
+**The `info` trail is what made the third row readable**, and it was built
+because the second row was not: everything between "regenerating" and
+"attached" — `failed-session-closed`, `session-create`, `session-created`,
+`session-regenerated`, `source-activate`, `first-fragment`,
+`source-presented` — was at `info`, and the trail showed `warn`. With
+Diagnostics on it now shows `info`, eight lines, and the whole recovery sat
+on the screen with a timestamp on every step. Core has since moved
+`generation-regenerate` and `session-regenerated` to `warn` for everyone.
+
+### Four things this session got wrong tonight, in order of cost
+
+1. **Reported a frozen television as recovering.** "Preparing new stream" was
+   read as progress from screenshots taken every 25 s; it was a state that
+   never ended. Tom corrected it from in front of the set. A capture cadence
+   cannot distinguish "recovering" from "stuck" and should have been said so.
+2. **Trusted a change detector that had never produced a change.** During the
+   third run a `sips` crop silently wrote nothing, so the band hash never
+   moved and "same" was reported for three minutes *after the recovery had
+   happened*. The node's `sessions` count going `0 → 1` was the tell and was
+   misattributed to another client. Caught by reading the frame. **A tool
+   that has only ever said "no change" has not been tested.**
+3. **Nearly recorded Wake-on-LAN as a working trick.** A magic packet and
+   Tom's remote hit the set in the same minute; only one of them is proven.
+4. **Read "sessions: 1 twenty seconds after leaving the player" as an
+   orphaned session** for one message, before a `GET 404` on the session
+   showed the count simply lags the pipeline drain.
+
+### And two traps that were real
+
+- **Gradle does not see a change inside the symlinked core.** An
+  `assembleRelease` after core rebuilt `dist` took 6 s, executed 8 tasks, and
+  shipped the *old* bundle; verified by the literal missing from the APK.
+  `createBundleReleaseJsAndAssets --rerun-tasks` first, then grep the bundle
+  for a string the change introduced, then hash the APK on the set.
+- **The set leaves the network ten minutes after the last key.** Not powered
+  off — `screen_off_timeout` — but indistinguishable from it over the
+  network. In the device notes now, with the setting to raise for a sitting.
+
+
 ## 2026-09-20 (evening) — the reaped session, read on screen: it is a terminal error, and core's fix holds
 
 **The question §1.0 could not settle is answered, and the answer is the

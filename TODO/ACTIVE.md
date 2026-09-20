@@ -149,6 +149,18 @@ Both are `leanback_only`, `type.television`, no touchscreen. The APK's
 `armeabi-v7a` pin is right for both.
 
 - Addresses are DHCP and have moved before (`.115` → `.116`).
+- **The set drops off the network ten minutes after the last key.**
+  `screen_off_timeout` is `600000`; a screen-off set stops advertising adb
+  and stops answering ping, and a subnet sweep finds nothing — which looks
+  exactly like a set that is powered off. Measured 2026-09-20, twice. For a
+  sitting: `settings put system screen_off_timeout 1800000`, and **put it
+  back**. The screensaver (`screensaver_enabled`) is the other clock, and a
+  film keeps the screen on but a paused film does not.
+- **`adb mdns services` finds it when a connect times out** — it advertised
+  `_adb._tcp 10.35.1.133:5555` while `adb connect` was failing, and connected
+  on the next try. A Wake-on-LAN packet to `b0:6b:11:ca:17:2d` was sent the
+  same minute Tom woke it with the remote, so **WoL is unproven**, not a
+  trick.
 - `getprop ro.product.manufacturer` must say **TCL**. A Blackview phone also
   appears on adb — that is the phone client's device, not this one.
 - **Network adb has to be switched on at the set.** `10.35.1.133` answered
@@ -186,7 +198,7 @@ Both are `leanback_only`, `type.television`, no touchscreen. The APK's
   session's, listed in `COMPLETED.md`. Open the peer before writing "only",
   "never" or "nowhere else".
 
-## P-1. The regenerate path freezes the viewer — mechanism found, bound landed, unverified
+## P-1. The regenerate path froze the viewer once — bound landed, freeze not reproduced, **not closed**
 
 **Measured 2026-09-20, 22:58, on the TCL, with core's walk fix (`10a1d93`) in
 the build.** A session deleted under a paused client was, for the first time,
@@ -256,14 +268,51 @@ checked).
   so every step between "regenerating" and "attached" is on screen. **Built,
   unrun.**
 
-### The plan
+### The re-run, 2026-09-20 23:54 — recovered, and the bound was not exercised
 
-1. **Rebuild against core `0e787f8` with the bundle forced** — Gradle does not
+Same reap (`GET 200 → DELETE 204 → GET 404`, resumed at 23:54:08, position
+6:01), build carrying core `0e787f8` and this client's `info` trail, APK
+verified by literal and by hash. The buffer carried playback to 7:54, then:
+
+    1143.1s cluster failed-session-closed      7e1ce560…  attempts: 1
+    1143.1s api session-create
+    1144.2s api session-created                861ee13a…  mode: transcode
+    1144.2s coordinator session-regenerated    7e1ce560… → 861ee13a…
+    1144.2s coordinator source-activate        stream/861ee13a…/1/master.m3u8
+    1144.3s first-fragment                     ready: true, waitedMs: 59
+    1144.3s source-budgets                     deadlineMs 19000, segmentHoldMs 6000
+    1144.3s coordinator source-presented       generationStartMs 474475
+
+**1.2 s from close to picture**, same node, `VIDEO COPY` intact, film playing
+at 12:56 when read. **`failed-session-close-timeout` did not fire** — the
+close settled on its own on the `404`, `stop()` resolving (the `.then`
+branch, not `-retry`), so core's bound was insurance this run and not the
+fix. Which leaves exactly two readings, and one run cannot separate them:
+
+1. The first freeze *was* the unbounded close-await, with something in
+   `request()`/`stop()` failing to settle **after the `404` had been received
+   and logged** — intermittent, and the bound now caps it at 19 s.
+2. The first freeze was somewhere else and this run did not reproduce it.
+
+**So the status is "not reproduced", not "fixed".** Written to core in those
+words. If reading 1 is right, a viewer can still see a 19-second freeze on a
+reap, and the defect between "response logged" and "promise settled" is live.
+
+### The plan, revised
+
+1. ~~Rebuild against core `0e787f8`~~ **Done, 23:33**, and the trap is real:
+   Gradle did not notice the change inside the symlinked core until
+   `createBundleReleaseJsAndAssets --rerun-tasks`; verify by literal
+   (`failed-session-close-timeout`) in the APK's bundle, then by hash on the
+   set. **Superseded step, kept for the method:** — Gradle does not
    notice a change inside the symlinked core, measured tonight
    (`createBundleReleaseJsAndAssets --rerun-tasks`), and verify
    `failed-session-close-timeout` is in the APK's bundle before trusting it.
    Install, hash-check.
-2. **Reap once.** Expected on the trail, in order: `source-reaped`,
+2. ~~Reap once.~~ **Done, 23:54, recovered in 1.2 s — see above.** The next
+   reaps are the plan now: **run it five more times across two sittings**,
+   reading the `info` trail each time, because an intermittent hang after a
+   received `404` will not show in one. Expected on the trail, in order: `source-reaped`,
    `session-reaped-regenerating`, then *either* `failed-session-closed` (info)
    *or* `failed-session-close-timeout` (warn, ~19 s), then
    `generation-regenerate`, `session-regenerated`, `source-budgets`, and a
