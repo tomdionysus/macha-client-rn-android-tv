@@ -9,7 +9,7 @@ on the TCL, all *Life of Brian* on `10.35.1.50`:
 | --- | --- | --- | --- |
 | core `32da3e0` | `unknown` | failover, cross-site | recovered in 7.2 s, copy kept, invisible |
 | core `10a1d93` (walk fix) | `not-found` | regenerate, same node | **frozen indefinitely** — Tom watched it; this session had reported it as recovering |
-| core `0e787f8` (close bounded, two lines at warn) + `info` trail | `not-found` | regenerate, same node | **recovered in 1.2 s**, copy kept, and the bound was not exercised |
+| core `0e787f8` (close bounded, two lines at warn) + `info` trail | `not-found` | regenerate, same node | **recovered in 1.2 s**, copy kept, **invisible to Tom watching**, and the bound was not exercised |
 
 The second row is the finding of the night and it is in `ACTIVE.md` as P-1:
 a correct classification opened a path nobody had run, and the path hung.

@@ -284,7 +284,9 @@ verified by literal and by hash. The buffer carried playback to 7:54, then:
     1144.3s coordinator source-presented       generationStartMs 474475
 
 **1.2 s from close to picture**, same node, `VIDEO COPY` intact, film playing
-at 12:56 when read. **`failed-session-close-timeout` did not fire** — the
+at 12:56 when read. **And invisible: Tom watched it from the sofa and saw
+the film simply continue** — his word, 2026-09-21 00:05, which is the only
+measurement of "did the viewer notice" there is. **`failed-session-close-timeout` did not fire** — the
 close settled on its own on the `404`, `stop()` resolving (the `.then`
 branch, not `-retry`), so core's bound was insurance this run and not the
 fix. Which leaves exactly two readings, and one run cannot separate them:
