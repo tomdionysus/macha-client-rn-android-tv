@@ -82,8 +82,11 @@ the parity work. Recorded so the next reader knows what was wrong here and why.
 
 ### The single next action
 
-**Find out why the classification answers `unknown` when the error says
-`Response code: 404`.** §2.8. The question this section carried for a week —
+**Confirm §2.8's diagnosis on the set, and take core's fix when it lands.** The
+cause is found by reading — a reaped session's *master* playlist `404` is
+discarded by `hlsWalkTargets`, so the status never reaches the mapping that
+would have called it `not-found` — and the trail now states which verdict it
+got. What is left is one reap with the set on. The question this section carried for a week —
 whether a reaped session reaches this client as a terminal error or as a stall
 — **is answered, and it is a terminal error** (`COMPLETED.md`, 2026-09-20
 evening, and §1.0f below). The `not-found` contract *can* reach this platform.
@@ -1191,39 +1194,51 @@ action.** The set at `10.35.1.133` has the app; the pause case exercises most of
 
 **2.7.8 Docs get cleaned up afterwards.** Tom's call; not now.
 
-### 2.8 The classification answers `unknown` with the 404 in front of it — **P1, and the next action**
+### 2.8 The `404` never reaches the mapping — **diagnosed 2026-09-20, and the fix is core's**
 
-**Measured 2026-09-20.** A reaped session produced
+**Not one of the four candidates this section first listed.** Read from core
+rather than guessed, and the path is exact:
 
-    playback failure {"message":"A playback exception has occurred:
-                      Source error Response code: 404","kind":"unknown"}
+1. The session is reaped, so the **master playlist** answers `404`.
+2. `hlsWalkTargets` fetches it and, on a non-ok manifest, **returns `[]`**
+   (`hlsWalk.ts:436`) — the status it just saw is dropped on the floor.
+3. `probeHlsReadiness` sees no targets and reports
+   `{ state: 'unassessable', reason: 'empty-manifest' }` (`hlsWalk.ts:537`).
+   Its `status` field only ever carries a **fragment's** status.
+4. `kindForTerminalError` requires `state === 'unavailable'` *and* a status, so
+   it answers `unknown` — and, until tonight, said nothing about why.
 
-and **no `terminal-failure-classified` line at all**, which is the tell: that
-line is only written on the branch that reaches
-`playbackFailureKindForStatus`, so the probe never got that far. Four candidate
-explanations, in the order worth testing:
+`playbackFailureKindForStatus(404)` returns **`not-found`**
+(`streamProtocol.ts:153`), which is the contract the whole `not-found` design
+exists for: ask that node again rather than condemn it. The evidence was
+fetched, seen, and discarded one layer above us.
 
-1. `source.isManifest` was false for the source, so `kindForTerminalError`
-   returned `unknown` before probing. The URL ended `/master.m3u8`, so if this
-   is it, the flag is being set wrong rather than read wrong.
-2. `probeHlsReadiness` answered something other than `unavailable` for a
-   playlist the node now 404s — plausible if it treats a `404` on the *master*
-   differently from one on a fragment.
-3. The probe was aborted by `classificationBudgetMs()`. The runway at the
-   moment of failure was minutes, not seconds, so this should be the least
-   likely — but the figure is derived from `lastForwardBufferMs` less its age,
-   and if the event stream had gone quiet the age term could have eaten it.
-4. The walk threw, which the `catch` turns into `unknown` silently.
+**Why the fix belongs in core.** A manifest answering `404` is exactly as much
+evidence as a fragment answering `404`, and the walk is the only thing that
+ever sees it. Core can return `{ state: 'unavailable', status }` from the
+manifest fetch as it already does from the fragment fetch. Doing it here
+instead means re-requesting a URL core has just requested, on the viewer's
+critical path, to learn something core already knew — and every host would have
+to do it. **Raised with core 2026-09-20 with these line numbers.**
 
-**Why it matters more than it looks.** `unknown` is not a neutral answer: core
-treats it as evidence against the *endpoint*, so a node that did exactly what a
-reaped session should do gets charged for it, and the client failed over across
-a whole generation when `not-found` would have asked the same node to
-regenerate. The recovery was cheap this time only because the buffer was deep.
+**What this client did about it meanwhile**, since the fix is not ours:
+`terminal-failure-unclassified` now goes on the trail whenever the
+classification declines to map — carrying the walk's `state`, its `reason` or
+`detail`, and for an aborted walk the budget it was given. A silent `unknown`
+was the reason this took a fortnight and a hardware run to find; it will say
+which verdict it got next time, whatever the cause turns out to be.
 
-**Cheap to settle now that the trail is readable**, because each candidate
-leaves a different mark: add the abort and the `isManifest` verdict to the
-line, reap again, and read it off the screen. One sitting.
+**Why it is worth core's attention rather than being cosmetic.** `unknown` is
+not neutral: core reads it as evidence against the *endpoint*. So the node that
+behaved correctly — a reaped session is a statement about a session, not about
+a node — got charged for it, and the client walked a whole generation where
+`not-found` would have asked the same node to regenerate. On 2026-09-20 that
+cost a cross-site hop; the only reason it cost nothing visible is that the
+pause had left six minutes of buffer.
+
+**Still to confirm on hardware:** that the new line reads
+`state: unassessable, reason: empty-manifest` on the next reap. One press,
+whenever the set is next on.
 
 ### 2.9 What the peers measured for this client, 2026-09-20
 

@@ -922,18 +922,60 @@ export class ExpoVideoAdapter implements Player {
     // range-request the film. This is the web client's Direct Play case, where
     // the latch is fed by the read-ahead worker; there is no worker here, so
     // the honest answer is that nothing was learned.
-    if (!source.isManifest) return 'unknown';
+    if (!source.isManifest) {
+      playbackLog.warn('terminal-failure-unclassified', { state: 'not-a-manifest', url: source.url });
+      return 'unknown';
+    }
     const controller = new AbortController();
     const expiry = setTimeout(() => controller.abort(), budgetMs);
     try {
       const outcome = await probeHlsReadiness(source, { fetch, signal: controller.signal });
-      if (outcome.state !== 'unavailable' || outcome.status === undefined) return 'unknown';
+      if (outcome.state !== 'unavailable' || outcome.status === undefined) {
+        /*
+         * **Measured 2026-09-20: this is the branch a reaped session takes**,
+         * and it is why the first failover on hardware classified a `404` as
+         * `unknown` with `Response code: 404` sitting in the player's own
+         * message.
+         *
+         * When the session is gone the *master playlist* 404s, and
+         * `hlsWalkTargets` answers a non-ok manifest with `[]`
+         * (`hlsWalk.ts:436`) rather than with its status — so
+         * `probeHlsReadiness` reports `unassessable / empty-manifest`, the
+         * status the walk actually saw is dropped, and there is nothing here
+         * to map. `playbackFailureKindForStatus(404)` would have said
+         * `not-found`, which is the whole contract: ask that node again rather
+         * than condemn it.
+         *
+         * **The distinction belongs in core** — a manifest that answers `404`
+         * is exactly as much evidence as a fragment that does, and only the
+         * walk ever sees it — and core has the measurement. This line exists
+         * so the next run says *which* verdict was returned instead of leaving
+         * a silent `unknown` on the trail, and so it keeps saying it if the
+         * cause is ever something else.
+         */
+        playbackLog.warn('terminal-failure-unclassified', {
+          state: outcome.state,
+          reason: outcome.state === 'unassessable' ? outcome.reason : undefined,
+          detail: outcome.state === 'unavailable' ? outcome.detail : undefined,
+          url: source.url,
+        });
+        return 'unknown';
+      }
       const kind = playbackFailureKindForStatus(outcome.status);
       playbackLog.warn('terminal-failure-classified', { status: outcome.status, kind });
       this.sourceVerdict = { url: source.url, kind };
       return kind;
-    } catch {
-      // The walk could not be made at all, which says nothing about the node.
+    } catch (error) {
+      // The walk could not be made at all, which says nothing about the node
+      // — but it must not be silent either, because an aborted walk and a
+      // walk that answered are the same `unknown` to core and to anyone
+      // reading the screen. The budget is named so an abort is recognisable
+      // for what it is.
+      playbackLog.warn('terminal-failure-unclassified', {
+        state: 'probe-failed',
+        budgetMs: Math.round(budgetMs),
+        detail: error instanceof Error ? error.message : String(error),
+      });
       return 'unknown';
     } finally {
       clearTimeout(expiry);
