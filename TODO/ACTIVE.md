@@ -9,37 +9,80 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 ## 0. Where this stands
 
-**It works.** 0.3.3 is on the TCL, installed and version-asserted. The remote
-navigates it, `tvtest` signs in through the platform IME, the library and
-detail screens render, and a film direct-plays with 5.1 intact. Tom confirmed
-the remote on 2026-09-13.
+**It works, and it has now been read against the web client on a screen.**
+0.4.0 is tagged and pushed (2026-09-20); the release APK is built and **not yet
+installed** — the set is still running a 304 build. Sign-in, the library, detail
+and playback all work; a film direct-plays with 5.1 intact (§1.2). Core is
+`0.14.0`.
 
-**§1.2 is answered and the premise holds** — `matroska / direct / video copy /
-audio copy`, six channels, positional `0x0000003F`. Full reading and its two
-stated limits in [`COMPLETED.md`](COMPLETED.md) and §1.2 below.
+**Nothing about failover has ever run against a node.** No watchdog has fired,
+no standby has been promoted, and 2026-09-19 added three more paths that have
+never met hardware: the park, the classification probe and the promotion gate
+(§2.6). This is the largest block of untested behaviour in the client and it
+sits directly on Law 2 — *thou shalt not make the viewer wait* — because every
+one of those paths decides what a viewer sees when a node stops answering.
 
-**Still never exercised: failover.** No watchdog has fired and no standby has
-been promoted on this set. Every failover claim in this file remains unproven,
-which is the largest block of untested behaviour left — and `0.14.0` has just
-added to it: the park, the classification probe and the promotion gate (§2.6)
-have never run against a node either.
+### Rationalised 2026-09-20 — anomalies found
 
-**Core is `0.14.0` as of 2026-09-19.** What the port took is §2.6; what it left
-is §2.7.
+An audit of this file against the tree and the laws, after the 0.14.0 port and
+the parity work. Recorded so the next reader knows what was wrong here and why.
+
+1. **The "single next action" had been done for a day.** The Settings scroll
+   fault was fixed on 2026-09-19 and the failure trail is switchable; seven
+   cross-references still named §1.1 as the blocker. All re-pointed below.
+2. **The device section described the wrong television.** Every measurement
+   on 2026-09-19 was taken on a *second* TCL — `10.35.1.133`, Android 12,
+   `G10_4K_GB_NF_32BIT` — while this file gave `10.34.1.115` and Android 11. The
+   two are different hardware: the new set reports a 1920×1080 surface at
+   density 320 and so a **960×540 dp** viewport, which is what broke the
+   interface's sizing. Whether the older set reports the same is **unmeasured**.
+   Both are recorded now; which is *the* target is Tom's to say.
+3. **The shipped bootstrap endpoints omit the new set's own site.** `app.json`
+   lists `10.34.1.50`, `10.44.1.50` and `10.44.1.51`; the set at `10.35.1.133`
+   has a node at `10.35.1.50` — the one the web client's pause report was
+   measured against — and is not told about it. So every request it makes
+   crosses sites, and **every latency or failover reading taken there is a
+   reading of the wrong path.** Settings can now edit the list on the set, but
+   the default is still wrong for that site. Raised 2026-09-19, unanswered.
+4. **The parity tables were wrong in nine rows.** Search, Status and Music
+   said "no" and exist; Settings said "cannot edit" and edits endpoints; seek
+   acceleration was listed missing and is ported; the failure trail was
+   "unreachable"; `/manage` and the metadata editor were "decide" and Tom
+   decided (§3.3). Corrected in place.
+5. **§2.5 and §4.2 disagreed about volume.** One said volume and mute are in
+   the chrome; the other recorded the control removed. The store is wired; the
+   control is gone. Both now say so.
+6. **A hardware claim outlived the thing it was about.** §1.1 said Right from
+   the *Settings nav item* escaped into the poster row. That item no longer
+   exists — Settings is the cog at the trailing edge — so the fault is
+   **unverified since the top bar was rebuilt**, not fixed and not known.
+7. **The priorities did not match the purpose.** The hardware sitting (§1)
+   was ordered as six measurements, with the failover exercise a paragraph in
+   §2.2. Tom's rule of 2026-09-12 is that seamless failover is *the literal
+   reason this repo exists*, and the trail that reads it is switchable at last.
+   It is first now.
 
 ### The single next action
 
-**Fix the Settings scroll fault (§1.1).** It is small, and it unblocks
-everything diagnostic: the on-screen failure trail is built and shipped and
-*cannot be switched on*, because its toggle sits below the fold where focus
-lands invisibly and the page never scrolls. Every open question below — a
-spurious failover, core's backward-seek eviction, a genuine node fault, a
-session silently re-minting to no roles — is diagnosed from that surface, and
-on a television there is no console to fall back on.
+**Provoke the pause case on the set, with the trail on.** Pause a film past
+the node's `session_idle` (thirty minutes), resume, and read what the trail
+says. One sitting exercises the park, the classification probe, core's
+`sessionAlive`/`regenerate`, and the promotion gate — none of which has ever
+run against a node — and it answers the two questions the web session is
+waiting on (below) and §1.7 for free. Until it is done, everything in §2.6 is
+asserted, and this client's answer to Law 2 is a theory.
 
-Then, in one device session while the set is up: §1.2's two remaining captures,
-§1.3 decoder instances, §1.4 headers, §1.5 audio focus, and §1.6's unread
-platform-surface findings. They all want the same sitting.
+**Before it:** install 0.4.0 (built, versionCode 400, so the device can tell
+it from 304), and settle anomaly 3 — either add `http://10.35.1.50:7438` to the
+bootstrap list or set it on the set through Settings — or the sitting measures
+a cross-site path and proves nothing about the client.
+
+**Then, in the same sitting**, because they all want the set up and the trail
+readable: §1.2's two remaining captures, §1.3 decoder instances (which gates
+Tier 3 *and* is what would remove the park's visible blank), §1.4 headers, §1.5
+audio focus, §1.6's unread surface findings, §2.7.3's seek readout against a
+remux title, and the forward buffer actually reached on a 4K HEVC title
+(§2.7.6). And re-verify anomaly 6.
 
 **Two of them are owed to the web session**, which cannot take either on a
 desktop and has asked for them in this order (2026-09-19):
@@ -53,46 +96,71 @@ desktop and has asked for them in this order (2026-09-19):
    it is an open P0 there. A television is where a pause that long is ordinary,
    so this set is the right place to find out.
 
-Add §1.7 to the same sitting — what a dead player still reports about its buffer
-— because it is free once either of the above is being provoked, and it decides
-whether this client can hand core a live cover figure or must go on handing it a
-stale one.
+### After the sitting, in order
+
+1. **Tier 3** (§2.1), if §1.3 allows a second decoder — it is the rest of the
+   reason this repo exists, and it closes the one visible difference from the
+   web client's park.
+2. **Decisions** §3.1, §3.2, §3.5 — none blocks work, all shape it.
+3. **Music** (§4.6): `OverflowMenu`, `Modal`, then a queue that outlives the
+   screen. The largest parity block, and the three components it needs are
+   shared with the mini player and previous/next (§4.2).
+4. The rest of §4, in its own order.
 
 ### Getting a build onto the set
 
 ```sh
-cd android && ./gradlew assembleRelease          # ~4 min cold
-TV=10.34.1.115:5555 ./scripts/verify-on-device.sh install
+cd android && EXPO_TV=1 ./gradlew :app:assembleRelease -PreactNativeArchitectures=armeabi-v7a
+TV=10.35.1.133:5555 ./scripts/verify-on-device.sh install
 ```
 
 `npm test` runs `version:check` first, which compares `package.json`,
 `app.json` **and the generated `android/` tree** — bump a version and you must
-`npx expo prebuild --platform android` or it fails. The install stage then
-asserts the device is running the APK just built. If it refuses, do not debug
-against that install.
+`EXPO_TV=1 npx expo prebuild --platform android --clean` or it fails. The
+install stage then asserts the device is running the APK just built. If it
+refuses, do not debug against that install.
 
-### Reaching the device
+### Reaching the devices
 
-- The TCL answered all of 2026-09-13 at **`10.34.1.115:5555`**, already
-  adb-connected. Its address is DHCP and has moved before (`.115` → `.116`).
-- `getprop ro.product.manufacturer` must say **TCL**; it is `armeabi-v7a` only.
-  A Blackview phone also appears on adb — that is the phone client's device,
-  not this one.
-- The set reaches its cluster node in **0.65 ms**; the laptop's link to the
-  site is the unreliable half and dropped once mid-session. A slow or failed
-  adb call says nothing about the set's own health.
+**There are two, and they are not the same hardware.**
+
+| | `10.35.1.133` — where 2026-09-19's work was done | `10.34.1.115` — 2026-09-12/13 |
+| --- | --- | --- |
+| Model | TCL `G10_4K_GB_NF_32BIT` | TCL 55B6B |
+| Android | **12** (SDK 31) | 11 |
+| ABI | `armeabi-v7a,armeabi` | `armeabi-v7a,armeabi` |
+| Surface | 3840×2160 panel, **1920×1080 override at density 320 → 960×540 dp** | unmeasured |
+| Site | `10.35.1.x` — node `10.35.1.50` is **not in the bootstrap list** | `10.34.1.x` — node `10.34.1.50` |
+
+Both are `leanback_only`, `type.television`, no touchscreen. The APK's
+`armeabi-v7a` pin is right for both.
+
+- Addresses are DHCP and have moved before (`.115` → `.116`).
+- `getprop ro.product.manufacturer` must say **TCL**. A Blackview phone also
+  appears on adb — that is the phone client's device, not this one.
+- **Network adb has to be switched on at the set.** `10.35.1.133` answered
+  ping and refused `5555` until it was enabled from Developer options, then
+  showed an authorisation prompt for this host's key
+  (`d9:52:24:c1:ae:93:41:08:1b:18:98:85:ce:e9:36:c9`) that had to be accepted
+  on screen. A port scan finds nothing before that step.
+- The older set reaches its node in **0.65 ms**; the laptop's link to either
+  site is the unreliable half. A slow or failed adb call says nothing about the
+  set's own health.
 - **`com.tcl.esticker`** — TCL's in-store demo overlay — took the foreground
-  after ~52 minutes idle and drew over everything. Disabled with
-  `pm disable-user --user 0 com.tcl.esticker`; reverse with
-  `pm enable com.tcl.esticker`. It matters beyond tidiness: if it steals the
-  foreground mid-film, `AppState` goes background and
+  after ~52 minutes idle on the older set. Disabled with
+  `pm disable-user --user 0 com.tcl.esticker`; reverse with `pm enable`. If it
+  steals the foreground mid-film, `AppState` goes background and
   `usePlaybackRuntime` fires `terminateForPageExit()`, killing the session.
-- **Driving the set over adb has two traps.** Back sent when no IME is open
-  exits the app, and `com.tcl.tv` is `FLAG_SECURE` so `screencap` then returns
-  an empty file. And pressing faster than ~2 s during a row scroll scores focus
-  against stale `measureInWindow` rects.
-- The screensaver takes the foreground while idling. Wake, foreground the app
-  and act in one pass.
+  Not yet seen on the newer set.
+- **Driving a set over adb has three traps.** Back sent when no IME is open
+  exits the app; `com.tcl.tv` is `FLAG_SECURE` so `screencap` then returns an
+  empty file; and pressing faster than ~2 s during a row scroll scores focus
+  against stale `measureInWindow` rects. Our own app screencaps fine.
+- The screensaver (`dreamx`) takes the foreground while idling. Wake, foreground
+  the app and act in one pass.
+- **`uiautomator dump` prunes what is off screen.** It showed two rows on a
+  Home that had four, and the missing two were read as absent data. Focus in
+  `tvFocus` is a JS registry, so the dump never shows it either.
 
 ### Two standing rules
 
@@ -107,26 +175,25 @@ against that install.
 
 ## 1. On the television
 
-**The set is no longer the blocker.** It runs 0.3.3, navigates, signs in and
-plays. What is left here is measurement and three faults found by using it.
+**The set is no longer the blocker.** It runs, navigates, signs in and plays.
+What is left here is measurement, and the failover exercise that §0 now puts
+first.
 The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
 
-### 1.1 Three navigation faults found on hardware
+### 1.1 Navigation faults found on hardware
 
-None of these is fixed. The first is ahead of everything else in this file.
-
-- **Settings has no focus-follows-scroll, and it makes the failure trail
-  unreachable.** The Diagnostics toggle sits below the fold; focus moves to it
-  invisibly, the page never scrolls, and Down and centre then appear dead — the
-  only escapes are Up and Back. So the on-screen failure trail is **built,
-  shipped and impossible to switch on**, which is why §1.2 ran without it.
-  `MediaRow` already does the right thing by wiring `onFocusChange` to scroll
-  the focused item into view; `SettingsScreen` does not.
-- **The nav bar does not trap horizontal movement at its ends.** Right from
-  "Settings" escapes into the poster row, because a card further right still
-  scores as a valid candidate. Left from "Home" presumably does the same.
+- ~~**Settings has no focus-follows-scroll**~~ — **fixed 2026-09-19**, and it
+  was never only Settings: no vertical page followed focus at all, and the rows
+  scrolled on every press. One rule now serves both axes (`focusScroll.ts`),
+  and the failure trail is switchable. `COMPLETED.md` has the measurement that
+  found the real cause (`vp=0`).
+- **Does the nav bar trap horizontal movement at its ends?** On 2026-09-13,
+  Right from the *Settings nav item* escaped into the poster row. That item no
+  longer exists — Settings is the cog at the trailing edge and the bar has six
+  entries — so this is **unverified since the top bar was rebuilt**, not fixed.
+  Re-check from the cog and from Home.
 - **Back from a top-level screen exits the app** rather than returning to the
   previous route. Conventional on Android TV, so possibly correct — but it
   means a stray Back drops out to the launcher, and `com.tcl.tv` is
@@ -201,7 +268,8 @@ testing rather than trusting, because it decides transcode-or-not for every HLS
 title.
 
 **Still unread: `checkPlatformSurface`'s own findings.** They render below the
-capability block on the Settings screen and were never reached — see §1.1.
+capability block on the Settings screen and were never reached; the screen
+scrolls now, so this is a matter of looking.
 The three `titleIndex` probes core added on this client's prompt are in that
 block, so §4.3's `AlphabetIndex` still has no runtime evidence behind it.
 
@@ -391,8 +459,10 @@ against a node that did nothing wrong.
 
 ### 2.3 Player options — done, and now exercised
 
-Mode, quality, audio track, subtitle track and source switching, in a panel
-with its own focus scope. Back closes the panel before the player.
+Mode, quality, audio track, subtitle track and source switching, as a block
+inside the chrome above the scrubber — the web client's shape since
+2026-09-19, not a side pane — with its own focus scope. Back closes it, and so
+does Down from the last row.
 
 The panel was not opened during the 2026-09-13 playback session, so its
 contents are still unseen on hardware — but the transport overlay's stream
@@ -416,9 +486,10 @@ clearing it. Whether core ever hands us such a URL is untested.
 
 ### 2.5 Stores constructed but unused
 
-**`VolumeStore` is now wired** (2026-09-13) — volume and mute in the chrome,
-persisted across sessions. See `COMPLETED.md` for the one decision in it that
-was not obvious.
+**`VolumeStore` is wired** (2026-09-13) and persists across sessions; the
+chrome *control* for it was **removed 2026-09-19** at Tom's call (§4.2). The
+store stays because core's `setVolume` applies the remembered level and a
+promoted standby comes up at it.
 
 Still dead:
 
@@ -660,8 +731,7 @@ next launch.** An auth event wearing the costume of a UI bug.
 `lastIdentityChange` and `sessionLockedOut` are the two facts that tell "your
 session aged out" apart from "this cluster refuses you" — identical to a gate,
 very different to a person. Both belong on the failure trail (§4.2), which
-means **§1.1's Settings scroll fault is ahead of this in the order**: the trail
-is built and shipped and cannot currently be switched on.
+and the trail that shows them is switchable as of 2026-09-19.
 
 ### 2.7 Finishing the `0.14.0` port
 
@@ -704,7 +774,7 @@ seekRequestedMs` back off the session.
 nothing local to invent or to keep in step. `startWatchdogs()` logs the stated
 `deadlineMs` and `segmentHoldMs`, and the budget actually applied, at every
 attach. Absent where a node is too old to say, which is itself the useful
-reading. Still behind §1.1 to be seen at all.
+reading. Readable now that Settings scrolls.
 
 **2.7.5 Leave the Kotlin engine alone.** Tom: *it works right now, so don't go
 breaking it.* `PlayerEngine.kt` keeps its `readTimeoutMs = 15000` and
@@ -732,11 +802,9 @@ reached on a high-bitrate title is unmeasured** and belongs in the same sitting
 as §1.7 — as does whether two players holding a minute each is survivable on
 this hardware (§1.3).
 
-**2.7.7 There is a television for it.** Tom, 2026-09-19: a new Android TV is
-here and ready to take the app. Everything in §2.6 and above is asserted until
-it runs there, and the pause case exercises most of it at once — pause past
-`session_idle`, resume, read the trail. **§1.1 is still first**, because the
-trail is how any of it is read.
+**2.7.7 There is a television for it, and it is now §0's single next
+action.** The set at `10.35.1.133` has the app; the pause case exercises most of
+§2.6 at once and the trail that reads it is switchable.
 
 **2.7.8 Docs get cleaned up afterwards.** Tom's call; not now.
 
@@ -773,10 +841,12 @@ fetchable, with `macha-ts` and `macha-client` as precedent. If it is public
 that sentence is now wrong, and it is Macha UI Work's to correct rather than
 ours. Loading the URL while signed out answers it in a second.
 
-### 3.3 Are `/manage`, `/manage/files` and `/items/:id/edit` TV work at all?
+### 3.3 `/manage` and `/items/:id/edit` — **decided, 2026-09-19**
 
-The two remaining **decide** rows in §4.1. A 10-foot UI is a poor place to retag
-a film. `/ingest` and `/sponsor` are already ruled out (Tom, 2026-09-10).
+Not TV work. Tom's ruling on the nav bar: match the web client's *including*
+Status, and **not Import or Manage regardless of user role**. The metadata
+editor goes with Manage. `/ingest` and `/sponsor` were already ruled out
+(2026-09-10). The `ManageNav`/`ManageIcons` rows in §4.3 close with it.
 
 ---
 
@@ -810,7 +880,7 @@ its `exports` map had only ever been exercised through a link.
 
 ### 3.5 Is Back from a top-level screen meant to exit the app?
 
-It does today (§1.1). That is conventional Android TV behaviour, so it may be
+It does today. That is conventional Android TV behaviour, so it may be
 correct — but combined with §1.0's requirement that Settings stay reachable
 from behind the login wall, it is worth stating deliberately rather than
 inheriting.
@@ -833,7 +903,7 @@ less the `*` catch-all and the two pure redirects, so **28 real destinations**.
    endpoint editing all have their logic shipped and tested in core; what is
    absent is the D-pad surface in front of them.
 
-### 4.1 Screens — 9 of 28 routes, plus 1 partial
+### 4.1 Screens — 11 of 28 routes, plus 2 partial
 
 | Web route | Here | What core already gives us |
 | --- | --- | --- |
@@ -842,33 +912,30 @@ less the `*` catch-all and the two pure redirects, so **28 real destinations**.
 | `/movies/:id`, `/episodes/:id`, `/items/:id` detail | **yes** | `MediaApi`, `MediaTechnicalProfile` |
 | `/series/:id`, `/series/:id/seasons/:id` | **yes** (season folded in) | `MediaApi` |
 | `/play/:id` player | **yes** | `PlaybackCoordinator`, `PlaybackRuntime` |
-| `/settings` | **partial** — displays, cannot edit | `MachaServerApi`, `connectionConfiguration` |
+| `/settings` | **yes** (2026-09-19) — the web layout, edits endpoints; adopted on restart | `ServerApi`, `CatalogueApi` |
 | `/login` | **yes** (2026-09-13) | `sessionManager.signIn`, `sessionLockedOut`, `lastMintFailure` |
 | *(offline gate)* | **yes** — no web equivalent | `lastMintFailure.reason` |
-| `/search` | **no** | `MediaApi.search()` — the query side is done |
-| `/music/*` (7 routes) | **no** | `MediaApi`, `MusicPlaylistStore`, `state/musicPlaylist` |
-| `/status`, `/status/client`, `/status/connectivity`, `/status/nodes/:id` | **no** | `ClusterStatusApi`, `ClusterStatusRouter` |
+| `/search` | **yes** (2026-09-19) — platform IME, the web client's query rules | `MediaApi.search()` |
+| `/music/*` (7 routes) | **partial** — albums grid only (§4.6) | `MediaApi`, `PlaylistStore` |
+| `/status`, `/status/client`, `/status/connectivity`, `/status/nodes/:id` | **partial** — one reading, no actions, no polling | `ClusterStatusApi` |
 | `/connection` endpoint gate | **no** | `shouldEnterConnectionGate`, `normalizeConnectionEndpoints` |
-| `/manage`, `/manage/files` | **decide** (§3.3) | `ClusterManageApi` |
-| `/items/:id/edit` metadata editor | **decide** (§3.3) | `ClusterCatalogueApi` |
+| `/manage`, `/manage/files` | **not doing** — Tom, 2026-09-19 (§3.3) | — |
+| `/items/:id/edit` metadata editor | **not doing** — Tom, 2026-09-19 (§3.3) | — |
 | `/ingest`, `/sponsor` | **not doing** — Tom, 2026-09-10 | — |
 
-**Search is the most conspicuous absence for a viewer**, and the design is
-settled: **use the television's own on-screen keyboard** (Tom, 2026-09-10). A
-React Native `TextInput` raises the platform IME — the leanback keyboard the
-viewer already knows, with its own voice input. Drawing our own would be worse
-and larger.
+**Search is built** on the design Tom settled on 2026-09-10 — the set's own
+keyboard through `TvTextInput` — and keeps the web client's query rules exactly
+(two characters, 180 ms settle) so the two answer alike.
 
-Its one integration point is **already built**: while the IME is open it owns
-the D-pad, and `tvFocus.suspend()` now exists for exactly that. Search is
-therefore unblocked.
+**Music is seven routes** and one of them exists (§4.6). It remains the
+largest single block.
 
-**Music is seven routes**, the largest single block, and none of it is started.
+### 4.2 Player chrome — 7 of 12 controls
 
-### 4.2 Player chrome — 5 of 12 controls
-
-Built: restart, rewind, play/pause, forward, close, plus the scrubber with a
-buffered range.
+Built: restart, rewind, play/pause, forward, options, close, plus the scrubber
+with a buffered range, the accelerating seek, and a cold Left/Right that raises
+the bar and seeks in one press. The stream lines come from core's
+`describePlaybackSession`, as the web client's do.
 
 Missing:
 
@@ -882,17 +949,17 @@ Missing:
   remembered level and a promoted standby still comes up at it — what went is
   the control, not the state.
 - **Mini player** and its minimise/expand pair.
-- ~~**Failure trail**~~ — **built 2026-09-13, and currently unreachable.**
+- ~~**Failure trail**~~ — **built 2026-09-13, reachable since 2026-09-19.**
   `screens/player/failureTrail.ts` prints the last dozen warnings and errors
-  under the failure message. Off by default; the switch is the first editable
-  control on the Settings screen — **and that screen cannot scroll to it**
-  (§1.1). The buffer it reads had to be wired too
+  under the failure message. Off by default; the switch is under Diagnostics on
+  Settings. The buffer it reads had to be wired too
   (`diagnostics/playbackLog.ts`, at `warn`), since this client had never
   called core's `createClientLogger` at all. Note `console` is `__DEV__`-only,
   so in a release build the trail is the *only* way to read that buffer:
   `verify-on-device.sh logs` greps `ReactNativeJS` and will show nothing.
-- **Seek acceleration** (`screens/player/seekAcceleration.ts`) — the native key
-  bridge already passes `repeatCount` through, so the input side is done.
+- ~~**Seek acceleration**~~ — **ported 2026-09-19**, ladder and thresholds
+  unchanged from the web client, pinned by its tests. Duplicated rather than
+  shared; the file says why and it is Tom's to settle.
 
 Fullscreen is **not applicable** — a TV app is always fullscreen.
 
@@ -902,10 +969,10 @@ Ported: `MediaCard`, `MediaRow`, `Status`, `PlayerIcons`, `LazyArtwork`,
 `AlphabetIndex`, `ConnectionForm`-adjacent `TvTextInput`, plus TV-only
 `Focusable`, `TopBar` and `EpisodeCard`.
 
-**`TvTextInput` is the one to reuse.** It raises the platform IME and suspends
-the focus registry while it is open, which is the integration point Search needs
-and the reason `tvFocus.suspend()` exists. Built for the login screen; Search
-should not write a second one.
+**`TvTextInput` is the one to reuse**, and Search and Settings both do. It
+raises the platform IME and suspends the focus registry while it is open. Add
+`NavIcons` (user, cog, magnifier — the web client's geometry) to the ported
+list.
 
 Missing, in the order they matter on a D-pad:
 
@@ -915,8 +982,8 @@ Missing, in the order they matter on a D-pad:
   Continue Watching.
 - **`MediaPageTitle`** refresh affordance, **`EpisodeRail`**, **`SectionNav`**,
   **`MusicNav`**, **`StatusNav`**, **`ConnectionForm`**, **`DeviceCapabilities`**,
-  **`AsyncIconButton`**, **`EditButton`**, **`AppLogo`**, and **`ManageNav`** /
-  **`ManageIcons`** (the last two only if §3.3 is taken).
+  **`AsyncIconButton`**, **`AppLogo`**. `EditButton`, `ManageNav` and
+  `ManageIcons` are closed with §3.3.
 
 **What `LazyArtwork` does not cover:** an `ArtworkRef` with no `url` at all,
 which the web client fetches as a `Blob` via `useArtworkUrl`. Those render as
@@ -931,7 +998,8 @@ Ported: `useAsync`, `useRefreshableAsync`, `useTvNavigation`, `useAlphabetIndex`
 Missing: **`useArtworkUrl`** / **`useViewportArtworkUrl`** / **`artworkViewport`**
 / **`artworkRetry`** (20 uses in the web client — but most of what they are
 *for* is now covered differently; see §4.3), and **`usePollingTask`** (7 — the
-status screens need it).
+web client's status pages poll; this client's Status is a one-shot reading
+with a refresh, which is honest but stale the moment a node changes).
 
 ### 4.5 Stores — one wired, one dead, one now ours
 
