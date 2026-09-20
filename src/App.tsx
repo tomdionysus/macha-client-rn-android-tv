@@ -175,12 +175,42 @@ function Shell(): React.JSX.Element {
 
   const open = useCallback((media: MediaSummary) => push(routeForMedia(media)), [push]);
 
+  /**
+   * Playing leaves the item's own detail screen underneath the player.
+   *
+   * **Tom, 2026-09-20: Back out of a film arrives at the media detail screen.**
+   * It already did from the one path that goes through it — press Play on a
+   * detail screen and the detail screen is what is beneath — and did not from
+   * the two that skip it. Continue Watching dropped the viewer on Home, and an
+   * episode played from a season list dropped them on the season, which is the
+   * list they came from rather than the thing they were watching.
+   *
+   * So the route is synthesised here rather than at each caller: whatever a
+   * viewer presses Play on, the screen for that item is put under the player
+   * unless it is already the screen they are standing on. `routeForMedia`
+   * decides which screen that is, so an episode gets its own detail rather
+   * than its season's.
+   *
+   * It is the same stack in both directions — Back walks it, and so does the
+   * player's own close — so nothing else has to know this happened.
+   */
   const play = useCallback(
     (media: MediaSummary, startPositionMs: number) => {
-      push({ name: 'player', media });
+      setStack((current) => {
+        const beneath = current[current.length - 1];
+        const detail = routeForMedia(media);
+        const alreadyBeneath =
+          beneath !== undefined &&
+          beneath.name === detail.name &&
+          'media' in beneath &&
+          beneath.media.id === media.id;
+        return alreadyBeneath
+          ? [...current, { name: 'player', media }]
+          : [...current, detail, { name: 'player', media }];
+      });
       void runtime.play({ media, startPositionMs, returnTo: 'detail' });
     },
-    [runtime, push],
+    [runtime],
   );
 
   if (route.name === 'player') {

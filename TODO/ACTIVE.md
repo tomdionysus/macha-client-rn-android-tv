@@ -54,13 +54,14 @@ the parity work. Recorded so the next reader knows what was wrong here and why.
    density 320 and so a **960×540 dp** viewport, which is what broke the
    interface's sizing. Whether the older set reports the same is **unmeasured**.
    Both are recorded now; which is *the* target is Tom's to say.
-3. **The shipped bootstrap endpoints omit the new set's own site.** `app.json`
-   lists `10.34.1.50`, `10.44.1.50` and `10.44.1.51`; the set at `10.35.1.133`
-   has a node at `10.35.1.50` — the one the web client's pause report was
-   measured against — and is not told about it. So every request it makes
-   crosses sites, and **every latency or failover reading taken there is a
-   reading of the wrong path.** Settings can now edit the list on the set, but
-   the default is still wrong for that site. Raised 2026-09-19, unanswered.
+3. ~~**The shipped bootstrap endpoints omit the new set's own site.**~~
+   **Superseded twice over.** The list was changed to `http://10.35.1.50:7438`
+   in `a0e134e` on 2026-09-20, which is why the set reached its own node that
+   evening — it was the shipped default doing it, not a hand edit on the
+   device, and this file said otherwise for a day. And Tom has now answered the
+   underlying question rather than the symptom: **the app should ship with no
+   endpoints at all** (§3.6). Readings taken before `a0e134e` crossed sites and
+   should be read that way; readings after it did not.
 4. **The parity tables were wrong in nine rows.** Search, Status and Music
    said "no" and exist; Settings said "cannot edit" and edits endpoints; seek
    acceleration was listed missing and is ported; the failure trail was
@@ -141,7 +142,14 @@ refuses, do not debug against that install.
 
 ### Reaching the devices
 
-**There are two, and they are not the same hardware.**
+**There are two, they are not the same hardware, and only one of them can be
+switched on to order.** Tom, 2026-09-20: both TCLs are targets; `10.35.1.133`
+(or whatever `10.35.x.x` address it moves to) is the one he controls and the
+one all work is driven against. **`10.34.1.115` is updated opportunistically
+when it happens to be up, and the app is not run on it** — install, leave it,
+and take no measurement from it unless somebody is in front of it.
+`verify-on-device.sh` now defaults to the controllable set, so a bare
+invocation means `10.35.1.133`.
 
 | | `10.35.1.133` — where 2026-09-19's work was done | `10.34.1.115` — 2026-09-12/13 |
 | --- | --- | --- |
@@ -1337,12 +1345,71 @@ its `exports` map had only ever been exercised through a link.
 
 ### 3.5 Is Back from a top-level screen meant to exit the app?
 
+**Partly answered, 2026-09-20.** Tom ruled on Back *inside the player*: if the
+controls are up it puts them away, and the next press leaves the film — and
+leaving arrives at **the media detail screen**, which now holds for every path
+into the player rather than only the one that went through a detail screen
+(`App.tsx`'s `play`). The top-level question below is still open.
+
+
 It does today. That is conventional Android TV behaviour, so it may be
 correct — but combined with §1.0's requirement that Settings stay reachable
 from behind the login wall, it is worth stating deliberately rather than
 inheriting.
 
 ---
+
+### 3.6 The client ships with no endpoints — **decided by Tom, 2026-09-20**
+
+**His ruling, in his terms:** from a systems point of view the app should not
+ship with *any* endpoints. Like the web client, it asks the viewer to supply
+them, persists them, and offers a **real interface to change or clear** them,
+and it discovers endpoints the way the web client does. **Core is responsible
+for some or all of this except the interface** — his warning, and it is the
+line to get right. For development, *this* television defaults to
+`10.35.1.50`.
+
+**What core already owns**, read from `runtime/configuration.ts` rather than
+assumed:
+
+- `bootstrapEndpoints()` reads the stored list, migrates two superseded
+  layouts, and **falls back to `environmentEndpoints` when nothing is stored**
+  — which is the build's own list, ours from `app.json` via `state/client.ts`.
+- `setBootstrapEndpoints([])` *removes* the stored record rather than storing
+  an empty one, deliberately, so clearing falls back to the environment again.
+- `serverUrl()` answers `''` when there is nothing.
+- `discoveredEndpoints()` is a resumable-history hint only, written **solely by
+  `EndpointHealthMonitor`**, and core is explicit that a discovered candidate
+  must never be persisted as user configuration.
+
+**So the shipped list is the whole hinge.** While `app.json` carries an
+endpoint, "clear" cannot mean what Tom means by it: core hands the build's
+default straight back, and a viewer who cleared a wrong server gets it
+returned. Ship `[]` and clearing genuinely returns the client to cold.
+
+**What this client is missing, and it is one state, not a screen.** `access.ts`
+has `checking | allowed | sign-in | offline`, and a client with no endpoints
+lands in **`offline`** — "nothing answered". On a first run that is a lie:
+nothing was *asked*. The work is an `unconfigured` state and the screen that
+belongs to it, with `OfflineScreen` keeping its own meaning.
+
+**The development default is a pre-fill, not a default.** Release builds go on
+this television, so `__DEV__` cannot carry it. The shape that keeps Tom's rule
+intact: `app.json` ships `machaEndpoints: []`, and a *separate* key holds a
+**suggestion** the connection screen types into the field for the viewer to
+accept or overwrite. The app then never holds an endpoint nobody chose, and
+nobody spells out an address on a D-pad keyboard either.
+
+**Open until the web session answers** (asked 2026-09-20, per Tom's standing
+rule that behaviour questions go to them first and escalate to him only where
+a browser answer makes no sense on a television): what a cold start actually
+shows and what counts as "supplied enough" to leave it; what happens when
+stored endpoints *all* fail later, which is the case that matters most here
+because there is no address bar behind it; what triggers discovery and what
+happens when a discovered endpoint is the only reachable one; and what
+clearing means to them. **Nothing should be built here until that lands** —
+this is a behaviour port, and the last three behaviour guesses in this file
+were all wrong.
 
 ## 4. Parity with `macha-client` — the complete list
 

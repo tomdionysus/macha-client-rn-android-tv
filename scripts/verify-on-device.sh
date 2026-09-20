@@ -18,7 +18,13 @@
 #   ./scripts/verify-on-device.sh logs        # live playback decisions
 set -uo pipefail
 
-TV="${TV:-10.34.1.115:5555}"
+# The set Tom controls, and therefore the one a bare invocation means.
+#
+# Both TCLs are targets (2026-09-20), but only this one can be switched on when
+# the work needs it; `10.34.1.115` is updated **opportunistically when it
+# happens to be up, and not run** — install on it, leave it alone, and take no
+# measurement from it unless somebody is standing in front of it.
+TV="${TV:-10.35.1.133:5555}"
 PKG="foundation.macha.client.tv"
 APK="android/app/build/outputs/apk/release/app-release.apk"
 ADB="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
