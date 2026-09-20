@@ -15,7 +15,7 @@
     "version:check": "node scripts/version-check.mjs"
   },
   "dependencies": {
-    "@machafoundation/core": "^0.14.0",
+    "@machafoundation/core": "file:../macha-ts",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.20",
     "expo-build-properties": "~57.0.17",

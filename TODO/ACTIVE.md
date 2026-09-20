@@ -215,7 +215,30 @@ verification and the 5.1 measurement — are in
   (*"speaker layout is not a concept core has"*), so capture the HAL output
   configuration and the effect chain on the active track.
 
-### 1.3 Decoder instance limits
+### 1.3 Decoder instance limits — **measured 2026-09-20, and the shell check cannot settle it**
+
+`dumpsys media.player` on the TCL `G10_4K_GB_NF_32BIT` reports, inside the main
+hardware decoder `OMX.realtek.video.decoder`, **two different
+`max-concurrent-instances` values for every video type it supports — `6` and
+`1`** — and the dump's structure does not say which belongs to which profile
+group. Other decoders in the same dump (`.vp8`, `.secure`, the Dolby Vision
+variants) report their own `1`s and `2`s, which is what made an earlier reading
+of "1 for hevc" look conclusive when it was an artefact of pairing names to
+numbers with `awk`.
+
+**So the answer is still unknown, exactly as this section predicted**, and the
+fallback it named is now the only way: allocate a second decoder in the app and
+observe. That is app work — prime a standby with a surface and see whether it
+renders — and it is the same experiment Tier 3 (§2.1) needs anyway, so it
+belongs there rather than in a shell check.
+
+What the dump does rule out: there is no decoder here reporting a hard `1` for
+*every* video type, so "this panel can only ever decode one stream" is not the
+answer. Whether it can decode two **4K HEVC** streams at once on a 32-bit set is
+a memory question as much as a decoder one, and neither number in the dump
+answers it.
+
+### 1.3a The original question, for reference
 
 **On the critical path for §2.1**, which is non-negotiable.
 `MediaCodecInfo.CodecCapabilities.maxSupportedInstances` per codec, via
@@ -244,6 +267,38 @@ no `X-`/`Macha-` literals, nothing branching on a response header. Media3 sets
 its own `User-Agent` and range headers, which are real traffic and neither
 custom nor ours. Capture a real fragment request and tell the NPM session, who
 tracks this across all four clients.
+
+### 1.4a The node's "unused session" reaper does not fire for direct play
+
+**Measured 2026-09-20 on `10.34.1.50`, server `0.46.2`.** The node reports
+`session_unused_idle_ms: 120000` — two minutes, not the thirty of
+`session_idle` — and `unused_sessions_reclaimed: 2`, so the reaper is live on
+that node rather than theoretical.
+
+A **direct-play** session was then paused deliberately and watched for **four
+and a half minutes**: `sessions` stayed `1` and `unused_sessions_reclaimed`
+stayed `2` throughout. So either "unused" means something narrower than "the
+client has stopped asking", or a direct session — which has no pipeline — is
+exempt from it.
+
+**It matters for testing rather than for viewers.** The two-minute clock looked
+like a way to reproduce a reaped session without waiting out `session_idle`,
+and it is not one, at least not for the mode this panel actually plays in. The
+web client's recipe — delete the session out from under the paused client — is
+still the only quick reproduction, and it needs a session id the node does not
+expose (§1.4b). Asked of the server session on 2026-09-20.
+
+### 1.4b No way to find a playback session id from outside the client
+
+`GET /api/v1/playback/sessions` answers `404 not_found` — there is no list
+route — and `GET /api/v1/playback/status` gives a session *count* and no ids.
+The id is in the stream URL, which this client logs to the failure trail
+(`source-budgets`) and therefore shows only when playback has already failed.
+
+So reproducing the reaped-session case on this client currently needs either a
+way to list sessions server-side, or a diagnostic that shows the current
+session id on screen. The second is a small change here and would make the test
+repeatable; it is not worth doing until the first is ruled out.
 
 ### 1.5 Confirm audio focus on hardware
 
