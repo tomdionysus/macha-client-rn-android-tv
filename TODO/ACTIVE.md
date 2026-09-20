@@ -81,63 +81,39 @@ the parity work. Recorded so the next reader knows what was wrong here and why.
 
 ### The single next action
 
-**Find out whether a reaped session reaches this client as a terminal error or
-as a stall** — it is the one thing §1.0 could not settle, and everything about
-the `not-found` contract on this platform turns on it.
+**Find out why the classification answers `unknown` when the error says
+`Response code: 404`.** §2.8. The question this section carried for a week —
+whether a reaped session reaches this client as a terminal error or as a stall
+— **is answered, and it is a terminal error** (`COMPLETED.md`, 2026-09-20
+evening, and §1.0f below). The `not-found` contract *can* reach this platform.
+It did not, and the reason is now in this client's own code rather than in a
+hypothesis about `expo-video`.
 
-The recovery in §1.0 produced no failure screen, and the failure trail only
-renders under one, so the evidence was unreadable at exactly the moment it
-mattered. **That diagnostic now exists** (§1.0c, built 2026-09-20): with
-Diagnostics on, the last six warnings and errors sit at the top-left of the
-player the whole time a film runs, polled rather than rendered so a stall
-cannot freeze the thing that reports the stall. It has passed the three checks
-and **has never been on a television**.
-
-So the next action is the run, not the build: install a fresh APK — which now
-also carries core's recovery fix, §1.0d — put Diagnostics on, reproduce the
-reap of §1.0 with the session id the chrome shows, and read which channel the
-recovery came through. §1.0c lists which lines mean which.
-
-**The set was unreachable when this was written** (2026-09-20, 18:05): no ICMP
-reply from `10.35.1.133` and `adb connect` timed out. That is the ordinary
-state — both sets are frequently powered off and network adb has to be switched
-on at the set each time — so it says nothing about the work. The run is waiting
-on the television being on, and nothing else.
-
-If it turns out to be a stall — which is what the endpoint change and the
-server's journal both point at — then **the `not-found` kind cannot reach the
-commonest reaped-session case on any host whose player hides transport
-errors**: Media3, AVPlayer and a native HLS element alike. That is core's
-problem rather than this client's, and it is already with them.
-
-**The transcode half of §1.0 is answered and is core's**: the recovery POST
-names `mode` without `video`/`audio`, and the server clears per-stream
-transforms when `mode` is named. Core has it and is deliberately not patching it
-until it is settled whether the transforms should be restated from the
-instruction core chose or from the node's own echo. **Nothing for this client to
-do** beyond confirming, once the diagnostic exists, that a recovery on this
-platform still arrives through the degradation channel — which is what made it a
-cross-node failover rather than a same-node regeneration in the first place.
+Everything else about failover is in better shape than this file has ever
+recorded: core's recovery fix holds on hardware, the replacement kept its video
+copy, and it came back to the local node. What is left is one classification
+that threw away the evidence it was handed.
 
 **Then, in the same sitting**, because they all want the set up and the trail
-readable: §1.0d's two questions for core, §1.0e's promotion seek on a transcode
-title, §1.2's two remaining captures, §1.3 decoder instances (which gates
+readable: §1.2's two remaining captures, §1.3 decoder instances (which gates
 Tier 3 *and* is what would remove the park's visible blank), §1.4 headers, §1.5
 audio focus, §1.6's unread surface findings, §2.7.3's seek readout against a
-remux title, and the forward buffer actually reached on a 4K HEVC title
-(§2.7.6). And re-verify anomaly 6.
+remux title, the forward buffer actually reached on a 4K HEVC title (§2.7.6),
+and §1.0e's promotion seek on a transcode title. And re-verify anomaly 6.
 
 **Two of them are owed to the web session**, which cannot take either on a
-desktop and has asked for them in this order (2026-09-19):
+desktop. **They have since re-ordered them (2026-09-20): `session_idle` first.**
 
-1. **Is the re-attach blank visible at ten feet?** Not whether it exists — it
+1. **What does `session_idle` do to a set left paused, and after how long?**
+   Thirty minutes from the node's reaper, and both halves of their pause P0 are
+   built and neither has been watched. A television is where a pause that long
+   is ordinary, so this set is the right place to find out. **Disable the
+   screensaver first** (§0's device notes) or the dream takes the foreground
+   and kills the session before the reaper can.
+2. **Is the re-attach blank visible at ten feet?** Not whether it exists — it
    does (§2.6) — but whether it reads as a fault or as nothing. That is what
    decides whether holding the shutter open is worth a decoder instance
-   (§2.1), and no measurement in milliseconds answers it.
-2. **What does `session_idle` do to a set left paused, and after how long?**
-   Their figure is thirty minutes from the node's reaper and the client half of
-   it is an open P0 there. A television is where a pause that long is ordinary,
-   so this set is the right place to find out.
+   (§2.1). **They say this one can wait.**
 
 ### After the sitting, in order
 
@@ -525,8 +501,83 @@ What is worth measuring here instead, and is the same fault standing on its
 head: the standby buffers the replacement **from that generation's start**, and
 a promotion then seeks it to the live position. On a transcode, that position
 may be ahead of anything the node has encoded — so where the web client rewinds,
-this one would sit on a seek that cannot complete. Unobserved. It wants the same
-sitting as §1.0's re-run, on a transcode title.
+this one would sit on a seek that cannot complete. Unobserved. It wants a
+sitting on a transcode title.
+
+**Their 6 s is a principle, not a constant** (web session, 2026-09-20): it is
+`HANDOVER_CONVERGENCE_WINDOW_MS`, and it is one segment plus margin, because a
+rate read from inside a single segment measures the segment boundary rather
+than production. Their segments are 4 s on this cluster. **If a window is ever
+built here it has to clear this panel's segment duration**, not copy the six.
+And if this client ever abandons a replacement, the abandon is different: not
+attach-at-live-position, but decline the promotion and leave the viewer on the
+generation they already have.
+
+### 1.0f The reap, run twice — what is settled and what replaced it
+
+**Settled 2026-09-20 (evening), on hardware, and not to be re-derived.** Full
+method and figures in `COMPLETED.md`.
+
+- **A reaped session arrives as a terminal error**, carrying its status in the
+  message: `A playback exception has occurred: Source error Response code:
+  404`. No `stalled`, no `alternate-promoted-on-degradation`. §1.0's hypothesis
+  — that `expo-video` presents a fragment `404` as a stall, so the failure
+  channel is unreachable here — **is wrong and is withdrawn**, including from
+  what was told to core.
+- **Core's recovery fix (`32da3e0`) holds.** The replacement kept `video: copy`
+  — screen, session payload and `running_video_transcode_pipelines: 0` on both
+  nodes all agree — and it came back to **the local node**, not across the
+  site.
+- **7.2 s** from failure to new source, covered by the buffer. Nothing visible.
+- **The generation was never a remux.** `mode: transcode, video: copy`,
+  straight from the node. The word "remux" in §1.0 was ours.
+
+### 1.0g What media3 does with a status, read from the shipped artifact
+
+**Read on 2026-09-20 from `media3-exoplayer-1.9.0.aar`** — the version
+`expo-video` pins (`node_modules/expo-video/android/build.gradle:21`) —
+by disassembling `DefaultLoadErrorHandlingPolicy`. Asked for by core, which is
+deciding whether `segment_not_ready` should stay a `500`.
+
+- **`getRetryDelayMsFor`** gives up (`C.TIME_UNSET`) for exactly five things:
+  `ParserException`, `FileNotFoundException`,
+  `HttpDataSource$CleartextNotPermittedException`,
+  `Loader$UnexpectedLoaderException`, and a position-out-of-range
+  `DataSourceException`. **A response code is not among them.** Everything else
+  — including `404`, `425` and `500` — retries after
+  `min((errorCount - 1) × 1000, 5000)` ms.
+- **`isEligibleForFallback`** is true for `403, 404, 410, 416, 500, 503`.
+  Fallback means switching track or location and **excluding the one that
+  failed for 300 s** (or 60 s at the second level).
+- So on this stack a `4xx` does **not** stop the retry, and the current `500`
+  is in the *fallback* list — it asks media3 to hold this location against the
+  node for five minutes, which is the opposite of "the node is working, ask
+  again". A `425` would be retried and would not blacklist anything.
+
+**Untested against a live node**, and that is the honest limit of this: it is
+the shipped policy read from bytecode, not a `425` served to this television.
+
+### 1.0h What `expo-video` throws away, and it is a wrapper gap
+
+`PlaybackError` (`node_modules/expo-video/android/src/main/java/expo/modules/
+video/records/PlaybackError.kt`) has **one field**, `message`, built as
+`"A playback exception has occurred: ${localizedMessage} ${cause?.localizedMessage}"`.
+`PlaybackException.errorCode` is not forwarded, and neither is anything else.
+
+**The information exists one layer down.** media3's
+`HttpDataSource$InvalidResponseCodeException` carries `responseCode`,
+`headerFields` and `responseBody`. So the limit is `expo-video`'s record, not
+media3 — which makes it a gap somebody could close (a patch, a fork, or the
+native engine this repo already has in `modules/macha-player`) rather than a
+property of the platform. Recorded because core asked whether it was permanent.
+
+**And the timeouts are not media3's.** `buildBaseDataSourceFactory` sends every
+`http(s)` source through `OkHttpDataSource` built on a bare
+`OkHttpClient.Builder().build()` — so the deadline is **OkHttp's default 10 s
+connect and 10 s read**, not media3's `DEFAULT_READ_TIMEOUT_MILLIS` of 8000.
+Core's `docs/writing-a-player.md` lists 8000 for this stack and is wrong for
+it. (`modules/macha-player`'s own engine sets 8 s and 15 s, but that is not
+what ships.)
 
 ### 1.4a The node's "unused session" reaper does not fire for direct play
 
@@ -1131,6 +1182,88 @@ action.** The set at `10.35.1.133` has the app; the pause case exercises most of
 §2.6 at once and the trail that reads it is switchable.
 
 **2.7.8 Docs get cleaned up afterwards.** Tom's call; not now.
+
+### 2.8 The classification answers `unknown` with the 404 in front of it — **P1, and the next action**
+
+**Measured 2026-09-20.** A reaped session produced
+
+    playback failure {"message":"A playback exception has occurred:
+                      Source error Response code: 404","kind":"unknown"}
+
+and **no `terminal-failure-classified` line at all**, which is the tell: that
+line is only written on the branch that reaches
+`playbackFailureKindForStatus`, so the probe never got that far. Four candidate
+explanations, in the order worth testing:
+
+1. `source.isManifest` was false for the source, so `kindForTerminalError`
+   returned `unknown` before probing. The URL ended `/master.m3u8`, so if this
+   is it, the flag is being set wrong rather than read wrong.
+2. `probeHlsReadiness` answered something other than `unavailable` for a
+   playlist the node now 404s — plausible if it treats a `404` on the *master*
+   differently from one on a fragment.
+3. The probe was aborted by `classificationBudgetMs()`. The runway at the
+   moment of failure was minutes, not seconds, so this should be the least
+   likely — but the figure is derived from `lastForwardBufferMs` less its age,
+   and if the event stream had gone quiet the age term could have eaten it.
+4. The walk threw, which the `catch` turns into `unknown` silently.
+
+**Why it matters more than it looks.** `unknown` is not a neutral answer: core
+treats it as evidence against the *endpoint*, so a node that did exactly what a
+reaped session should do gets charged for it, and the client failed over across
+a whole generation when `not-found` would have asked the same node to
+regenerate. The recovery was cheap this time only because the buffer was deep.
+
+**Cheap to settle now that the trail is readable**, because each candidate
+leaves a different mark: add the abort and the `isManifest` verdict to the
+line, reap again, and read it off the screen. One sitting.
+
+### 2.9 What the peers measured for this client, 2026-09-20
+
+Three things arrived from the web session and core the same evening. Recorded
+here because each one closes or re-points something this file was carrying.
+
+- **The AAC-only HLS narrowing costs two titles out of 1010** (web session,
+  their `playback-baseline.mjs` run against fi-1 with a capability set shaped
+  like this panel). Widening `hlsAudioCodecs` from `["aac"]` to
+  `["aac","eac3","ac3"]` moves exactly two items from
+  `video:transcode audio:transcode` to `video:transcode audio:copy`; 989
+  direct-play either way. **The sixteen titles whose audio is transcoded are
+  DTS**, which widening to eac3/ac3 does not reach. So §1.6's worry is real but
+  small on this library, and `MachaPlayerModule.kt`'s claim is **not** worth
+  re-testing until the library gains eac3 rips. Per-title breakdown available
+  on request.
+- **fi-1's budgets, from `GET /api/v1/status`**: `startup_timeout_ms: 15000`,
+  `segment_timeout_ms: 6000`, and core derives `deadlineMs = 19000`,
+  `segmentHoldMs = 6000`. `stream.look_ahead_ms: 32000`. This client read
+  `startBudgetMs: 19000` off its own trail on the set the same evening, which
+  agrees. macnessa is still 0.43.0 and reports `{}`.
+- **fi-1 transcodes 1080p HEVC 10-bit at 1.49x realtime**, first fragment
+  3.8 s, *including* pulling the source across the link from es-1. That is the
+  number that killed the assumption a transcode cannot outrun a viewer, and it
+  is why the web client's handover fault was a join-placement bug rather than a
+  timeout being too short.
+
+**Two warnings that apply here whether or not anything changes:**
+
+- **A playback session is keyed on the bearer token** (server session, from
+  `src/playback.cpp:2236`). A second POST on the same token supersedes whatever
+  that token was playing, **across all media**, reusing the session id and
+  incrementing the generation; the old generation's segments 404 within about a
+  second. `Macha-Viewer-Session` is read nowhere in the server. Core is clear
+  of it incidentally — standbys always go to a different node, regeneration
+  releases first, seeks are a PATCH — and **so is this client, for the same
+  reasons**. But it forecloses one optimisation permanently: a same-node
+  standby, or anything else that creates a second session to cut to, is a black
+  screen and not a second generation.
+- **A mid-playback representation change is the join arithmetic again.** The
+  web client measured a PATCH mode-switch taking 11.5 s, the client then asking
+  for the position the viewer *had been* at, the node having produced 1.96 s of
+  it, and a terminal failure 7 s later: sixteen seconds of black, no rewind.
+  **If this client's options panel ever seeks to the pre-change position after
+  a representation change, it has the same fault**, and it would read as
+  "changing quality sometimes hangs". Unchecked here — `PlayerOptions` applies
+  through `runtime.update`, and what core does with the position afterwards has
+  not been read.
 
 ## 3. Decisions for Tom
 
