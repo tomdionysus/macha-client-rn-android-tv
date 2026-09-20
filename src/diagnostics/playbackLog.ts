@@ -54,6 +54,28 @@ function configure(): void {
 configure();
 
 /**
+ * Lift the buffer to `info` while Diagnostics is on, and drop it back after.
+ *
+ * **Added 2026-09-20 because `warn` hid the one span that mattered.** A
+ * reaped session took core's regenerate path and the viewer sat frozen on
+ * "Preparing new stream" for minutes with **no line at all** on the trail —
+ * not because nothing happened, but because everything that happened between
+ * `session-reaped-regenerating` and the hang is logged at `info`:
+ * `generation-regenerate`, `failed-session-closed`, `session-created`,
+ * `session-regenerated`, `source-activate`, `first-fragment`. The trail could
+ * say a recovery had started and nothing else.
+ *
+ * `info` is not periodic in core — the health monitor has one info site, the
+ * coordinator's are all event-driven — so the cost is bounded by how much
+ * actually happens, and it is only paid with the toggle on, which is only
+ * ever somebody debugging. The console stays off: this is the buffer, not the
+ * bridge.
+ */
+export function applyDiagnosticsLevel(diagnosticsOn: boolean): void {
+  configureClientDiagnostics({ level: diagnosticsOn ? 'info' : 'warn' });
+}
+
+/**
  * The playback scope.
  *
  * One scope rather than one per file: the trail prints `scope event`, and a

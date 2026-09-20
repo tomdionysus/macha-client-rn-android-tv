@@ -5,6 +5,7 @@ import { progressFor, sessionManager, type MediaSummary, type PlaybackProgress }
 import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime } from './app/usePlaybackRuntime';
 import { hydrateStorage } from './state/storage';
+import { syncDiagnosticsLevel } from './diagnostics/failureTrailSetting';
 import { useTvNavigation } from './hooks/useTvNavigation';
 import { tvFocus } from './hooks/tvFocus';
 import { androidTvPlatform } from './platform/AndroidTvPlatform';
@@ -361,7 +362,12 @@ export function App(): React.JSX.Element {
   // be configured before any service is constructed — so nothing renders until
   // the read completes.
   useEffect(() => {
-    void hydrateStorage().then(() => setReady(true));
+    void hydrateStorage().then(() => {
+      // The buffer configured itself at import, before the setting could be
+      // read; a set left with Diagnostics on comes up at the level it asked for.
+      syncDiagnosticsLevel();
+      setReady(true);
+    });
   }, []);
 
   if (!ready) {

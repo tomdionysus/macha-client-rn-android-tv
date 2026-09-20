@@ -416,7 +416,7 @@ export function PlayerScreen({
     }
     let signature = '';
     const read = () => {
-      const next = playbackFailureTrail(undefined, LIVE_DETAIL_CHARS).slice(-LIVE_TRAIL_ENTRIES);
+      const next = playbackFailureTrail(undefined, LIVE_DETAIL_CHARS, 'info').slice(-LIVE_TRAIL_ENTRIES);
       const nextSignature = trailSignature(next);
       if (nextSignature === signature) return;
       signature = nextSignature;

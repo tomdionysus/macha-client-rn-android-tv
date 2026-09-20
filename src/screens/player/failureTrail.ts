@@ -54,12 +54,16 @@ function detailOf(entry: ClientLogEntry, limit: number): string | undefined {
   }
 }
 
+export type TrailLevel = 'warn' | 'info';
+
 export function playbackFailureTrail(
   entries: readonly ClientLogEntry[] = clientDiagnosticsConsole().snapshot(),
   detailChars: number = DETAIL_CHARS,
+  minimumLevel: TrailLevel = 'warn',
 ): PlaybackFailureTrailEntry[] {
   return entries
-    .filter((entry) => entry.level === 'warn' || entry.level === 'error')
+    .filter((entry) => entry.level === 'warn' || entry.level === 'error'
+      || (minimumLevel === 'info' && entry.level === 'info'))
     .slice(-TRAIL_ENTRIES)
     .map((entry) => ({
       atMs: entry.elapsedMs,
@@ -74,11 +78,13 @@ export function playbackFailureTrail(
  *
  * Fewer than the failure overlay's twelve, and for the opposite reason: the
  * overlay is the only thing on screen and has the viewer's whole attention,
- * while this sits over a running picture and is read in glances. Six lines
- * spans a failover — the degradation evidence, the promotion and the new
- * node's budgets — without becoming a second programme.
+ * while this sits over a running picture and is read in glances. Eight lines
+ * spans a recovery **with its `info` steps included** — since 2026-09-20 the
+ * live trail shows `info` while Diagnostics is on, because the regenerate
+ * path's every step between "started" and "attached" is logged at that level
+ * and six lines of `warn` could only say a recovery had begun.
  */
-export const LIVE_TRAIL_ENTRIES = 6;
+export const LIVE_TRAIL_ENTRIES = 8;
 
 /**
  * Whether two readings of the trail differ, cheaply.

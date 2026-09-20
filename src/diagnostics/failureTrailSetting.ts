@@ -1,4 +1,5 @@
 import { nativeStorage } from '../state/storage';
+import { applyDiagnosticsLevel } from './playbackLog';
 
 /**
  * Whether the playback failure overlay prints the evidence behind a failure,
@@ -35,4 +36,17 @@ export function failureTrailEnabled(): boolean {
 export function setFailureTrailEnabled(enabled: boolean): void {
   if (enabled) nativeStorage.setItem(FAILURE_TRAIL_KEY, 'on');
   else nativeStorage.removeItem(FAILURE_TRAIL_KEY);
+  applyDiagnosticsLevel(enabled);
+}
+
+/**
+ * Bring the buffer's level in line with the stored setting.
+ *
+ * Called once, after storage has hydrated, because `playbackLog` configures
+ * itself at import — before the setting can be read — and a set left with
+ * Diagnostics on would otherwise come up at `warn` until somebody visited
+ * Settings and pressed the toggle twice.
+ */
+export function syncDiagnosticsLevel(): void {
+  applyDiagnosticsLevel(failureTrailEnabled());
 }

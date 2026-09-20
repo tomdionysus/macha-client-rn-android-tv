@@ -82,28 +82,11 @@ the parity work. Recorded so the next reader knows what was wrong here and why.
 
 ### The single next action
 
-**Confirm §2.8's diagnosis on the set, and take core's fix when it lands.** The
-cause is found by reading — a reaped session's *master* playlist `404` is
-discarded by `hlsWalkTargets`, so the status never reaches the mapping that
-would have called it `not-found` — and the trail now states which verdict it
-got. What is left is one reap with the set on. The question this section carried for a week —
-whether a reaped session reaches this client as a terminal error or as a stall
-— **is answered, and it is a terminal error** (`COMPLETED.md`, 2026-09-20
-evening, and §1.0f below). The `not-found` contract *can* reach this platform.
-It did not, and the reason is now in this client's own code rather than in a
-hypothesis about `expo-video`.
-
-Everything else about failover is in better shape than this file has ever
-recorded: core's recovery fix holds on hardware, the replacement kept its video
-copy, and it came back to the local node. What is left is one classification
-that threw away the evidence it was handed.
-
-**Then, in the same sitting**, because they all want the set up and the trail
-readable: §1.2's two remaining captures, §1.3 decoder instances (which gates
-Tier 3 *and* is what would remove the park's visible blank), §1.4 headers, §1.5
-audio focus, §1.6's unread surface findings, §2.7.3's seek readout against a
-remux title, the forward buffer actually reached on a 4K HEVC title (§2.7.6),
-and §1.0e's promotion seek on a transcode title. And re-verify anomaly 6.
+**P-1, below: a reaped session now freezes the viewer, and it is the direct
+consequence of the classification being fixed.** Everything else in this file
+is behind it. The mechanism is found, core has bounded it (`0e787f8`), this
+client can now see the whole recovery on screen, and none of that has been
+run. One reap, with the set on, decides whether it is closed.
 
 **Two of them are owed to the web session**, which cannot take either on a
 desktop. **They have since re-ordered them (2026-09-20): `session_idle` first.**
@@ -202,6 +185,101 @@ Both are `leanback_only`, `type.television`, no touchscreen. The APK's
   assertion here has been wrong at least once — including two of this
   session's, listed in `COMPLETED.md`. Open the peer before writing "only",
   "never" or "nowhere else".
+
+## P-1. The regenerate path freezes the viewer — mechanism found, bound landed, unverified
+
+**Measured 2026-09-20, 22:58, on the TCL, with core's walk fix (`10a1d93`) in
+the build.** A session deleted under a paused client was, for the first time,
+classified correctly:
+
+    755.3s playback terminal-failure-classified  {"status":404,"kind":"not-found"}
+    755.3s playback failure                      {… "kind":"not-found"}
+    755.4s playback.api http-error-response      GET  /playback/sessions/df33040e…  404
+    755.4s playback.coordinator source-reaped    endpoint 10.35.1.50:7438
+    755.4s playback.coordinator session-reaped-regenerating
+    755.4s playback.api http-error-response      DELETE /playback/sessions/df33040e…  404
+
+**And then nothing, for minutes.** Position frozen at 5:00, chrome reading
+"Preparing new stream on http://10.35.1.50:7438…", no failure screen, no
+further line. Tom watched it freeze; this session had reported it as
+recovering from 25-second screenshots, and was wrong.
+
+### Why it is P-1 and not P0
+
+Before the walk fix the same reap was misclassified as `unknown`, took the
+**failover** path, and recovered in 7.2 s — cross-site and expensive, but
+invisible. The fix routes the same event down the **regenerate** path, which
+had never been exercised on any platform, and that path hung. So the correct
+change made the viewer's outcome strictly worse, and every reap on every
+client with the fix does this until it is closed. It is the one thing in this
+file that can put a frozen frame in front of a viewer *tonight*.
+
+### The mechanism, as far as it is read
+
+`preparingSource` is true only between two lines of core's
+`buildReplacement`, so "Preparing new stream" still on screen means the
+`await recoverWithPreferences(...)` never returned. Inside it, `regenerate`
+did `await this.releaseFailedSession(dead)` — **the one unbounded await on the
+whole recovery path.** `releaseFailedSession` resolves when the *first*
+`DELETE` settles; nothing bounds that `DELETE`; the attempt deadline wraps only
+the `POST` in `createOn`, which was never reached. Its own docblock says it
+must never be awaited — failover fire-and-forgets it — but regeneration has
+to, because the node's transcode slot is held by the very session being
+replaced. Core wrote both halves down and never bounded the place they meet.
+(Core session, 2026-09-20, from their tree; agreed here.)
+
+**One thing the mechanism does not yet explain, kept honestly.** The trail
+shows the `DELETE` *received* its `404` — `http-error-response` is logged on
+the response — so whatever failed to settle did so *after* the node had
+answered. That is somewhere in `request()`/`stop()` after the status is read,
+and it is not identified. Core's bound makes it moot for the viewer; the
+`info` trail (below) will show whether `failed-session-closed` ever appears.
+
+**The node is not the problem.** The same create issued from a laptop —
+`POST /playback/sessions`, `seek_ms: 300000`, `{transcode, video: copy,
+audio: transcode}` — answered **201 in 1.21 s** with the copy intact, and
+server 0.47.0 adds only `stream.production` to the session: no hold, no
+two-phase admission, no readiness signal on creation (server session,
+checked).
+
+### What has landed, and what has not
+
+- **Core `0e787f8`**: `regenerate` now awaits `releaseWithin(dead, budget)` —
+  the close raced against the same budget as the create (19 s on fi-1), and
+  proceeds either way; a `failed-session-close-timeout` warn says when it
+  expired. `generation-regenerate` and `session-regenerated` are **warn now**,
+  not info — they were the two blind spots that made the first run
+  unreadable. Two tests reproduce the hang as a timeout with the bound
+  removed. **In `src`, and `dist` is being rebuilt as this is written.**
+- **This client**: with Diagnostics on, the buffer and the live trail run at
+  **`info`** (`applyDiagnosticsLevel`, `syncDiagnosticsLevel`), eight lines,
+  so every step between "regenerating" and "attached" is on screen. **Built,
+  unrun.**
+
+### The plan
+
+1. **Rebuild against core `0e787f8` with the bundle forced** — Gradle does not
+   notice a change inside the symlinked core, measured tonight
+   (`createBundleReleaseJsAndAssets --rerun-tasks`), and verify
+   `failed-session-close-timeout` is in the APK's bundle before trusting it.
+   Install, hash-check.
+2. **Reap once.** Expected on the trail, in order: `source-reaped`,
+   `session-reaped-regenerating`, then *either* `failed-session-closed` (info)
+   *or* `failed-session-close-timeout` (warn, ~19 s), then
+   `generation-regenerate`, `session-regenerated`, `source-budgets`, and a
+   moving picture. **A recovery that arrives only after the 19 s bound is a
+   19-second freeze**, which is still a P0 — see 4.
+3. **If it still hangs**, the `info` trail names the line it stopped at, and
+   core wants it within the hour, not tomorrow.
+4. **The follow-up to hand core regardless of 2's outcome**: on a *reaped*
+   session the `DELETE` will always `404` — the session being gone is why the
+   path was taken — so a `404` on the close means the slot is already free
+   and there is nothing to wait for. The close should settle on `404`
+   immediately (or the create should not wait on the close at all when the
+   liveness probe already answered "gone"). A bound of 19 s is a floor on the
+   freeze, not a fix, if the settle problem is real.
+5. **Then, and only then**, `COMPLETED.md` gets the run and §1.0f is revised —
+   it currently records the regenerate path as reached and not that it hung.
 
 ## 1. On the television
 
