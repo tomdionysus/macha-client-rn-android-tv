@@ -216,16 +216,25 @@ export function SettingsScreen(): React.JSX.Element {
             focusedStyle={styles.toggleFocused}
           >
             <View style={styles.toggleRow}>
-              <Text style={styles.value}>Show extended playback logging on errors</Text>
+              <Text style={styles.value}>Show extended playback logging</Text>
               <Text style={[styles.toggleState, trailEnabled && styles.toggleStateOn]}>
                 {trailEnabled ? 'On' : 'Off'}
               </Text>
             </View>
           </Focusable>
+          {/*
+            The web client's label reads "…on errors", because on that client
+            it is only ever on errors. Here it is also the running trail and
+            the session id, which is why the words differ: a television is the
+            one host where the buffer cannot be read any other way — a release
+            build writes no console and the set's `adb` is over the link its
+            own notes call the unreliable half.
+          */}
           <Text style={styles.note}>
-            Prints the last warnings and errors under the failure message on the player. A television
-            has no console, so without this a failover and a dead node look identical from across the
-            room.
+            Prints the last warnings and errors under the failure message on the player, and, while
+            a film is running, the session id and the trail as it fills. A television has no
+            console, so without this a failover and a dead node look identical from across the room
+            — and a failover that recovers silently leaves no trace at all.
           </Text>
         </View>
 

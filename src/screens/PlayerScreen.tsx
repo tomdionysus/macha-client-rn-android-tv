@@ -16,7 +16,12 @@ import {
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
-import { playbackFailureTrail } from './player/failureTrail';
+import {
+  LIVE_TRAIL_ENTRIES,
+  playbackFailureTrail,
+  trailSignature,
+  type PlaybackFailureTrailEntry,
+} from './player/failureTrail';
 import { failureTrailEnabled } from '../diagnostics/failureTrailSetting';
 import { usePlayerVolume } from '../hooks/usePlayerVolume';
 import { volumePercent } from '../player/volume';
@@ -46,6 +51,15 @@ const CHROME_HIDE_MS = 4_000;
  * from key-up, which a TV event stream does not give us.
  */
 const SCRUB_COMMIT_MS = 400;
+
+/**
+ * How often the live trail re-reads the diagnostics buffer.
+ *
+ * A second is far below the rate at which a failover produces lines and far
+ * above the cost of reading a 200-entry ring buffer, and it is only paid with
+ * Diagnostics on.
+ */
+const LIVE_TRAIL_POLL_MS = 1_000;
 
 /** The scrubber, by name, so a cold left or right press can land on it. */
 const SCRUBBER_FOCUS_ID = 'player-scrubber';
@@ -325,6 +339,59 @@ export function PlayerScreen({
    * the Settings screen, which cannot be reached without leaving the player.
    */
   const diagnostics = failureTrailEnabled();
+
+  /**
+   * The trail as it fills, not as a failure screen recites it.
+   *
+   * **This is the diagnostic `TODO/ACTIVE.md` §1.0 ends on.** The first
+   * failover on hardware (2026-09-20) recovered with nothing visible: no
+   * failure screen, and therefore no trail, at exactly the moment the trail
+   * was the evidence. Which channel carried that recovery — a terminal error
+   * classified as `not-found`, or a stall that reached core as degradation and
+   * promoted a standby elsewhere — is unsettled, and the whole `not-found`
+   * contract on this platform turns on it. Both channels already write
+   * warnings: this client logs `stalled`, `terminal-failure-classified` and
+   * `standby-promoted`, and core's coordinator logs `source-reaped`,
+   * `session-reaped-regenerating`, `source-degradation-evidence` and
+   * `alternate-promoted-on-degradation`. The trail filters warnings and errors
+   * from every scope, so it already holds the answer. Nothing could read it.
+   *
+   * The web client does not have this and does not need it: it renders the
+   * trail only under a failure because a browser keeps the same buffer
+   * reachable from a console, and its Android build bridges it to logcat. A
+   * release build here writes no console at all — `diagnostics/playbackLog.ts`
+   * turns it off outside `__DEV__` because the bridge costs real CPU on this
+   * panel — and a television has neither a console nor, over a link the set's
+   * own notes call the unreliable half, a dependable `adb`. On screen is the
+   * only place this can be read.
+   *
+   * **Polled rather than subscribed or rendered.** Core's diagnostics buffer
+   * offers `snapshot()` and no subscription, and the obvious alternative —
+   * reading it on every render, which the player already does four times a
+   * second from `timeUpdate` — fails on exactly the case it is for: a stall
+   * stops the time updates, so the renders stop with them and the screen
+   * freezes on the last reading taken before the thing worth seeing. A timer
+   * keeps reading when the picture does not.
+   */
+  const [liveTrail, setLiveTrail] = useState<PlaybackFailureTrailEntry[]>([]);
+  useEffect(() => {
+    if (!diagnostics) {
+      setLiveTrail([]);
+      return;
+    }
+    let signature = '';
+    const read = () => {
+      const next = playbackFailureTrail().slice(-LIVE_TRAIL_ENTRIES);
+      const nextSignature = trailSignature(next);
+      if (nextSignature === signature) return;
+      signature = nextSignature;
+      setLiveTrail(next);
+    };
+    read();
+    const timer = setInterval(read, LIVE_TRAIL_POLL_MS);
+    return () => clearInterval(timer);
+  }, [diagnostics]);
+
   const streamLines = useMemo(
     () => [
       [streamStatus?.container, streamStatus?.endpoint].filter(Boolean).join(' : '),
@@ -360,6 +427,36 @@ export function PlayerScreen({
           <Text style={styles.fatalTitle}>Playback failed</Text>
           <Text style={styles.fatalMessage}>{playback.fatalError.message}</Text>
           {trail.map((entry) => (
+            <View key={`${entry.atMs}-${entry.event}`} style={styles.trailRow}>
+              <Text style={styles.trailTime}>{(entry.atMs / 1_000).toFixed(1)}s</Text>
+              <Text
+                style={[styles.trailEvent, entry.level === 'error' && styles.trailError]}
+                numberOfLines={1}
+              >
+                {entry.event}
+              </Text>
+              {entry.detail ? (
+                <Text style={styles.trailDetail} numberOfLines={1}>
+                  {entry.detail}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {/*
+        The same lines as the failure overlay, while there is no failure.
+
+        Deliberately **not tied to the chrome**, which hides four seconds after
+        the last press: a failover arrives minutes after anyone last touched
+        the remote, and a diagnostic that is only up while somebody is pressing
+        buttons would miss every one. It is up whenever Diagnostics is on, and
+        Diagnostics is off for everybody who is watching a film.
+      */}
+      {diagnostics && !playback?.fatalError && liveTrail.length > 0 ? (
+        <View style={styles.liveTrail}>
+          {liveTrail.map((entry) => (
             <View key={`${entry.atMs}-${entry.event}`} style={styles.trailRow}>
               <Text style={styles.trailTime}>{(entry.atMs / 1_000).toFixed(1)}s</Text>
               <Text
@@ -725,6 +822,26 @@ const styles = StyleSheet.create({
   fatalMessage: {
     color: colour.error,
     textAlign: 'center',
+  },
+  /**
+   * The live trail, at the top of the screen and out of the chrome's way.
+   *
+   * Top-left because the chrome is bottom-anchored and the picture's own
+   * content — titles, faces, subtitles — is centre and lower. Half the width
+   * so a long detail truncates rather than drawing a band across the frame,
+   * and a background dark enough to read against a bright scene without
+   * blacking out what is behind it.
+   */
+  liveTrail: {
+    position: 'absolute',
+    left: pageGutter,
+    top: rem(1),
+    maxWidth: '50%',
+    gap: rem(0.15),
+    paddingVertical: rem(0.4),
+    paddingHorizontal: rem(0.6),
+    borderRadius: rem(0.4),
+    backgroundColor: '#09090bb8',
   },
   /**
    * One trail entry.

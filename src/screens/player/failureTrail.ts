@@ -67,3 +67,33 @@ export function playbackFailureTrail(
       detail: detailOf(entry),
     }));
 }
+
+/**
+ * How much trail the player keeps on screen while nothing has failed.
+ *
+ * Fewer than the failure overlay's twelve, and for the opposite reason: the
+ * overlay is the only thing on screen and has the viewer's whole attention,
+ * while this sits over a running picture and is read in glances. Six lines
+ * spans a failover — the degradation evidence, the promotion and the new
+ * node's budgets — without becoming a second programme.
+ */
+export const LIVE_TRAIL_ENTRIES = 6;
+
+/**
+ * Whether two readings of the trail differ, cheaply.
+ *
+ * The live trail is polled (`PlayerScreen`, and the comment there says why a
+ * subscription is not available and a render-driven read would stop at exactly
+ * the wrong moment). A poll that set state unconditionally would re-render the
+ * player once a second for the whole of a film, which on this panel is CPU
+ * taken from the decoder — the one thing this client must not do to watch
+ * itself.
+ *
+ * The last entry identifies the reading: `elapsedMs` is monotonic within a
+ * process, so a new line always changes it, and the count catches the buffer
+ * filling up to its cap while the tail stands still.
+ */
+export function trailSignature(trail: readonly PlaybackFailureTrailEntry[]): string {
+  const last = trail.at(-1);
+  return last ? `${trail.length}:${last.atMs}:${last.event}` : '';
+}

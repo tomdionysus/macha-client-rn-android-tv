@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ClientLogEntry } from '@machafoundation/core';
-import { playbackFailureTrail } from './failureTrail';
+import { playbackFailureTrail, trailSignature } from './failureTrail';
 
 function entry(overrides: Partial<ClientLogEntry> = {}): ClientLogEntry {
   return {
@@ -89,5 +89,45 @@ describe('playbackFailureTrail', () => {
     ]);
 
     expect(trail.map((line) => line.atMs)).toEqual([4_200, 11_300]);
+  });
+});
+
+describe('trailSignature', () => {
+  it('is stable while nothing new is logged', () => {
+    // The live trail polls once a second for the whole of a film. A poll that
+    // set state unconditionally would re-render the player against the
+    // decoder, which is the scarcest thing on this panel.
+    const trail = playbackFailureTrail([entry({ event: 'stalled' })]);
+
+    expect(trailSignature(trail)).toBe(trailSignature(playbackFailureTrail([
+      entry({ event: 'stalled' }),
+    ])));
+  });
+
+  it('changes when a line arrives', () => {
+    const before = playbackFailureTrail([entry({ elapsedMs: 1_000, event: 'stalled' })]);
+    const after = playbackFailureTrail([
+      entry({ elapsedMs: 1_000, event: 'stalled' }),
+      entry({ elapsedMs: 2_400, event: 'standby-promoted' }),
+    ]);
+
+    expect(trailSignature(after)).not.toBe(trailSignature(before));
+  });
+
+  it('changes when the tail moves under a full buffer', () => {
+    // The count stops rising once the trail is at its cap, so the count alone
+    // would report a failover as no change at all.
+    const many = (from: number) => playbackFailureTrail(
+      Array.from({ length: 20 }, (_, index) => entry({
+        event: `step-${from + index}`,
+        elapsedMs: (from + index) * 100,
+      })),
+    );
+
+    expect(trailSignature(many(1))).not.toBe(trailSignature(many(0)));
+  });
+
+  it('answers for an empty trail rather than throwing', () => {
+    expect(trailSignature([])).toBe('');
   });
 });

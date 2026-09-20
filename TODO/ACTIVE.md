@@ -87,10 +87,16 @@ the `not-found` contract on this platform turns on it.
 
 The recovery in §1.0 produced no failure screen, and the failure trail only
 renders under one, so the evidence was unreadable at exactly the moment it
-mattered. **What is needed is a diagnostic that can be read without a failure**:
-the last few trail lines on screen while Diagnostics is on, or the classified
-kind shown beside the session id the player already displays. Small, and it
-makes every later failover test legible.
+mattered. **That diagnostic now exists** (§1.0c, built 2026-09-20): with
+Diagnostics on, the last six warnings and errors sit at the top-left of the
+player the whole time a film runs, polled rather than rendered so a stall
+cannot freeze the thing that reports the stall. It has passed the three checks
+and **has never been on a television**.
+
+So the next action is the run, not the build: install a fresh APK, put
+Diagnostics on, reproduce the reap of §1.0 with the session id the chrome
+shows, and read which channel the recovery came through. §1.0c lists which
+lines mean which.
 
 If it turns out to be a stall — which is what the endpoint change and the
 server's journal both point at — then **the `not-found` kind cannot reach the
@@ -108,7 +114,8 @@ platform still arrives through the degradation channel — which is what made it
 cross-node failover rather than a same-node regeneration in the first place.
 
 **Then, in the same sitting**, because they all want the set up and the trail
-readable: §1.2's two remaining captures, §1.3 decoder instances (which gates
+readable: §1.0d's two questions for core, §1.0e's promotion seek on a transcode
+title, §1.2's two remaining captures, §1.3 decoder instances (which gates
 Tier 3 *and* is what would remove the park's visible blank), §1.4 headers, §1.5
 audio focus, §1.6's unread surface findings, §2.7.3's seek readout against a
 remux title, and the forward buffer actually reached on a 4K HEVC title
@@ -382,6 +389,104 @@ next step is a diagnostic that can be read without a failure, not another run.
 **Timing**, for whoever reads this next: resumed 13:42:01, still on the old
 session at 13:42:35 (position 1:10), on the new one by 13:44:58 (position 3:11).
 Roughly two minutes of media played across the swap, so the buffer covered it.
+
+### 1.0c The trail is readable without a failure — **built 2026-09-20, unrun**
+
+`PlayerScreen` keeps the last six warnings and errors at the top-left of the
+picture whenever Diagnostics is on, for the whole of a film and independent of
+the chrome. §1.0's recovery was invisible twice over: nothing on screen for the
+viewer, which is Law 2 working, and nothing on screen for the person measuring
+it, which is not.
+
+**No new logging was needed.** Both channels already write warnings, and the
+trail filters warnings and errors from *every* scope, core's included. What to
+read, when the recovery happens:
+
+| lines | the channel it came through |
+| --- | --- |
+| `playback stalled` → `playback.coordinator source-degradation-evidence` → `alternate-promoted-on-degradation` | **degradation** — the stall watchdog fired, core prepared a standby elsewhere and promoted it. This is the hypothesis §1.0 ends on. |
+| `playback terminal-failure-classified` → `playback.coordinator source-reaped` / `session-reaped-regenerating` | **terminal** — `expo-video` raised an error, the classification probe ran and core took the `not-found` path. |
+| `playback standby-promoted` | this client had a primed player and the swap was Tier 2 rather than a cold start. |
+| `playback source-budgets` | a source was attached — the URL on that line carries the new session id. |
+
+Three decisions in it, so they are not re-litigated:
+
+- **Polled once a second, not rendered.** The player re-renders four times a
+  second from `timeUpdate` already, so reading the buffer on render looks free
+  — and it stops in exactly the case this is for. A stall stops the time
+  updates, the renders stop with them, and the screen would freeze on the last
+  reading taken *before* the interesting line. `trailSignature` keeps the poll
+  from re-rendering the player when nothing has been logged.
+- **Not tied to the chrome**, which hides four seconds after the last press,
+  while a failover arrives minutes after anyone last touched the remote.
+- **Six lines, not the overlay's twelve.** It sits over a running picture.
+
+**This is a divergence from the web client and a deliberate one.** That client
+renders the trail only under a failure because its buffer stays reachable from
+a browser console, and its Android build bridges the same lines to logcat. A
+release build here writes no console at all — `playbackLog` turns it off
+outside `__DEV__`, because the bridge costs real CPU on this panel — and `adb`
+runs over the link §0 calls the unreliable half. On screen is the only place
+this can be read. The Settings note now says so.
+
+### 1.0d Two things core wants from this hardware
+
+Core built the fix for §1.0's transcode on 2026-09-20 and it is on core's
+`develop`, unreleased — which, because this repo's `develop` is linked to
+`file:../macha-ts`, means **it arrives here on the next rebuild rather than on
+a version bump**. Three changes: the per-stream transforms are restated on
+every recovery from the instruction core chose (not from `session.transform`,
+which would make a server-side downgrade permanent); a single step down when a
+replacement node refuses the copy with a `400`, so the fix cannot trade a
+silent transcode for a terminal failure; and a standby is no longer treated as
+interchangeable on mode and container alone, since `transcode` covers both a
+passthrough and a full re-encode.
+
+What only this set can answer:
+
+1. **Would the replacement node have accepted `video: 'copy'`?** That is the
+   difference between the fix restoring the passthrough and the fix merely
+   making the refusal visible. Core's reading says accept. Re-run §1.0 after
+   the rebuild and read the control bar.
+2. **A `400` refusal on the copy, if it happens** — core asked for the
+   evidence, and it is now a path that shows on the live trail.
+
+And one thing this client owes core, asked the same day: **`instruction` is
+rendered here only as the options panel's notes** — "Chosen by you", the
+reasons, "Decided without: …", and the `withoutFacts` warning. The per-stream
+lines in the control bar come from `describePlaybackSession(session)`, the
+node's own echo. So the staleness core fixed was never visible here, and the
+fix changes only those notes.
+
+**Raised back to core, unanswered:** a viewer mode press from the options panel
+deliberately sends `{ mode }` **alone** and lets the server re-derive
+(`playbackOptions.ts`, where `MODE_TRANSFORMS` was deleted for reasons worth
+re-reading). If the restatement is applied to viewer-initiated updates and not
+only to recovery, this client would start pre-stating what a mode implies per
+stream — which is the server's judgement and is exactly what that deletion
+refused to do.
+
+### 1.0e The web client's handover fault does not have a shape here — checked, not measured
+
+The web session measured, on 2026-09-20: a replacement generation on
+**transcode** never becomes attachable, because it starts where the viewer was
+while the join is where the viewer *will be*, and a software encoder does not
+outrun realtime — so the join recedes as fast as the encoder approaches it, the
+wait expires at thirty seconds, and the fallback attaches a generation created
+thirty seconds ago, rewinding the viewer about twenty. Remux and direct are
+fine: a copy outruns realtime.
+
+**This client cannot fail that way, because it does not wait for a join.**
+`promoteStandby` swaps the surface to the primed player and sets `currentTime`
+directly; there is no two-element handover and nothing waits on a buffered
+target before cutting. Read from source on 2026-09-20 and **not measured**.
+
+What is worth measuring here instead, and is the same fault standing on its
+head: the standby buffers the replacement **from that generation's start**, and
+a promotion then seeks it to the live position. On a transcode, that position
+may be ahead of anything the node has encoded — so where the web client rewinds,
+this one would sit on a seek that cannot complete. Unobserved. It wants the same
+sitting as §1.0's re-run, on a transcode title.
 
 ### 1.4a The node's "unused session" reaper does not fire for direct play
 
