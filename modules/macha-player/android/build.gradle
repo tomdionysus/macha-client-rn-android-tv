@@ -12,6 +12,19 @@ version = '0.1.0'
 
 // Matches the version the phone client already ships, so the two Macha native
 // clients fail and get fixed together rather than diverging on ExoPlayer bugs.
+// **The minimum this module needs, not what ships.** Gradle resolves a version
+// conflict upward across modules, and `expo-video` asks for a higher one — so
+// the effective version is the highest any module requests, and a reader who
+// takes this number for what the APK carries will be wrong. Measured
+// 2026-09-21: the build resolved **1.9.0**, from expo-video, against the 1.8.0
+// below. Read it from the build rather than from here:
+//
+//   grep -A3 -i media3 android/app/build/outputs/sdk-dependencies/release/sdkDependencies.txt
+//
+// That distinction matters because six capability claims in
+// `MachaPlayerModule.kt` are assertions about what the linked media3 does
+// (`docs/ROADMAP.md`), and they are only checkable against the resolved
+// version, never against this one.
 def media3Version = '1.8.0'
 
 android {
