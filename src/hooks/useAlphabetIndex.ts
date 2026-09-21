@@ -33,6 +33,20 @@ export function mediaFocusId(mediaId: string): string {
 }
 
 /**
+ * Whether an id names a media card, and therefore survives a screen remount.
+ *
+ * Every other focusable takes a generated `useId`, which is a different string
+ * the next time the screen mounts. That distinction is what `App` needs before
+ * it tries to put focus back where Back found it: restoring a generated id
+ * selects something that will never exist, and the registry then shows no
+ * highlight at all until the next key press. Measured on the television
+ * 2026-09-21 — the Home rows, whose cards are deliberately not addressable.
+ */
+export function isMediaFocusId(id: string | undefined): id is string {
+  return id !== undefined && id.startsWith('media:');
+}
+
+/**
  * The first title in each bucket, in the order the library renders them.
  *
  * Separate and pure so the jump's one real rule — an empty letter does

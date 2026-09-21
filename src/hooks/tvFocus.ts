@@ -130,6 +130,16 @@ class TvFocusRegistry {
    */
   private pendingRects = new Map<string, FocusRect>();
 
+  /**
+   * A card Back should return to, which may not have mounted yet.
+   *
+   * Armed rather than applied, because the screen being returned to re-fetches:
+   * on the television the grid's cards had not registered by the time the route
+   * effect ran, so a restore applied there found nothing. Registration claims
+   * it; the first command the viewer sends abandons it.
+   */
+  private pendingRestoreId: string | undefined;
+
   register(focusable: Omit<Focusable, 'order'>): () => void {
     const existing = this.focusables.get(focusable.id);
     // Keep the original order across a re-registration, so a focusable that
@@ -143,6 +153,21 @@ class TvFocusRegistry {
     const rect = existing?.rect ?? this.pendingRects.get(focusable.id);
     this.focusables.set(focusable.id, { ...focusable, order, ...(rect ? { rect } : {}) });
     this.pendingRects.delete(focusable.id);
+    // An element can mount *into* an existing selection, and registration is
+    // the only moment it can find that out: `select` notifies whatever is
+    // registered when it runs, and a card restored by name after Back is
+    // selected while its grid is still fetching. Without this the selection is
+    // real — arrows move from it — and nothing on screen is highlighted.
+    //
+    // **Not in the web client.** There the DOM holds focus and the browser
+    // restores it; here the registry is the only memory there is. If that port
+    // grows the same restore, this reconciliation is what it needs too.
+    if (this.selectedId === focusable.id) focusable.onFocusChange?.(true);
+    // The card Back was waiting for has arrived.
+    if (this.pendingRestoreId === focusable.id) {
+      this.pendingRestoreId = undefined;
+      this.select(focusable.id);
+    }
     // A newly-mounted screen with nothing selected should land on its default.
     if (!this.selectedId) queueMicrotask(() => this.focusDefault());
     return () => {
@@ -284,6 +309,37 @@ class TvFocusRegistry {
     return this.selectedId;
   }
 
+  /**
+   * Whether anything currently answers to this id.
+   *
+   * For a caller that has selected an id optimistically — a screen restoring
+   * the card Back came from, before that screen has finished fetching — and
+   * needs to know later whether the card ever arrived.
+   */
+  isRegistered(id: string | undefined): boolean {
+    return id !== undefined && this.focusables.has(id);
+  }
+
+  /**
+   * Put focus back on this card, now if it exists and when it arrives if not.
+   *
+   * The caller should seed the screen's default first: something must be
+   * highlighted while the fetch is outstanding, and this replaces it only if
+   * the card turns up before the viewer touches the remote.
+   */
+  restoreWhenPresent(id: string | undefined): void {
+    if (id === undefined) {
+      this.pendingRestoreId = undefined;
+      return;
+    }
+    if (this.focusables.has(id)) {
+      this.pendingRestoreId = undefined;
+      this.select(id);
+      return;
+    }
+    this.pendingRestoreId = id;
+  }
+
   /** Temporary diagnostic: how many registered focusables have a measured rect. */
   debugGeometry(): string {
     const all = [...this.focusables.values()];
@@ -312,6 +368,9 @@ class TvFocusRegistry {
 
   /** Returns true when the command was consumed. */
   handle(command: TvCommand): boolean {
+    // The viewer has taken over; a restore landing now would move focus out
+    // from under a hand already moving.
+    this.pendingRestoreId = undefined;
     // Nothing, not even the command observers: while the platform IME is up,
     // waking the player chrome on a keystroke meant for the keyboard would be
     // as wrong as moving focus behind it.

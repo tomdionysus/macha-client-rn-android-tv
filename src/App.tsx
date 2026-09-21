@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
 import { progressFor, sessionManager, type MediaSummary, type PlaybackProgress } from '@machafoundation/core';
@@ -8,6 +8,7 @@ import { hydrateStorage } from './state/storage';
 import { syncDiagnosticsLevel } from './diagnostics/failureTrailSetting';
 import { useTvNavigation } from './hooks/useTvNavigation';
 import { tvFocus } from './hooks/tvFocus';
+import { isMediaFocusId } from './hooks/useAlphabetIndex';
 import { androidTvPlatform } from './platform/AndroidTvPlatform';
 import { TopBar, type NavItem } from './components/TopBar';
 import { Loading } from './components/Status';
@@ -98,12 +99,43 @@ function Shell(): React.JSX.Element {
   const route = stack[stack.length - 1] ?? { name: 'home' };
   const [progress, setProgress] = useState<PlaybackProgress[]>([]);
 
-  const push = useCallback((next: Route) => setStack((current) => [...current, next]), []);
-  const pop = useCallback(
-    () => setStack((current) => (current.length > 1 ? current.slice(0, -1) : current)),
-    [],
+  /**
+   * Where focus was on each screen beneath the top, so Back can put it back.
+   *
+   * Indexed by stack depth. **Measured on the television 2026-09-21:** Back out
+   * of a detail screen re-seeded focus to the screen default, which on a
+   * library page is the navigation bar — so a viewer who opened the fourth film
+   * of the second row came back to the top of the page, with their place in
+   * several hundred titles gone. A remote has no scrollbar and no pointer to
+   * get it back with; it is Down, Down, Right, Right, Right.
+   *
+   * Only what is addressable can be restored: a card registers under
+   * `mediaFocusId` when a screen asks for it (`LibraryScreen`), and everything
+   * else falls back to the default exactly as before.
+   */
+  const focusMemory = useRef<(string | undefined)[]>([]);
+  const focusToRestore = useRef<string | undefined>(undefined);
+
+  const push = useCallback(
+    (next: Route) => {
+      // Only a media card is worth remembering: everything else takes a
+      // generated id that is a different string next time the screen mounts.
+      const selected = tvFocus.selected();
+      focusMemory.current[stack.length - 1] = isMediaFocusId(selected) ? selected : undefined;
+      setStack((current) => [...current, next]);
+    },
+    [stack.length],
   );
-  const replaceTop = useCallback((next: Route) => setStack([next]), []);
+  const pop = useCallback(() => {
+    if (stack.length <= 1) return;
+    focusToRestore.current = focusMemory.current[stack.length - 2];
+    setStack((current) => (current.length > 1 ? current.slice(0, -1) : current));
+  }, [stack.length]);
+  const replaceTop = useCallback((next: Route) => {
+    focusMemory.current = [];
+    focusToRestore.current = undefined;
+    setStack([next]);
+  }, []);
 
   /**
    * What the instruction chooser reasons from.
@@ -169,9 +201,33 @@ function Shell(): React.JSX.Element {
   });
 
   // Re-seed focus when the screen changes, the job the web client's
-  // `hashchange` listener does.
+  // `hashchange` listener does — except on the way *back*, where the screen
+  // being returned to already has a place the viewer left from.
+  //
+  // A remembered id that no longer registers is not a failure case worth
+  // guarding: `TvFocusRegistry.current()` falls through a dangling selection to
+  // the screen's default, so a title that has left the library behaves exactly
+  // as it did before this existed.
   useEffect(() => {
+    const remembered = focusToRestore.current;
+    focusToRestore.current = undefined;
+    if (!isMediaFocusId(remembered)) {
+      tvFocus.focusDefault();
+      return;
+    }
+
+    // **Seed the default, then arm the restore.** The screen being returned to
+    // re-mounts and re-fetches, so its cards are usually not registered yet —
+    // measured on the television, where restoring here found nothing and left
+    // focus on the navigation bar, which is the fault this exists to fix.
+    //
+    // So something is highlighted immediately, and the card claims focus when
+    // it registers. If the viewer presses anything first the restore is
+    // abandoned, and if the card never arrives the default simply stands.
+    // No timer, deliberately: a delay long enough to wait out a fetch would be
+    // a timing budget with nothing to calibrate it against.
     tvFocus.focusDefault();
+    tvFocus.restoreWhenPresent(remembered);
   }, [route.name]);
 
   const open = useCallback((media: MediaSummary) => push(routeForMedia(media)), [push]);

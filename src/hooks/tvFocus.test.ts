@@ -283,3 +283,98 @@ describe('the first press on a screen with no selection', () => {
     stop();
   });
 });
+
+/**
+ * Restoring focus across a screen change, which is what Back owes a viewer.
+ *
+ * Pressing Back out of a detail screen should put the highlight back on the
+ * poster it was opened from. The registry already lets something name that
+ * card — `mediaFocusId` — but the two events arrive in the wrong order: the
+ * screen selects the remembered id while the grid is still fetching, and the
+ * card registers a moment later. Selection survives that (it is only a
+ * string), but the *card* never learns, because `select` notifies whatever is
+ * registered at the time and registration notifies nothing.
+ *
+ * Measured on the television 2026-09-21: Back from a detail screen left the
+ * highlight on the navigation bar, and the viewer's place in a grid of several
+ * hundred films was gone.
+ */
+describe('an element that mounts into an existing selection', () => {
+  beforeEach(() => {
+    tvFocus.resumeAll();
+    tvFocus.select(undefined);
+  });
+
+  it('is told it is focused, because select fired before it existed', () => {
+    tvFocus.select('media:m1');
+
+    let focused: boolean | undefined;
+    const stop = tvFocus.register({ id: 'media:m1', onFocusChange: (value) => (focused = value) });
+
+    expect(focused).toBe(true);
+    stop();
+  });
+
+  it('leaves an element that is not the selected one alone', () => {
+    tvFocus.select('media:m1');
+
+    let focused: boolean | undefined;
+    const stop = tvFocus.register({ id: 'media:m2', onFocusChange: (value) => (focused = value) });
+
+    expect(focused).toBeUndefined();
+    stop();
+  });
+})
+
+/**
+ * A restore that outlives the fetch, which is what a library screen needs.
+ *
+ * `App` remembers the card Back should return to, but the screen it returns to
+ * re-mounts and re-fetches: measured on the television 2026-09-21, the grid's
+ * cards had not registered by the time the route effect ran, so a restore
+ * attempted there found nothing and fell back to the default — the navigation
+ * bar — which is the very fault it was written to fix.
+ *
+ * So the restore is armed rather than applied, and registration claims it. It
+ * is abandoned the moment the viewer presses anything, because focus jumping
+ * under a hand already moving is worse than focus starting in the wrong place.
+ */
+describe('a restore armed before its card exists', () => {
+  beforeEach(() => {
+    tvFocus.resumeAll();
+    tvFocus.select(undefined);
+    tvFocus.restoreWhenPresent(undefined);
+  });
+
+  it('is claimed by the card when it finally registers', () => {
+    tvFocus.restoreWhenPresent('media:m1');
+    tvFocus.focusDefault();
+
+    let focused: boolean | undefined;
+    const stop = tvFocus.register({ id: 'media:m1', onFocusChange: (value) => (focused = value) });
+
+    expect(tvFocus.selected()).toBe('media:m1');
+    expect(focused).toBe(true);
+    stop();
+  });
+
+  it('applies immediately when the card is already there', () => {
+    const stop = tvFocus.register({ id: 'media:m2' });
+    tvFocus.restoreWhenPresent('media:m2');
+    expect(tvFocus.selected()).toBe('media:m2');
+    stop();
+  });
+
+  it('is abandoned once the viewer presses a key, so focus is not yanked', () => {
+    const first = tvFocus.register({ id: 'a' });
+    tvFocus.select('a');
+    tvFocus.restoreWhenPresent('media:m3');
+
+    tvFocus.handle('down');
+
+    const late = tvFocus.register({ id: 'media:m3' });
+    expect(tvFocus.selected()).not.toBe('media:m3');
+    first();
+    late();
+  });
+})
