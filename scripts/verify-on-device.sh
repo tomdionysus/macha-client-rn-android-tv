@@ -15,7 +15,7 @@
 #   ./scripts/verify-on-device.sh audio       # THE measurement: decoder + channel mask
 #   ./scripts/verify-on-device.sh instances   # concurrent decoder limit (gates seamless failover)
 #   ./scripts/verify-on-device.sh headers     # what Media3 actually sends
-#   ./scripts/verify-on-device.sh logs        # live playback decisions
+#   ./scripts/verify-on-device.sh logs        # native playback logs (NOT this client's own; see the stage)
 set -uo pipefail
 
 # The set Tom controls, and therefore the one a bare invocation means.
@@ -180,12 +180,32 @@ headers)
 
 logs)
   connect
-  say "Playback decisions, decoder selection and failures"
+  # **A release build prints no JavaScript here, and that is deliberate.**
+  #
+  # This stage used to claim that `ReactNativeJS` carried core's client log —
+  # the chosen instruction, the failover, the failure trail. It does not, in
+  # the only build that ever reaches a television: `playbackLog.ts` sets
+  # `console: __DEV__` on purpose, because the JS/native console bridge costs
+  # real CPU on this panel and nobody is attached to it with a cable.
+  #
+  # Measured 2026-09-21: 10,927 logcat lines across a full playback session on
+  # `10.35.1.133`, running the release APK, containing **zero** ReactNativeJS
+  # lines. A whole sitting went on diagnosing the silence rather than reading
+  # the instrument that was already there.
+  #
+  # So this stage is now honest about what it can and cannot see, and says
+  # where the client's own evidence actually lives.
+  say "What the PLATFORM reports (decoder, audio routing, media3)"
   "$ADB" -s "$TV" logcat -c
-  # ReactNativeJS carries core's own client log, which is where the chosen
-  # instruction (direct/remux/transcode) and any failover surfaces.
+  echo "Native only. For this client's own playback evidence — the chosen"
+  echo "instruction, the failure trail, a failover — use the on-screen trail:"
+  echo "  Settings -> Diagnostics -> on, then reproduce; the failure overlay"
+  echo "  prints the last dozen lines, lifted to 'info' while it is on."
+  echo "A debug build ('npm run android') is the only one that mirrors those"
+  echo "lines to logcat, and it is not what goes on the set."
+  echo
   "$ADB" -s "$TV" logcat \
-    | grep -iE "ReactNativeJS|ExoPlayer|MediaCodec|AudioSink|AudioTrack|MachaPlayer|macha"
+    | grep -iE "ExoPlayer|MediaCodec|AudioSink|AudioTrack|MachaPlayer|ReactNativeJS"
   ;;
 
 *)
