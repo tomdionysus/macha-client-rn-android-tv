@@ -315,6 +315,17 @@ to the refusal's code. `promoteStandby` never creates a session, so the only
 refusal it can meet is core's standby preparation, which is now the warn line
 above rather than silence.
 
+**Core's `dist` moved again 2026-09-21 (HEAD `5aa3f6f`)** — the identity is
+taken at build time, so nothing to redo, but the reason bears on this
+client's own figures: `ALTERNATE_RECOVERY_WINDOW_MS` is now `10_000`, was
+`30_000` — core holds a **remux** standby only as long as the server
+*guarantees* a pipeline stays warm (a node refuses to start with
+`pipeline_idle` under ten seconds), because neither `pipeline_idle_ms` nor
+`session_idle_ms` is on the wire. **This client's transcode window at `8_000`
+sits below that floor and is safe by construction**, unchanged. A bundle
+built before `5aa3f6f` would hold standbys three times longer than core now
+believes is safe — a second reason the bundle sha must move at the sitting.
+
 ### The re-run, 2026-09-20 23:54 — recovered, and the bound was not exercised
 
 Same reap (`GET 200 → DELETE 204 → GET 404`, resumed at 23:54:08, position
@@ -1517,8 +1528,11 @@ exactly that tonight, a standby on another node beside the generation being
 replaced — so a cap of 2 would read as failover ceasing to work when it fires.
 Told core from this household's seat: two televisions, a phone and a web
 client on one account is four viewers before any standby, so anything under 8
-looks tight, and per-viewer would be better than per-account. The number is
-the server's; watch what they land on.
+looks tight. **Landed at 32 per node per account** (`streaming.max_sessions_per_account`,
+zero disables; server, 2026-09-21) — the server's arithmetic was the same
+four-viewers-times-two-to-three-plus-strands. Comfortable. A refusal on this
+set therefore means something has genuinely run away, not that a family is
+watching.
 
 **The release this repo waits for is named: core `0.17.0`** — the name of the
 thing being built, which keeps accumulating under that number until it is
