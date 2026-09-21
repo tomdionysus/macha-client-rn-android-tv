@@ -288,15 +288,19 @@ of the thing being built until it is published" — Tom, via core), so a
 measurement names **core's SHA and a hash of `dist`**, never the version.
 Hash from *inside* `dist`, because `shasum` includes the path it is given.
 
-    core 9a37ce3 (2 files uncommitted at build time)   dist 364733574ba860cb
+    core 9a37ce3 (the two uncommitted files were TODO and package.json — no src)   dist 364733574ba860cb
+    behaviourally identical to core HEAD 86552c9: `git diff 9a37ce3 HEAD -- src` is empty (core, checked)
     APK  f849f44527eedf69b7e8564dd110219a               bundle forced, literals verified:
          client_recovery_deadline, failed-session-close-timeout, account_session_limit,
          HlsManifestUnavailableError, fatal-error-code
 
 Carries: the walk fix, the bounded close, the 48 s recovery supervision, the
-`410`/`429` tolerance, the cap accessors, the two log levels, the deferred
-session release; and this client's `info` trail and cap sentence. **Not
-installed** — the set was asleep when it was built.
+`410`/`429` tolerance, the cap accessors (`playbackFailureStatus` included —
+it went in with `9a37ce3`), the two log levels, the deferred session
+release; and this client's `info` trail and cap sentence. **Not installed** —
+the set was asleep when it was built. **Do not rebuild before the reaps**: a
+rebuild changes the hash without changing an instruction and loses the one
+property that makes a capture citable a week later.
 
 ### The re-run, 2026-09-20 23:54 — recovered, and the bound was not exercised
 
