@@ -1422,6 +1422,52 @@ here because each one closes or re-points something this file was carrying.
   through `runtime.update`, and what core does with the position afterwards has
   not been read.
 
+### 2.10 The playback route is moving, and it does not reach this client's code — 2026-09-21
+
+**Core is driving a server change** (planned in the server repo,
+`TODO/2026-09-21-playback-sessions-as-a-resource-plan.md`, not yet
+implemented): playback sessions become a REST resource. `GET
+/api/v1/playback/sessions` **appears** (the account's live sessions, under
+`items`), and the stream moves under the session —
+`/api/v1/playback/sessions/{id}/stream/{token}/{generation}/{name}` and
+`…/stream/{token}/direct`. **`/api/v1/playback/stream/…` is removed outright**,
+no dual-serve window: every node is Tom's.
+
+**Grepped 2026-09-21, not recalled: this client composes no stream, segment or
+API path anywhere in code.** `source.url` goes straight to `expo-video`
+(`videoSourceFor`), and every probe is core's walk over `source`. The only
+hits are comments: `ExpoVideoAdapter.ts:199/:202` (which already say the URL
+shape is the server's to change) and **`PlayerScreen.tsx:367`, which justifies
+the on-screen session id with "`GET /api/v1/playback/sessions` is not a
+route" — that sentence goes stale the day the node moves.** The id stays
+worth showing (it is how a reap is reproduced from a laptop); the comment
+needs rewording then, and §1.4b with it.
+
+**What does reach here: a per-account session cap ships in the same change**,
+because removing one-session-per-bearer leaves nothing bounding an account. A
+cap refusal is a new outcome on create; core has asked the server for a
+distinct `4xx` code, since a `5xx` would have core walk the whole cluster
+collecting identical refusals and charge every healthy node. Core routinely
+holds **two sessions and transiently three** for one viewer — this set showed
+exactly that tonight, a standby on another node beside the generation being
+replaced — so a cap of 2 would read as failover ceasing to work when it fires.
+Told core from this household's seat: two televisions, a phone and a web
+client on one account is four viewers before any standby, so anything under 8
+looks tight, and per-viewer would be better than per-account. The number is
+the server's; watch what they land on.
+
+**Sequencing, which is the part that matters here: core ships `410` tolerance
+first, nodes move second.** Core today reads a `410` as `unknown`, and
+`unknown` is endpoint evidence (§2.8's lesson): a node moving under a client
+without the tolerance charges a healthy node and builds a standby that cannot
+help. So **the bump `0.5.0` waits for is the tolerance release, not
+`0.15.0`** — `0.15.0` is cut (walk fix, bounded close, supervision, the two
+log levels; one breaking change in `hlsWalkTargets`, which this client does
+not call) but **not on npm**, and nothing goes to npm without Tom's word.
+Core will name the version; then: remove `node_modules/@machafoundation`,
+`npm uninstall`, `npm install @machafoundation/core@^x.y.z`, read `resolved`,
+gate, release.
+
 ## 3. Decisions for Tom
 
 ### 3.1 `addDirectSourceAlternative` — local proxy, or wait for the engine?
