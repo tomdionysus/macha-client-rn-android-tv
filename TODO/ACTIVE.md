@@ -389,9 +389,22 @@ normally, is what turns that from a theory into a cause. **The refusal itself
 behaved correctly**: a readable sentence in the chrome, playback not torn down.
 
 Reclaiming an orphan at launch is core's job rather than this client's — core
-owns session ownership and already has `drainAbandonedReleases` — so it has been
-put to core rather than built here. `session_idle_ms` is 1,800,000 ms, which is
-the backstop the exposure is measured against.
+owns session ownership and already has `drainAbandonedReleases` — so it was
+**proposed to core on 2026-09-21 and is unanswered**, not decided. Nothing has
+been built here and nothing should be until core answers.
+
+**The part a client cannot solve, which is why it is a question and not a
+task:** on a fresh process there is no way to tell this device's orphan from
+another device's live session on the same account. `GET /api/v1/playback/
+sessions` lists the account's sessions on that node, and closing the wrong one
+kills someone else's film — worse than the leak. A reclaim needs an ownership
+marker that outlives the process, and that marker is core's to define. Core may
+also reasonably answer that `session_idle_ms` (1,800,000 ms) **is** the
+mechanism and no reclaim should exist; that answer closes this, and should be
+recorded here as the decision rather than left looking like an omission.
+
+What makes it more than tidiness: the node allows **one** video transcode, so a
+single orphan of that kind denies transcode to the next viewer for half an hour.
 
 **Seen once, unexplained, and core's to triage:** `Playback generation
 http://10.35.1.50:7438::72baee939be831ded9347a7b7fd00f68 has no endpoint
