@@ -19,6 +19,16 @@ describe('failureCopy', () => {
     expect(failureCopy(error, () => true).headline).toBe(ACCOUNT_SESSION_LIMIT_COPY);
   });
 
+  it('keeps the message that started the recovery beneath the cap sentence', () => {
+    // A cap-refused failover leads with the failure that began it; the cap is
+    // why recovery could not finish. The viewer's line is the sentence; what
+    // went wrong is not thrown away.
+    const error = new Error('Source error Response code: 404');
+
+    expect(failureCopy(error, () => true).detail).toBe('Source error Response code: 404');
+    expect(failureCopy(error, () => false).detail).toBeUndefined();
+  });
+
   it('surfaces the server code from down the cause chain without parsing the message', () => {
     // A create refusal reaches fatalError as a bare Error with the code two
     // links down; core's walk finds it, and it goes to the small print.

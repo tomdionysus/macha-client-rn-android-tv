@@ -482,6 +482,7 @@ export function PlayerScreen({
         <View style={styles.fatalError}>
           <Text style={styles.fatalTitle}>Playback failed</Text>
           <Text style={styles.fatalMessage}>{fatal?.headline ?? playback.fatalError.message}</Text>
+          {fatal?.detail ? <Text style={styles.fatalCode}>{fatal.detail}</Text> : null}
           {fatal?.code ? <Text style={styles.fatalCode}>{fatal.code}</Text> : null}
           {trail.map((entry) => (
             <View key={`${entry.atMs}-${entry.event}`} style={styles.trailRow}>

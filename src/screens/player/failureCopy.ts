@@ -30,6 +30,14 @@ export const ACCOUNT_SESSION_LIMIT_COPY =
 export interface FailureCopy {
   /** The line the viewer reads. */
   headline: string;
+  /**
+   * Core's own message, kept beneath the headline when the headline replaced
+   * it. A cap-refused failover's message names the failure that *started*
+   * the recovery, with the cap at the tail: the cap explains why recovery
+   * could not finish, not what went wrong (core, 2026-09-21), so the sentence
+   * leads and the message stays — small print, not the line.
+   */
+  detail?: string;
   /** The server's machine code, for the trail and the small print — never the headline. */
   code?: string;
 }
@@ -38,8 +46,10 @@ export function failureCopy(
   error: Error,
   isCap: (error: unknown) => boolean = isAccountSessionLimit,
 ): FailureCopy {
+  const cap = isCap(error);
   return {
-    headline: isCap(error) ? ACCOUNT_SESSION_LIMIT_COPY : error.message,
+    headline: cap ? ACCOUNT_SESSION_LIMIT_COPY : error.message,
+    detail: cap && error.message.trim() ? error.message : undefined,
     code: playbackFailureCode(error),
   };
 }
