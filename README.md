@@ -229,6 +229,9 @@ Three things are unverified and want the television. All are recorded in
   experiments and theories that did not survive.
 - [`docs/HISTORY.md`](docs/HISTORY.md) — measurements with their provenance,
   decisions and why, and theories that did not survive contact.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — work this client should do and has
+  deliberately not done, each entry saying what cannot be verified without
+  hardware nobody here has. Exercises for the contributor.
 - [`AGENTS.md`](AGENTS.md) — the working rules for changing this repo.
 - `macha-ts/docs/writing-a-player.md` — the contracts behind `Player`, most of
   which are not visible in its type signature.
