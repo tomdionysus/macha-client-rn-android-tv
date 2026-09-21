@@ -7,6 +7,7 @@ import {
   MEDIA_STALL_TIMEOUT_MS,
   SEGMENT_NOT_READY_STATUS,
   SOURCE_NOT_FOUND_STATUS,
+  SOURCE_SUPERSEDED_STATUS,
   playbackFailureKindForStatus,
   type PlaybackSource,
 } from '@machafoundation/core';
@@ -176,7 +177,15 @@ describe('the unavoidable Kotlin copy of the hold rule', () => {
     // literals, which made this test a second copy of the thing it was guarding
     // — core 0.14.0 exports them precisely because adapters were restating them
     // (four copies of one server fact, by its count).
-    for (const status of [BROKEN_GENERATION_STATUS, SOURCE_NOT_FOUND_STATUS]) {
+    //
+    // `SOURCE_SUPERSEDED_STATUS` joined them for server 0.48.0: it is terminal
+    // in exactly the same way, and a Kotlin retry arm on it would retry a
+    // generation this node has already superseded until the loader gave up.
+    for (const status of [
+      BROKEN_GENERATION_STATUS,
+      SOURCE_NOT_FOUND_STATUS,
+      SOURCE_SUPERSEDED_STATUS,
+    ]) {
       expect(playbackFailureKindForStatus(status)).not.toBe('not-ready');
       expect(engine).not.toMatch(new RegExp(`responseCode == ${status}`));
     }
@@ -191,6 +200,37 @@ describe('the unavoidable Kotlin copy of the hold rule', () => {
     // the difference.
     expect(playbackFailureKindForStatus(BROKEN_GENERATION_STATUS)).toBe('stream');
     expect(playbackFailureKindForStatus(SOURCE_NOT_FOUND_STATUS)).toBe('not-found');
+  });
+
+  it('inherits the superseded-generation tolerance from core rather than branching locally', () => {
+    // Server 0.48.0 ships `410 generation_superseded` rather than holding it for
+    // a second flag day, so this arrives on the television at the cutover. Core
+    // answers it `not-found` deliberately rather than as a seventh kind: what a
+    // host must do is identical — the object is gone, the node is fine, re-read
+    // the session — and a kind no shipped host handles would be read as
+    // unhandled and condemn a healthy node, which is the failure the tolerance
+    // exists to stop.
+    //
+    // This client gets it for free because `ExoPlayerAdapter.ts:67` hands core
+    // the raw status instead of classifying locally. The web client could not,
+    // because hls.js raises a segment `410` below the layer that sees a status
+    // and it needed its own branch — asserted, relayed by the core session on
+    // 2026-09-21 and not read in that tree from here. This assertion is what
+    // keeps this client on the free side of that difference.
+    expect(playbackFailureKindForStatus(SOURCE_SUPERSEDED_STATUS)).toBe('not-found');
+
+    // Stated as relationships, because the values are core's to choose: a `410`
+    // must agree with a `404` and differ from a `503`. Both of the first two
+    // mean one object is gone and neither may cost the node that answered
+    // honestly its place in the candidate list; a `503` is endpoint evidence
+    // and must. `ExpoVideoAdapter.nodeWillServe` is the consumer that depends
+    // on the difference.
+    expect(playbackFailureKindForStatus(SOURCE_SUPERSEDED_STATUS)).toBe(
+      playbackFailureKindForStatus(SOURCE_NOT_FOUND_STATUS),
+    );
+    expect(playbackFailureKindForStatus(SOURCE_SUPERSEDED_STATUS)).not.toBe(
+      playbackFailureKindForStatus(BROKEN_GENERATION_STATUS),
+    );
   });
 
   it('no longer maps statuses to kinds in Kotlin', () => {
