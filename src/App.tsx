@@ -9,6 +9,8 @@ import { syncDiagnosticsLevel } from './diagnostics/failureTrailSetting';
 import { useTvNavigation } from './hooks/useTvNavigation';
 import { tvFocus } from './hooks/tvFocus';
 import { isMediaFocusId } from './hooks/useAlphabetIndex';
+import { orphanedSessions } from './state/liveSessions';
+import { playbackLog } from './diagnostics/playbackLog';
 import { androidTvPlatform } from './platform/AndroidTvPlatform';
 import { TopBar, type NavItem } from './components/TopBar';
 import { Loading } from './components/Status';
@@ -422,6 +424,19 @@ export function App(): React.JSX.Element {
       // The buffer configured itself at import, before the setting could be
       // read; a set left with Diagnostics on comes up at the level it asked for.
       syncDiagnosticsLevel();
+
+      // Snapshot what a previous run left open, *before* this one records
+      // anything — after that the list is a mixture and only the leftovers are
+      // candidates to close. Core owes the reconcile that acts on it
+      // (`state/liveSessions.ts`); until then this is the only thing that makes
+      // an orphan visible from the set, which is worth having on its own: it
+      // says a session was abandoned rather than leaving the next viewer's 429
+      // looking like a server fault.
+      const orphaned = orphanedSessions();
+      if (orphaned.length > 0) {
+        playbackLog.warn('sessions-orphaned-by-previous-run', { count: orphaned.length });
+      }
+
       setReady(true);
     });
   }, []);

@@ -388,30 +388,53 @@ Deleting the ten and re-running the refused title, which then transcoded
 normally, is what turns that from a theory into a cause. **The refusal itself
 behaved correctly**: a readable sentence in the chrome, playback not torn down.
 
-Reclaiming an orphan at launch is core's job rather than this client's — core
-owns session ownership and already has `drainAbandonedReleases` — so it was
-**proposed to core on 2026-09-21 and is unanswered**, not decided. Nothing has
-been built here and nothing should be until core answers.
+**Reclaiming an orphan is decided, and it is both sides.** Tom, put the
+do-nothing option by core 2026-09-21: *"We can't lock people out for 30m."* So
+`session_idle_ms` is **not** the answer.
 
-**The part a client cannot solve, which is why it is a question and not a
-task:** on a fresh process there is no way to tell this device's orphan from
-another device's live session on the same account. `GET /api/v1/playback/
-sessions` lists the account's sessions on that node, and closing the wrong one
-kills someone else's film — worse than the leak. A reclaim needs an ownership
-marker that outlives the process, and that marker is core's to define. Core may
-also reasonably answer that `session_idle_ms` (1,800,000 ms) **is** the
-mechanism and no reclaim should exist; that answer closes this, and should be
-recorded here as the decision rather than left looking like an omission.
+- **This client's half is built** (`state/liveSessions.ts`): the session ids core
+  already mints and hands over — `${endpoint.id}::${nodeSessionId}`,
+  `ClusterPlaybackResolver.ts:767` — are written to durable storage as the
+  runtime reports them and cleared on a clean stop, so what survives a kill is
+  exactly what was live when the process died. Durable storage is the one thing
+  only the host has; core dies with the process too.
+- **Core owes the reconcile**: take that list at start, check it against each
+  node's `GET /api/v1/playback/sessions`, close what is still there. It cannot
+  kill another device's film because these are ids *this install* was handed,
+  not ids it found. `orphanedSessions()` is what it takes and `forgetSessions()`
+  clears what it closed. **Until that call exists this record is inert** — it
+  logs `sessions-orphaned-by-previous-run` to the trail and nothing more, which
+  is still worth having: it says a session was abandoned rather than leaving the
+  next viewer's 429 looking like a server fault.
+- **The server's half is built but not deployed** — `ec5a65b`, relayed by core:
+  a reclaimed pipeline releases its transcode entitlement, per logical viewer,
+  skipped while a sibling session shares the viewer, reacquired lazily. 484/484
+  on es-1. **All three live nodes still run 0.48.0 where the entitlement is
+  sticky**, so the thirty-minute exposure measured here still describes the
+  field.
+- **Open, with the operator:** whether release happens at pipeline reclamation
+  or at a separate threshold between `pipeline_idle` and `session_idle`. The
+  former means a 61-second pause can lose the slot on a contended node, and with
+  `max_video_transcodes` at 1 "contended" means any second viewer.
 
-What makes it more than tidiness: the node allows **one** video transcode, so a
-single orphan of that kind denies transcode to the next viewer for half an hour.
-
-**Seen once, unexplained, and core's to triage:** `Playback generation
+**Triaged by core — a stale handle, not a lost record:** `Playback generation
 http://10.35.1.50:7438::72baee939be831ded9347a7b7fd00f68 has no endpoint
 provenance.` reached the viewer as that raw sentence, from
 `ClusterPlaybackResolver.ts:780`, seconds after a forced mode change re-resolved
 the title onto a **different node** (`10.35.1.50:7438` → `macnessa.macha.network`)
 and a transport action called `update`.
+
+Core's mechanism, 2026-09-21: `update` is pinned to the owning node and cannot
+move a generation, so the mode switch did not go through it. It went through a
+re-resolution — the old generation released, its provenance deleted at `:557`,
+a new one created under a **new id** at `:768` — and the host's transport action
+then called `update` with the id it was still holding. Nothing is lost; the
+handle is stale. Three faults are core's regardless and are queued with the
+standby window: it throws a bare `Error` so `playbackFailureCode` and
+`playbackFailureStatus` yield nothing and a host cannot classify it; it
+therefore reaches a television as raw prose; and `stop()` treats the identical
+condition as benign while `update` and `sessionAlive` throw — one condition,
+three behaviours.
 
 **The cluster, measured from `GET /api/v1/status` with a tvtest bearer.** All
 three nodes report `0.48.0`, and TEL3 is on the wire:
@@ -421,6 +444,10 @@ three nodes report `0.48.0`, and TEL3 is on the wire:
 - **Core's standby window is six times shorter than it needs to be.** It took
   the 10 s guaranteed floor this morning because `status_api.cpp` did not
   serialise the idle figures. It does now, and the configured value is 60 s.
+  **Accepted by core 2026-09-21 and queued as phase 2** behind the
+  node-selection work: the constant will read the node's figure where one
+  arrives and keep the 10,000 floor where none does, because a node older than
+  0.48.0 sends no such field. Core will say when it moves.
 - **The node-wide `max_sessions` story does not match the cluster.** Ten
   concurrent sessions were held for one account on `10.35.1.50` and none was
   refused, so that node's limit is above ten rather than the 8 relayed as still

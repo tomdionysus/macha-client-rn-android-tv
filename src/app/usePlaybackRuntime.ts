@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
+import { trackLiveSession } from '../state/liveSessions';
 import {
   PlaybackRuntime,
   type MediaSummary,
@@ -32,6 +33,24 @@ export function usePlaybackRuntime(
   const [state, setState] = useState(() => runtime.getSnapshot());
 
   useEffect(() => runtime.subscribeLifecycle(setState), [runtime]);
+
+  /**
+   * Keep the durable record of what this install has open on a node.
+   *
+   * At app scope rather than the player screen's, deliberately: the record's
+   * whole job is to outlive things, and a screen that unmounts when the viewer
+   * presses Back would stop writing exactly when the session is still live.
+   *
+   * Core closes a session it replaces, so following the *current* id is enough
+   * — a regenerate drops the one it supersedes, and `undefined` is the clean
+   * stop. What survives a kill is what was live when the process died, which is
+   * the list core reconciles. See `state/liveSessions.ts` for why the client
+   * owns the storage and core owns the reclaim.
+   */
+  useEffect(
+    () => runtime.subscribePlayback((snapshot) => trackLiveSession(snapshot?.session?.sessionId)),
+    [runtime],
+  );
   useEffect(() => {
     runtime.setResolver(resolver);
   }, [resolver, runtime]);
