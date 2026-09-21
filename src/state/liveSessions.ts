@@ -23,6 +23,15 @@ import { nativeStorage } from './storage';
  * Core's design, put to this session 2026-09-21 after Tom ruled out doing
  * nothing — "We can't lock people out for 30m."
  *
+ * **Two behaviours, not one, and the second is the easy one to get wrong.** The
+ * kill case is why this exists: a process that dies without reporting
+ * `undefined` leaves its id on disk, and that is what the next run hands over.
+ * The quieter case is a **regenerate or failover**, where core replaces one
+ * generation with another under a new id and closes the one it superseded — so
+ * the record must drop the old id as the new one arrives, or it accumulates
+ * handles to sessions that are already gone and asks core to reconcile noise.
+ * Whoever implements this next is most likely to miss that half.
+ *
  * **The handback is not wired, and this is inert until it is.** Core owes the
  * reconcile call; when it lands, `orphanedSessions()` is what it takes and
  * `forgetSessions()` is what clears the ones it closed. Recording starts now
@@ -34,11 +43,17 @@ const KEY = 'macha-playback-live-sessions-v1';
 /**
  * Bounded, so a reconcile that never arrives cannot grow this without end.
  *
- * At the account cap: a list longer than the sessions an account may hold is
- * describing something that cannot be true, and the oldest entries are the
- * least likely to still be live. This is not a timing budget — it is the
- * server's own `max_sessions_per_account`, read off `GET /api/v1/status` on all
- * three nodes on 2026-09-21. If it stops matching, it is this that is wrong.
+ * **A sanity limit, not a derived truth, and the difference matters.** The
+ * figure is the server's `max_sessions_per_account` off `GET /api/v1/status`,
+ * 32 on all three nodes 2026-09-21 — but that cap is counted **per node**
+ * (confirmed by the server via core the same day), so an install holding
+ * sessions on three nodes could legitimately have more than 32 ids outstanding
+ * and still be describing something true. This client plays one thing at a
+ * time, so it cannot come near either number; the bound is here to stop an
+ * unreconciled record growing forever, and nothing follows from hitting it.
+ *
+ * An earlier version of this comment claimed a longer list "cannot be true".
+ * That was wrong, and corrected before anyone could cite it.
  */
 const MAX_REMEMBERED = 32;
 
