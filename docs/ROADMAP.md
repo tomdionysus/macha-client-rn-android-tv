@@ -192,9 +192,21 @@ Audited 2026-09-21: `Date.now()` appears three times and all three are
 elapsed-time sources — the seek-acceleration ladder, the stall watchdog, the
 readiness wait. There is no `toLocale*`, no `Intl.DateTimeFormat`, no rendering
 of any `*_unix_ms`, and nothing in the Kotlin formats a date. The failure trail
-stamps `elapsedMs`, monotonic within a session. **A client that only ever emits
-durations is zone-free by construction rather than by discipline**, and that is
-the property to keep.
+stamps `elapsedMs`, monotonic within a session.
+
+**That guarantee weakened the same evening, and the entry should not overstate
+it.** Core `5077468` gives every log entry a `timestamp: new Date().toISOString()`
+— a Zulu instant, with its own docblock saying the `Z` is load-bearing. This
+client already consumes those entries: `failureTrail.ts` maps `entry.elapsedMs`
+into `atMs` and **drops the timestamp on the floor**. So the trail on a
+television is unchanged and still shows `14.8s`.
+
+But the distinction matters. It *was* "this client has no wall-clock time to get
+wrong". It is now "the instant is present in every entry we already read, and
+one line would render it". A client that only emits durations is zone-free by
+construction; a client that has the instant in hand and chooses not to draw it
+is zone-free by **discipline**, and discipline is what this document exists to
+write down before somebody helpfully adds the field.
 
 ### The rule, Tom's, 2026-09-21
 
