@@ -25,8 +25,9 @@ read the lockfile's `resolved` and see a registry URL — and never trust
 `package.json`, the installed `version` string, or a green typecheck, all of
 which agreed with the link every time. The set runs a `develop` build
 against core's tree, which is not release behaviour (§0, below). Sign-in, the library, detail
-and playback all work; a film direct-plays with 5.1 intact (§1.2). Core is
-`0.14.0`.
+and playback all work; a film direct-plays with 5.1 intact (§1.2). **Core on
+`develop` is `0.17.0` from the linked checkout — `648474d` at the 2026-09-21
+sitting — not the `0.14.0` `main` installs from the registry.**
 
 **Failover has now run once, and it recovered the expensive way** (§1.0,
 2026-09-20). A session reaped underneath a paused viewer was recovered with
@@ -48,9 +49,13 @@ ever reached here is the open question §1.0 ends on.
   going to be reverted, and then turned out to be what Tom wanted. Recorded so
   the next reader does not "fix" it.
 - **The APK on the television was built against the linked core**, so it
-  contains core's unreleased `develop`. It is `versionCode 400` like the 0.4.0
-  release and the package manager cannot tell them apart. **Rebuild before
-  trusting anything measured on it as release behaviour.**
+  contains core's unreleased `develop`. **As of 2026-09-21 it is `versionCode
+  500`, which is also the released `0.5.0`'s code, and it is not that
+  release** — it carries the focus restore and the `410` pin on top of core
+  `648474d`. `md5` against the local build is the only thing that separates
+  them; `verify-on-device.sh install` compares `versionCode` and `versionName`
+  and will say "match" for either. **Rebuild before trusting anything measured
+  on it as release behaviour.**
 
 ### Rationalised 2026-09-20 — anomalies found
 
@@ -129,9 +134,29 @@ desktop. **They have since re-ordered them (2026-09-20): `session_idle` first.**
 ### Getting a build onto the set
 
 ```sh
-cd android && EXPO_TV=1 ./gradlew :app:assembleRelease -PreactNativeArchitectures=armeabi-v7a
+cd android && rm -f app/build/generated/assets/react/release/index.android.bundle
+EXPO_TV=1 ./gradlew :app:assembleRelease -PreactNativeArchitectures=armeabi-v7a
 TV=10.35.1.133:5555 ./scripts/verify-on-device.sh install
 ```
+
+**Delete the bundle; do not `--rerun-tasks`.** Both force Metro to run again,
+which is the whole point when core is a symlink Gradle cannot see into, but they
+do not cost the same. Measured on this machine 2026-09-21, same tree, same APK:
+
+| | |
+| --- | --- |
+| `createBundle… --rerun-tasks` **then** `assembleRelease` | **3m 01s** (2m 20 + 41s) |
+| delete the bundle, one `assembleRelease` | **1m 34s** (Metro 31–38s of it) |
+| no-op `assembleRelease`, nothing changed | **14s** |
+
+`--rerun-tasks` re-runs 29 tasks and needs a second Gradle invocation to get the
+guarantee that removing one file already gives. Roughly half the build time this
+project has been paying was that. The residue is Metro bundling 851 modules plus
+about a minute of dex, package, `lintVitalRelease` and sign for a 29.8 MB APK.
+
+Asserted, not measured here: `ACTIVE.md` records the phone client's incremental
+JS-only rebuild at ~90 s, which is what the second row now costs. Nobody in this
+session has run that command in the phone's tree.
 
 `npm test` runs `version:check` first, which compares `package.json`,
 `app.json` **and the generated `android/` tree** — bump a version and you must
@@ -326,6 +351,77 @@ sits below that floor and is safe by construction**, unchanged. A bundle
 built before `5aa3f6f` would hold standbys three times longer than core now
 believes is safe — a second reason the bundle sha must move at the sitting.
 
+### The sitting, 2026-09-21 — the build landed, twelve titles played, all three modes
+
+**What ran.** `0.5.0` / `versionCode 500`, built against core `648474d` with
+`dist` built 14:31:25, on `10.35.1.133`. Three APKs went on the set across the
+afternoon and **every one was `versionCode 500`**, which is also the released
+`0.5.0`'s code: `md5` against the local build was the only thing that could tell
+them apart, and it matched each time (`e1381e01…`, then `d014aaf8…`, then
+`df18355a…`). Assume the package manager cannot distinguish what is on that
+television from the release.
+
+**Twelve titles, play → seek +10 s → rewind −10 s → pause → resume → stop.**
+Mode is selectable from the player's "…" panel, which reads the session's own
+`options.modes`, so direct/remux/transcode are a choice rather than a wait for
+the right media.
+
+| Mode | Titles | What the chrome states |
+| --- | --- | --- |
+| Direct | Last Exit to Brooklyn, 2001: A Space Odyssey, 2010, Akira, Airplane!, Terminator Genisys (forced) | container unchanged; `2010` carried `AC3 · 5.1`, `Akira` `EAC3 · 7.1` |
+| Remux | Aliens, Taken, Apocalypse Now | container becomes `FMP4`, streams copied |
+| Transcode | Titanic, 28 Days Later | `FMP4`, and both ends stated: `HEVC → H264`, `EAC3 5.1 → AAC 5.1 384 kb/s` |
+
+Transport was read off the chrome rather than inferred — the clock moved 0:24 →
+0:18 on a rewind, the button flipped to play on a pause. **The player surface is
+a hardware video layer, so `screencap` of a playing title is pure black**; the
+transport chrome draws in the RN layer and does capture, which is the only way
+to read the player from off-device.
+
+**Ten sessions were leaked, and that is the finding.** The harness reset the app
+with `am force-stop` between titles, so `terminateForPageExit` never ran and
+every title left its session open (`sessions=10/32` on one node). A crash, an
+OOM kill or `com.tcl.esticker` taking the foreground does the same thing. One of
+the ten was a **transcode**, holding the node's single video-transcode slot, and
+it refused two later transcode requests with `video transcode limit reached`.
+Deleting the ten and re-running the refused title, which then transcoded
+normally, is what turns that from a theory into a cause. **The refusal itself
+behaved correctly**: a readable sentence in the chrome, playback not torn down.
+
+Reclaiming an orphan at launch is core's job rather than this client's — core
+owns session ownership and already has `drainAbandonedReleases` — so it has been
+put to core rather than built here. `session_idle_ms` is 1,800,000 ms, which is
+the backstop the exposure is measured against.
+
+**Seen once, unexplained, and core's to triage:** `Playback generation
+http://10.35.1.50:7438::72baee939be831ded9347a7b7fd00f68 has no endpoint
+provenance.` reached the viewer as that raw sentence, from
+`ClusterPlaybackResolver.ts:780`, seconds after a forced mode change re-resolved
+the title onto a **different node** (`10.35.1.50:7438` → `macnessa.macha.network`)
+and a transport action called `update`.
+
+**The cluster, measured from `GET /api/v1/status` with a tvtest bearer.** All
+three nodes report `0.48.0`, and TEL3 is on the wire:
+`max_sessions_per_account 32`, `pipeline_idle_ms 60000`, `session_idle_ms
+1800000`. Two consequences, both sent on:
+
+- **Core's standby window is six times shorter than it needs to be.** It took
+  the 10 s guaranteed floor this morning because `status_api.cpp` did not
+  serialise the idle figures. It does now, and the configured value is 60 s.
+- **The node-wide `max_sessions` story does not match the cluster.** Ten
+  concurrent sessions were held for one account on `10.35.1.50` and none was
+  refused, so that node's limit is above ten rather than the 8 relayed as still
+  live everywhere. The listing is node-local — while a title played on
+  `macnessa`, `10.35.1.50` reported `sessions=0` — so all ten were on one node.
+  `max_sessions` is **not** in the telemetry block, only the per-account cap, so
+  a client cannot state the limit that actually refused it.
+
+**What could not be exercised, and why:** a TV show (the detail screen is an
+episode list, not a play button, so the two-press flow never reaches a player),
+and two titles lost to `adb input text` dropping a character on the search
+field. Neither is a client fault; both are harness limits worth knowing before
+the next sitting.
+
 ### The re-run, 2026-09-20 23:54 — recovered, and the bound was not exercised
 
 Same reap (`GET 200 → DELETE 204 → GET 404`, resumed at 23:54:08, position
@@ -433,11 +529,24 @@ verification and the 5.1 measurement — are in
   longer exists — Settings is the cog at the trailing edge and the bar has six
   entries — so this is **unverified since the top bar was rebuilt**, not fixed.
   Re-check from the cog and from Home.
+- ~~**Back landed on the navigation bar rather than the poster it opened**~~ —
+  **fixed 2026-09-21** (`App.tsx`, `tvFocus.register`). Opening a film from the
+  Movies grid and pressing Back re-seeded focus to the screen default, so a
+  viewer lost their place in several hundred titles and a remote has no
+  scrollbar to get it back with. The restore is **armed rather than applied**:
+  the screen re-mounts and re-fetches, so its cards are not registered when the
+  route effect runs — a first attempt that restored there fell back to the
+  navigation bar, which is the fault it was written to fix, seen on the set.
+  Verified on `10.35.1.133`: before and after Back are the same card.
 - **Back from a top-level screen exits the app** rather than returning to the
   previous route. Conventional on Android TV, so possibly correct — but it
   means a stray Back drops out to the launcher, and `com.tcl.tv` is
   `FLAG_SECURE`, so screenshots silently return empty when it does. Worth a
-  decision rather than a fix.
+  decision rather than a fix. **2026-09-21 it cost a sitting**: a driver that
+  sent one Back too many left the app, kept pressing into the TV launcher, and
+  opened a Google Play Services sign-in screen, typing into its email field
+  before anyone noticed. Nothing was submitted. Anything driving this set over
+  `adb` should assert the foreground package before every key.
 
 ### 1.2 Close out the 5.1 measurement
 
@@ -1551,6 +1660,25 @@ core's tree, the reaps run against it, and the publish follows the evidence.
 code, the viewer reads "Another screen on this account is playing…", and the
 raw code goes to the trail and the small print. It cannot fire until the
 server ships the cap.
+
+**The two 429s carry opposite `alternative_may_succeed`, and codes are the only
+complete signal.** The account cap answers `false`, a `410` answers `true`, and
+both sit on the same `scope: request` / `node_healthy: true` — so anything
+reading the axes to decide whether to walk would draw opposite conclusions from
+identical-looking pairs. The node-scoped refusal (`ResourceLimitError`) carries
+**no axes at all**. Relayed and measured by the core session at
+`playback.cpp:3302`; nobody here has opened the server tree.
+
+**This client is insulated from that, and the insulation is undocumented, which
+is how it gets removed by accident.** Nothing here reads the axes:
+`failureCopy.ts` takes core's `isAccountSessionLimit`, which keys on the failure
+*code* against a set holding exactly `account_session_limit` — verified in the
+artifact this client loads, `dist/cluster/endpointFailure.js:148`, with
+`resource_limit` deliberately absent. `429` appears nowhere in this tree's `src`
+outside three prose comments. **So a node-scoped 429 cannot read as the account
+cap here** — and the mobile session's `classifyCreateRefusal` fault cannot take
+that shape on this client. Keep it that way: the refusal is a code, never a
+status, and never an axis.
 
 **Sequencing: core's `410` tolerance is in the linked tree and in the waiting
 APK; the nodes move on Tom's word, cap included, and testing follows the
