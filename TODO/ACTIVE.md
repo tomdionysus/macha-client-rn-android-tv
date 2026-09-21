@@ -362,11 +362,20 @@ a sofa.
 
 ### The plan, revised
 
-1. ~~Rebuild against core `0e787f8`~~ **Done, 23:33**, and the trap is real:
-   Gradle did not notice the change inside the symlinked core until
-   `createBundleReleaseJsAndAssets --rerun-tasks`; verify by literal
-   (`failed-session-close-timeout`) in the APK's bundle, then by hash on the
-   set. **Superseded step, kept for the method:** — Gradle does not
+1. **Rebuild at the sitting against core's HEAD then**, and the trap is real:
+   Gradle does not track a tree outside the project as a task input, so an
+   "up to date" bundle ships stale core while every version string agrees.
+   Measured here 2026-09-20 (a 6 s `assembleRelease` shipped the old bundle)
+   and on the phone client 2026-09-21. **The check, three levels down:**
+   (a) `createBundleReleaseJsAndAssets --rerun-tasks` — or delete the
+   generated bundle by hand — and confirm the bundle's sha **moved**;
+   (b) grep the APK's bundle for a literal only the new code emits — for this
+   rebuild that is **`standby-preparation-refused`**, the line the sitting
+   exists to capture, and its absence from the bundle is the one thing that
+   would make a reap meaningless while looking fine; (c) `md5sum` the APK on
+   the set against the local one. Then record core SHA + `dist` hash beside
+   every excerpt. Incremental rebuild after a JS-only change is ~90 s on the
+   phone client's machine; budget that, not the 20-minute cold build. — Gradle does not
    notice a change inside the symlinked core, measured tonight
    (`createBundleReleaseJsAndAssets --rerun-tasks`), and verify
    `failed-session-close-timeout` is in the APK's bundle before trusting it.
