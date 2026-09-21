@@ -1,6 +1,6 @@
 {
   "name": "macha-client-rn-tv",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "main": "index.js",
   "description": "React Native Android TV client for Macha.",
@@ -15,7 +15,7 @@
     "version:check": "node scripts/version-check.mjs"
   },
   "dependencies": {
-    "@machafoundation/core": "file:../macha-ts",
+    "@machafoundation/core": "^0.18.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.20",
     "expo-build-properties": "~57.0.17",
