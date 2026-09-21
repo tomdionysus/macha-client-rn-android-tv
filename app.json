@@ -3,12 +3,14 @@
     "name": "Macha",
     "icon": "./assets/icon.png",
     "slug": "macha-client-rn-tv",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "orientation": "landscape",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0e0e0f",
     "scheme": "macha",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "foundation.macha.client.tv",
       "icon": "./assets/icon.png",
@@ -16,7 +18,7 @@
         "foregroundImage": "./assets/icon-adaptive.png",
         "backgroundColor": "#0e0e0f"
       },
-      "versionCode": 400,
+      "versionCode": 500,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",

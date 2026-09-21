@@ -10,8 +10,13 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 ## 0. Where this stands
 
 **It works, and it has now been read against the web client on a screen.**
-0.4.0 is tagged and pushed (2026-09-20); the release APK is built and **not yet
-installed** — the set is still running a 304 build. Sign-in, the library, detail
+**0.5.0 is tagged and on `main` (2026-09-21)**, built against core `^0.14.0`
+from the registry with the link proven gone — the gate caught `npm install`
+keeping the symlink because the linked checkout already satisfied the range,
+so the release procedure is now: remove `node_modules/@machafoundation`,
+`npm uninstall`, `npm install @machafoundation/core@^x.y.z`, and read the
+lockfile's `resolved` before believing it. The set runs a `develop` build
+against core's tree, which is not release behaviour (§0, below). Sign-in, the library, detail
 and playback all work; a film direct-plays with 5.1 intact (§1.2). Core is
 `0.14.0`.
 
