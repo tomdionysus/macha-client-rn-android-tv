@@ -16,6 +16,7 @@
 #   ./scripts/verify-on-device.sh instances   # concurrent decoder limit (gates seamless failover)
 #   ./scripts/verify-on-device.sh headers     # what Media3 actually sends
 #   ./scripts/verify-on-device.sh logs        # native playback logs (NOT this client's own; see the stage)
+#   ./scripts/verify-on-device.sh bundle <literal>...  # is this literal in the APK's bundle?
 set -uo pipefail
 
 # The set Tom controls, and therefore the one a bare invocation means.
@@ -176,6 +177,43 @@ headers)
   "$ADB" -s "$TV" logcat -c
   echo "Playing now? Ctrl-C when you have a fragment or two."
   "$ADB" -s "$TV" logcat | grep -iE "DefaultHttpDataSource|okhttp|GET http|User-Agent|Range:|Authorization"
+  ;;
+
+bundle)
+  # **Did the bundle in the APK actually move?** Gradle cannot see inside the
+  # symlinked core, so an "up to date" build ships stale JavaScript while every
+  # version string agrees. The check is to name a literal only the new code
+  # emits and look for it in the APK's own bundle.
+  #
+  # **`grep -a`, always.** The bundle is Hermes bytecode, and a grep that
+  # decides it is binary can skip it silently — this shell's `grep` is a
+  # wrapper carrying `-I`, which exits 1 with no output on it. That is
+  # indistinguishable from "the literal is missing", which is the exact wrong
+  # conclusion: it says the bundle is stale when it is fine. Cost an hour on
+  # 2026-09-21. `strings` is not the problem and is not needed.
+  shift
+  [ $# -gt 0 ] || { echo "usage: verify-on-device.sh bundle <literal>..." >&2; exit 1; }
+  [ -f "$APK" ] || { echo "APK missing — build it first." >&2; exit 1; }
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  unzip -o -q "$APK" assets/index.android.bundle -d "$work" || {
+    echo "no assets/index.android.bundle in $APK" >&2; exit 1; }
+  b="$work/assets/index.android.bundle"
+  say "Bundle inside $APK"
+  echo "  bytes: $(wc -c < "$b" | tr -d ' ')"
+  echo "  sha:   $(shasum -a 256 < "$b" | cut -c1-16)"
+  missing=0
+  for lit in "$@"; do
+    n="$(LC_ALL=C grep -a -o -- "$lit" "$b" 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "$n" -gt 0 ]; then
+      printf '  present  %s (%s)\n' "$lit" "$n"
+    else
+      printf '  MISSING  %s\n' "$lit"
+      missing=$((missing + 1))
+    fi
+  done
+  [ "$missing" -eq 0 ] || { echo "$missing literal(s) absent — this APK does not carry the change." >&2; exit 1; }
+  echo "  all present"
   ;;
 
 logs)

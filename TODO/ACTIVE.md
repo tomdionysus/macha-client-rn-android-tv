@@ -489,10 +489,15 @@ a sofa.
    and on the phone client 2026-09-21. **The check, three levels down:**
    (a) `createBundleReleaseJsAndAssets --rerun-tasks` — or delete the
    generated bundle by hand — and confirm the bundle's sha **moved**;
-   (b) grep the APK's bundle for a literal only the new code emits — for this
-   rebuild that is **`standby-preparation-refused`**, the line the sitting
-   exists to capture, and its absence from the bundle is the one thing that
-   would make a reap meaningless while looking fine; (c) `md5sum` the APK on
+   (b) check the APK's bundle for a literal only the new code emits —
+   `./scripts/verify-on-device.sh bundle <literal>...`, which exits non-zero if
+   any is absent. Its absence is the one thing that would make a reap
+   meaningless while looking fine. **Use that stage rather than a bare `grep`:**
+   the bundle is Hermes bytecode and a grep that decides it is binary skips it
+   *silently* — this shell's `grep` wrapper carries `-I` and exits 1 with no
+   output, which reads exactly like "the literal is missing" and would condemn a
+   perfectly good bundle as stale. `grep -a` is the fix; `strings` is neither
+   the problem nor needed. Measured 2026-09-21; (c) `md5sum` the APK on
    the set against the local one. Then record core SHA + `dist` hash beside
    every excerpt. Incremental rebuild after a JS-only change is ~90 s on the
    phone client's machine; budget that, not the 20-minute cold build. — Gradle does not
