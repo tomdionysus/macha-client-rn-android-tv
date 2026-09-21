@@ -364,8 +364,12 @@ export function PlayerScreen({
    * session means deleting it out from under a paused client — the web
    * client's recipe, and the only way to do it without waiting out the node's
    * thirty-minute `session_idle` — and that needs the id. The node will not
-   * give it: `GET /api/v1/playback/sessions` is not a route, and
-   * `/playback/status` reports a count and no ids. The id is in the stream
+   * give it — today: `GET /api/v1/playback/sessions` is not a route and
+   * `/playback/status` reports a count and no ids. The server's
+   * sessions-as-a-resource change (planned 2026-09-21, not yet shipped) adds
+   * that list route, which makes the id findable from a laptop; the line
+   * stays anyway, because reading it off the screen is still the only way
+   * that needs no laptop. The id is in the stream
    * URL, which this client logs to the failure trail, which only renders once
    * playback has already failed — by which time the session under test is
    * gone.

@@ -761,7 +761,7 @@ web client's recipe — delete the session out from under the paused client — 
 still the only quick reproduction, and it needs a session id the node does not
 expose (§1.4b). Asked of the server session on 2026-09-20.
 
-### 1.4b No way to find a playback session id from outside the client
+### 1.4b No way to find a playback session id from outside the client — **until the route change (§2.10) ships**
 
 `GET /api/v1/playback/sessions` answers `404 not_found` — there is no list
 route — and `GET /api/v1/playback/status` gives a session *count* and no ids.
