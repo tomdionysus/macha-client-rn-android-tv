@@ -462,6 +462,118 @@ and two titles lost to `adb input text` dropping a character on the search
 field. Neither is a client fault; both are harness limits worth knowing before
 the next sitting.
 
+### The evening, 2026-09-21 — a remux P0 answered, and a second cause of the same 503
+
+**Two findings, and the second was an accident of the first.** Both measured on
+`10.35.1.133` against `http://10.35.1.50:7438`, client `0.5.0` / `versionCode
+500`, Diagnostics on so the trail rendered while the film ran.
+
+#### The A/B: remux is not broken, copying AC-3 into fMP4 stalls
+
+Tom's P0, reaching here through both the phone client and core: could this
+client complete a remux at all? The phone had four failures on two nodes and
+could not separate *"remux is broken"* from *"copying AC-3 into fMP4 stalls"*,
+because every title it tried was AC-3 or E-AC-3.
+
+Same node, same minutes, same mechanism — a PATCH to `mode: remux` on a live
+session, from the player's options panel:
+
+| Title | Audio | Result |
+| --- | --- | --- |
+| Aliens | AAC 5.1 | **succeeds.** `session-updated mode:"remux"` → `generation-update-ready` → `first-fragment ready:true` ~100 ms later. Chrome: `FMP4 · REMUX · HEVC 1920×1036`, `REMUX · ENG · AAC · 5.1`. Audio **copied**. |
+| 2010 | AC-3 5.1 | **fails.** `PATCH …/sessions/a2adb…`, `elapsedMs 15051.5`, `503`, `generation-update-failed reason:"representation"`. On screen: *"timed out waiting for first fragmented-MP4 segment"*. |
+
+`elapsedMs 15051.5` against that node's own advertised `startup_timeout_ms:
+15000` is what places the failure at `wait_for_initial_fragment` rather than
+anywhere slower — core reports that number is now doing the work of tying three
+clients' sightings to one wait.
+
+**Measurement, not mechanism, and deliberately so.** Core relayed `delay_moov`
+as the cause and then retracted it; the server has since disproved it by
+experiment on es-1 — AC-3 copy into fMP4 works with the flag and fails without,
+and under macha's real configuration AAC and AC-3 behave identically. Both
+experiments read from local disk rather than macha's source IO and used a
+substitute title, so 5.1 layout and the DHT-backed read path are untested. The
+server's next step is reproduction with the real media, explicitly not a fix.
+**Nothing in the table above depends on which mechanism wins.**
+
+**This client behaved correctly throughout**: the failed remux did **not** tear
+the session down. Direct play carried on at 0:37 and the viewer got a sentence
+instead of a black screen, with the old generation still presenting.
+
+#### A stale session makes the *next* play of the same title fail on that node
+
+Found by accident while testing the orphan record, and filed by core with the
+server as a **defect separate from the AC-3 P0**.
+
+    kill the app mid-playback (am force-stop)     session survives on the node
+    replay the same title, same node              503, elapsedMs 15026.8
+                                                  plan: video copy + audio transcode
+                                                  no AC-3, no audio copy anywhere in it
+    DELETE the orphaned session                   sessions 1 -> 0
+    replay the same title, same node              first-fragment ready:true, no 503
+
+n=1 each way and **no mechanism claimed**. What it establishes is narrower and
+still useful: *"timed out waiting for first fragmented-MP4 segment"* has **at
+least two distinct causes**, and one of them is a stale session for the same
+media already on that node.
+
+It also reframed the phone client's P0. On being told, that session disclosed it
+had reinstalled four times the same day, twice while a session was playing — a
+force-stop by another name on a client whose sessions also survive process
+death — and has since recorded its four failures as one controlled comparison
+rather than four independent points.
+
+**And it enlarges what `state/liveSessions.ts` is for.** An orphan is not only a
+transcode slot held for `session_idle_ms`; it can make the next play of that
+title fail on that node. The record was written for the first cost and now
+addresses the second.
+
+#### Core `61e4d74` — the reclaim finally has something to call
+
+`ClusterPlaybackResolver.stop()` looked the session id up in an in-process map
+and **returned silently when it was missing** — no request, no log, a resolved
+promise. Core reports zero DELETEs on fi-1 all day against 57 creates.
+
+That is exactly the case `orphanedSessions()` produces: ids from a **previous
+process**, for which no map entry can exist. Wiring the seam before this build
+would have called `stop()` on all ten orphans, done nothing, and looked like the
+seam being wrong rather than core being unable to act. `stop()` now falls
+through to `stopByIdAlone()` and recovers the endpoint from the id itself
+(`dist/playback/ClusterPlaybackResolver.js:885`, split on `lastIndexOf('::')` so
+`http://[::1]:7438` is not cut mid-address) — **verified here in the artefact,
+not taken on report.** Suite green against it: typecheck clean, 240/240, core
+HEAD `61e4d74`, `dist` built 19:08:26 with nothing in `src` newer.
+
+**Two properties to design the wiring against**, both core's:
+
+- an untracked close **never throws**, so a failed cleanup reaches a host only
+  through the trail, never as an error;
+- it never charges the node, because core cannot tell a session abandoned an
+  hour ago from one left by a dead process.
+
+So `forgetSessions(closed)` means **"core tried"**, not "the node confirmed". If
+certainty is needed, list the node afterwards.
+
+**Still not wired** — core asked for the suite first and has not asked for the
+wiring. **Not in this build:** the standby window still reads 10 s rather than
+the node's 60 s, and the provenance throw is still a raw sentence. Both phase 2.
+
+#### What the orphan record has and has not been shown to do
+
+**Shown, measured:** the leak reproduces — the app killed mid-playback leaves the
+session live on the node, confirmed by listing it five seconds later. The
+client's own session id renders as
+`http://10.35.1.50:7438::1bf1382c5c6d7c2c4fae3e92feb6a50f`, exactly the
+`${endpoint.id}::${nodeSessionId}` form core's reconcile resolves.
+
+**Not shown:** `sessions-orphaned-by-previous-run` has never been *read* on the
+set. It is logged at startup, the trail only renders while a film is playing,
+and a dozen newer lines push it out of the visible window before it can be seen.
+The record's persistence rests on nine unit tests, proved red against a record
+that forgets to persist. Seeing the line on a television needs either a longer
+trail view or a failure provoked immediately after launch.
+
 ### The re-run, 2026-09-20 23:54 — recovered, and the bound was not exercised
 
 Same reap (`GET 200 → DELETE 204 → GET 404`, resumed at 23:54:08, position
