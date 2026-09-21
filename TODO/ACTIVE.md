@@ -334,6 +334,19 @@ fix. Which leaves exactly two readings, and one run cannot separate them:
 words. If reading 1 is right, a viewer can still see a 19-second freeze on a
 reap, and the defect between "response logged" and "promise settled" is live.
 
+### Sequencing, ruled by Tom 2026-09-21
+
+**The routes and the per-account cap move to the nodes together, the set is
+not a gate, and everything is tested after the servers have cut over.** This
+session's NO-GO on the cap (silent, failover-only, number unsettled) was put
+to core and overruled — recorded so the reaps are read correctly: **every reap
+from here runs on the new routes with the cap live**, so a freeze has two
+candidate causes rather than one, and each excerpt must say so. The cap
+sentence (`failureCopy.ts`) gets its first live exercise in the same sitting;
+if the number lands where failover trips it, this set shows the sentence
+rather than a silent freeze, which is what makes the two distinguishable from
+a sofa.
+
 ### The plan, revised
 
 1. ~~Rebuild against core `0e787f8`~~ **Done, 23:33**, and the trap is real:
@@ -1503,8 +1516,12 @@ code, the viewer reads "Another screen on this account is playing…", and the
 raw code goes to the trail and the small print. It cannot fire until the
 server ships the cap.
 
-**Sequencing, which is the part that matters here: core ships `410` tolerance
-first, nodes move second.** Core today reads a `410` as `unknown`, and
+**Sequencing: core's `410` tolerance is in the linked tree and in the waiting
+APK; the nodes move on Tom's word, cap included, and testing follows the
+cutover** (ruled 2026-09-21 — see P-1). The published `0.14.0` also absolutises
+whatever the node returns (`MachaPlaybackResolver.js:348` in the tarball,
+checked), so `0.5.0` survives the route move too; what it lacks is the
+tolerance, which only matters if a node answers `410` under it. Core today reads a `410` as `unknown`, and
 `unknown` is endpoint evidence (§2.8's lesson): a node moving under a client
 without the tolerance charges a healthy node and builds a standby that cannot
 help. So **the bump `0.5.0` waits for is the tolerance release, not
