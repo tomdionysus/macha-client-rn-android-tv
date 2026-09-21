@@ -1464,6 +1464,20 @@ client on one account is four viewers before any standby, so anything under 8
 looks tight, and per-viewer would be better than per-account. The number is
 the server's; watch what they land on.
 
+**The release this repo waits for is named: core `0.17.0`** (tagged 2026-09-21;
+`0.15.0` and `0.16.0` were tagged and deliberately never published so three
+clients pin one number). It carries the `410` tolerance, the `429
+account_session_limit` tolerance, `playbackFailureCode` /
+`isAccountSessionLimit`, the walk fix, the bounded recovery and close, and
+the two log levels. **Not on npm as this is written** — core's publish failed
+on `npm whoami` → 401, and the publish is Tom's to log in for; he has
+approved it. Pin only when `npm view @machafoundation/core versions` shows it,
+then the release gate as §0 states it. **The cap sentence is built**
+(`failureCopy.ts`): core decides it is the cap, this tree never spells the
+code, the viewer reads "Another screen on this account is playing…", and the
+raw code goes to the trail and the small print. It cannot fire until the
+server ships the cap.
+
 **Sequencing, which is the part that matters here: core ships `410` tolerance
 first, nodes move second.** Core today reads a `410` as `unknown`, and
 `unknown` is endpoint evidence (§2.8's lesson): a node moving under a client

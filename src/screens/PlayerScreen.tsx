@@ -24,6 +24,8 @@ import {
   type PlaybackFailureTrailEntry,
 } from './player/failureTrail';
 import { failureTrailEnabled } from '../diagnostics/failureTrailSetting';
+import { failureCopy } from './player/failureCopy';
+import { playbackLog } from '../diagnostics/playbackLog';
 import { usePlayerVolume } from '../hooks/usePlayerVolume';
 import { volumePercent } from '../player/volume';
 import { useMacha } from '../app/MachaProvider';
@@ -104,6 +106,21 @@ export function PlayerScreen({
     () => (playback?.fatalError && failureTrailEnabled() ? playbackFailureTrail() : []),
     [playback?.fatalError],
   );
+  /**
+   * What the overlay says, decided once per failure.
+   *
+   * The server's code goes on the trail as well as into the small print,
+   * because the trail is the only record that outlives the overlay — and it
+   * is logged here rather than by the adapter because only the coordinator's
+   * assembled error carries the whole chain. See `failureCopy`.
+   */
+  const fatal = useMemo(
+    () => (playback?.fatalError ? failureCopy(playback.fatalError) : undefined),
+    [playback?.fatalError],
+  );
+  useEffect(() => {
+    if (fatal?.code) playbackLog.warn('fatal-error-code', { code: fatal.code });
+  }, [fatal]);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hostToken = useRef({}).current;
@@ -464,7 +481,8 @@ export function PlayerScreen({
       {playback?.fatalError ? (
         <View style={styles.fatalError}>
           <Text style={styles.fatalTitle}>Playback failed</Text>
-          <Text style={styles.fatalMessage}>{playback.fatalError.message}</Text>
+          <Text style={styles.fatalMessage}>{fatal?.headline ?? playback.fatalError.message}</Text>
+          {fatal?.code ? <Text style={styles.fatalCode}>{fatal.code}</Text> : null}
           {trail.map((entry) => (
             <View key={`${entry.atMs}-${entry.event}`} style={styles.trailRow}>
               <Text style={styles.trailTime}>{(entry.atMs / 1_000).toFixed(1)}s</Text>
@@ -861,6 +879,12 @@ const styles = StyleSheet.create({
   fatalMessage: {
     color: colour.error,
     textAlign: 'center',
+  },
+  /** The server's code, as small print: for whoever is debugging, never the viewer's line. */
+  fatalCode: {
+    color: '#7a7a83',
+    fontSize: type.small,
+    fontVariant: ['tabular-nums'],
   },
   /**
    * The live trail, at the top of the screen and out of the chrome's way.
