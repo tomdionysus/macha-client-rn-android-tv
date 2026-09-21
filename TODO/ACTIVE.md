@@ -298,9 +298,22 @@ Carries: the walk fix, the bounded close, the 48 s recovery supervision, the
 `410`/`429` tolerance, the cap accessors (`playbackFailureStatus` included —
 it went in with `9a37ce3`), the two log levels, the deferred session
 release; and this client's `info` trail and cap sentence. **Not installed** —
-the set was asleep when it was built. **Do not rebuild before the reaps**: a
-rebuild changes the hash without changing an instruction and loses the one
-property that makes a capture citable a week later.
+the set was asleep when it was built. **Superseded: rebuild at the sitting,
+against core HEAD then, and record the new identity** — core `28d6b70` added
+`standby-preparation-refused` at warn carrying `accountAtSessionLimit`, and
+that line is the discriminator between a cap-caused freeze and the one still
+being hunted: **a standby is the first request an account at its limit gets
+refused**, so seamless failover would stop with nothing on any trail, on this
+set, indistinguishable from P-1 — and with the line, a freeze *without* it is
+not the cap. Running the old APK would give up exactly that.
+
+**The cap sentence is reachable on the failover path, not only on create** —
+read in core and pinned by a test: the originating `PlaybackSourceError`
+carries `kind` and no `code`, `terminalRecoveryError` appends the refused
+failover as the chain's tail, and `playbackFailureCode` walks outermost-first
+to the refusal's code. `promoteStandby` never creates a session, so the only
+refusal it can meet is core's standby preparation, which is now the warn line
+above rather than silence.
 
 ### The re-run, 2026-09-20 23:54 — recovered, and the bound was not exercised
 

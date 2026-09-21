@@ -31,6 +31,20 @@ describe('failureCopy', () => {
     });
   });
 
+  it('finds the cap code when a refused failover is the tail of the chain', () => {
+    // The failover shape, read from core: the originating error is a
+    // PlaybackSourceError carrying `kind` and no `code`, terminalRecoveryError
+    // appends the failover's endpoint failure — `kind`, no `code` — and the
+    // refusal with the server code sits below that. Outermost-first must
+    // still reach it, or a viewer whose failover the cap refused reads the
+    // 404 that started it instead of the sentence they can act on.
+    const refusal = Object.assign(new Error('account at limit'), { code: 'cap-code-under-test' });
+    const endpoint = Object.assign(new Error('endpoint failed'), { kind: 'refused', cause: refusal });
+    const originating = Object.assign(new Error('Source error 404'), { kind: 'not-found', cause: endpoint });
+
+    expect(failureCopy(originating, () => false).code).toBe('cap-code-under-test');
+  });
+
   it('never lets the code become the headline', () => {
     const refusal = Object.assign(new Error('refused'), { code: 'some_code' });
 
