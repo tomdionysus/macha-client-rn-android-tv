@@ -37,6 +37,72 @@ the failover surface is still unexercised: no stall watchdog has fired on its
 own, no standby has been promoted deliberately, and whether the park path is
 ever reached here is the open question §1.0 ends on.
 
+### State at the end of 2026-09-21, for whoever picks this up next
+
+**Core is `5077468`, `dist` hash `04554181bfba`**, linked from `../macha-ts`.
+Reproduce the hash with `npm run dist:hash` **in core** — it is
+`find . -type f | sort | xargs shasum | shasum` from inside `dist`, and three
+sessions had three different answers before it became a command. What is in it
+that this client cares about:
+
+- `sessionAlive` recovers provenance from the session id, as `stop` already
+  did, so **an orphan from a previous run can be asked about before it is
+  closed** — which is what a reclaim does first;
+- the unknown-generation throw is typed, `session_provenance_unknown`, so
+  `playbackFailureCode` answers where a bare `Error` used to render verbatim on
+  a television;
+- `playbackFailureDetail(error)` carries a viewer sentence, so no client has to
+  match on core's wording;
+- the standby window is `max(10_000, min(30_000, stated))` — **30 s against our
+  cluster's `pipeline_idle_ms: 60000`**, up from the 10 s floor.
+
+**Both televisions run `0.5.0` / `versionCode 500`, which is also the released
+`0.5.0`'s code, and neither is that release.** Only a hash separates them.
+`verify-on-device.sh install` compares `versionCode` and `versionName` and will
+say "match" for either.
+
+- **`10.35.1.133`** — Android 12, 4K panel, Dolby Vision profiles 4/5/8/9.
+  Signed in as `tvtest`, Diagnostics **on**, running a build of core `5077468`
+  verified by `session_provenance_unknown` in its bundle. Smoke-tested at the
+  end of the session: direct, remux and transcode all play, transport works,
+  sessions closed, cluster left at `0/32`.
+- **`10.34.1.115`** — Android 11, 1080p panel, **`DOLBY VISION: none`** (it has
+  the decoders, profiles 4 and 5, but the panel reports only HDR10 and HLG, and
+  `Capabilities.kt` gates DV on the display deliberately). Installed, **signed
+  out**, data cleared, never smoke-tested. Its adb authorisation needed the
+  operator to accept a prompt at the set, and after they did, a plain
+  `adb connect` still reported `unauthorized` until `adb kill-server`.
+
+**The upgrade signed `.133` out.** It had been signed in all evening, nothing
+wiped it, and `install -r` preserves data. Signing in again worked first time.
+The only change that looks capable of causing it is `nodeId` now being
+populated from the server's `node_id`, so a stored session keyed to an endpoint
+may no longer match — which would mean **every existing install signs out when
+this core ships**. Put to core as a symptom; nobody has read that path.
+
+**A false finding, recorded so it is not re-derived.** Early in the evening this
+session reported that a fresh sign-in yields an anonymous, role-less session,
+reproduced "2/2". It was wrong. Every attempt had pressed **"Server settings"**
+rather than "Sign in", and the 403 screen it reached is what the app shows
+before anyone signs in at all. Sign-in works: demonstrated on `.133` at the end
+of the session. Core had already relayed the claim to two other clients and a
+device wipe had been requested of the phone before it was retracted. The
+device-notes bullets above carry the mechanics that caused it.
+
+**Waiting on other sessions, none of it blocking:**
+
+- **core** — the reconcile call that acts on `orphanedSessions()`; until it
+  lands `state/liveSessions.ts` is built, tested and inert;
+- **the server** — reproducing the AC-3-into-fMP4 stall with real media and the
+  real read path, and deploying `ec5a65b` so a reclaimed pipeline releases its
+  transcode entitlement;
+- **the phone client** — an exhaustive list of the capability assumptions it
+  still hardcodes, against our six in `docs/ROADMAP.md`.
+
+**`develop` still links `file:../macha-ts`.** Nothing merges to `main` without
+restoring `^0.14.0` from the registry and running the three checks against
+*that*.
+
 ### Where the tree is, for whoever picks this up
 
 - **`develop` carries `"@machafoundation/core": "file:../macha-ts"`** — a
@@ -224,6 +290,29 @@ Both are `leanback_only`, `type.television`, no touchscreen. The APK's
 - **`uiautomator dump` prunes what is off screen.** It showed two rows on a
   Home that had four, and the missing two were read as absent data. Focus in
   `tvFocus` is a JS registry, so the dump never shows it either.
+- **The player screencaps black.** Video draws into a hardware layer, so a
+  capture of a playing title is pure black. The transport chrome is an RN view
+  and *does* capture, so reveal it first (any key) and read position, mode,
+  codecs and node from the small print. That overlay is the only way to read
+  the player from off-device.
+- **`input text` and `KEYCODE_DEL` do not agree about what "focused" means**,
+  and this cost most of an evening twice. `input text` writes to whatever holds
+  focus. `KEYCODE_DEL` only acts on a field in **edit mode** — pressed with a
+  field merely focused it does nothing and reports nothing. So a field that
+  looks cleared may not be, and text aimed at one box can land in another.
+  Activate a field with `DPAD_CENTER` before deleting, and **capture after every
+  field rather than at the end**.
+- **On the login screen, `DPAD_DOWN` from the password lands on "Server
+  settings", not "Sign in".** The focus scorer goes by geometry and the
+  secondary button sits nearer the form's centreline. So the natural remote
+  gesture — Down, then OK — opens Settings. `DPAD_LEFT` then reaches Sign in.
+  **This produced a false finding on 2026-09-21** (below); anything driving
+  this screen must confirm which control it is about to press.
+- **Never conclude from a screen that is also the default.** The 403 /
+  "requires the 'media_viewer' role" state is what an app shows *before* anyone
+  signs in, so reaching it proves nothing about a sign-in that may never have
+  happened. A symptom identical to the null hypothesis costs nothing to produce
+  and evidences nothing.
 
 ### Two standing rules
 
