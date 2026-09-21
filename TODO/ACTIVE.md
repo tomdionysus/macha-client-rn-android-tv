@@ -1469,10 +1469,14 @@ the server's; watch what they land on.
 clients pin one number). It carries the `410` tolerance, the `429
 account_session_limit` tolerance, `playbackFailureCode` /
 `isAccountSessionLimit`, the walk fix, the bounded recovery and close, and
-the two log levels. **Not on npm as this is written** — core's publish failed
-on `npm whoami` → 401, and the publish is Tom's to log in for; he has
-approved it. Pin only when `npm view @machafoundation/core versions` shows it,
-then the release gate as §0 states it. **The cap sentence is built**
+the two log levels. **Not on npm, and not because of anything to clear: Tom has ruled
+"nowhere near ready to publish… no publishing to an immutable repo" and
+"hotlink for now so we can actually test this works"** (2026-09-21, relayed
+by core; this file briefly said the publish was blocked on an `npm login`,
+which was core's first framing and wrong). So **bump-and-release is off**
+until this is proven on the set: `0.5.0` stays on `^0.14.0`, `develop` links
+core's tree, the reaps run against it, and the publish follows the evidence.
+`0.17.0` stays named as the eventual target. **The cap sentence is built**
 (`failureCopy.ts`): core decides it is the cap, this tree never spells the
 code, the viewer reads "Another screen on this account is playing…", and the
 raw code goes to the trail and the small print. It cannot fire until the
