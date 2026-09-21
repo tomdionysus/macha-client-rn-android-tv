@@ -32,6 +32,7 @@ export function TopBar({
   active,
   onSelect,
   username,
+  onSignOut,
   onOpenSettings,
   settingsActive,
 }: {
@@ -40,6 +41,8 @@ export function TopBar({
   onSelect: (key: string) => void;
   /** Who the session belongs to, when it belongs to anyone. */
   username?: string;
+  /** Selecting the account signs out. Omitted when there is nobody to sign out. */
+  onSignOut?: () => void;
   onOpenSettings: () => void;
   settingsActive?: boolean;
 }): React.JSX.Element {
@@ -70,13 +73,34 @@ export function TopBar({
 
       {/* `.topbar-trailing { display: flex; align-items: center; gap: .75rem }` */}
       <View style={styles.trailing}>
+        {/*
+          * **Focusable, because a television has no other way out of an
+          * account.** This was a plain `View` until 2026-09-21: drawn, never
+          * registered, so the D-pad walked from Status straight to the cog and
+          * skipped it. There was no sign-out behind it either, and none
+          * anywhere else in the client — so a viewer on a set could not leave
+          * an account at all, short of clearing the app's data.
+          */}
         {username ? (
-          <View style={styles.account}>
-            <UserIcon />
-            <Text style={styles.accountName} numberOfLines={1}>
-              {username}
-            </Text>
-          </View>
+          <Focusable
+            ring={false}
+            onSelect={() => onSignOut?.()}
+            disabled={!onSignOut}
+            style={styles.account}
+            focusedStyle={styles.navItemFocused}
+          >
+            {({ focused }) => (
+              <>
+                <UserIcon />
+                <Text
+                  style={[styles.accountName, focused && styles.accountNameFocused]}
+                  numberOfLines={1}
+                >
+                  {username}
+                </Text>
+              </>
+            )}
+          </Focusable>
         ) : null}
         <Focusable
           ring={false}
@@ -177,6 +201,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: rem(0.4),
     maxWidth: rem(11),
+  },
+  accountNameFocused: {
+    color: colour.text,
   },
   accountName: {
     color: colour.textDim,

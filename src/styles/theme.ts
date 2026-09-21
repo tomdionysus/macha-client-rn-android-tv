@@ -125,6 +125,22 @@ export const colour = {
   scrubberTrack: '#e7e7ea',
   scrubberBuffered: '#d7a3af',
   scrubberPlayed: '#620014',
+
+  /**
+   * `.modal-backdrop { background: #000b }`.
+   *
+   * The web rule also carries `backdrop-filter: blur(7px)`, which React Native
+   * has no equivalent for. Not approximated: the scrim alone is what separates
+   * the dialogue from what is behind it, and a wrong blur would be a difference
+   * from the web client rather than a missing one.
+   */
+  scrim: '#000000b8',
+  /** `.modal-panel { background: #171719f7 }`. */
+  modalSurface: '#171719f7',
+  /** `.modal-danger-action { border-color: #8a303b }`. */
+  dangerBorder: '#8a303b',
+  /** `.modal-danger-action { background: #39080e }`. */
+  dangerSurface: '#39080e',
 } as const;
 
 /**

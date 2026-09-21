@@ -32,6 +32,7 @@ export function LoginScreen({
   guestAllowed = true,
   onBrowseAsGuest,
   onOpenSettings,
+  notice,
 }: {
   /** Exchanges credentials for a session. Rejects on a refusal, which is the whole point. */
   onSignIn: (username: string, password: string) => Promise<void>;
@@ -57,6 +58,19 @@ export function LoginScreen({
    * for the same reason, after 0.13.0 shipped exactly that lockout.
    */
   onOpenSettings?: () => void;
+  /**
+   * Why this screen is up, when it is up for a reason the viewer did not
+   * expect — replacing the standing blurb rather than joining it.
+   *
+   * There is one thing worth saying here and it is core's argument, not this
+   * client's: a session that lapses under a viewer empties the library and
+   * renders the refused state "unannounced, looking exactly like a fault". The
+   * remedy core names is to say what happened. It also names the limit —
+   * **"a false 'you were signed out' is worse than a missing one"** — so the
+   * caller supplies this only where it knows, and core reports no identity
+   * change at all against a node too old to state a username.
+   */
+  notice?: string;
 }): React.JSX.Element {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -100,9 +114,10 @@ export function LoginScreen({
       <Image source={require('../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>Sign in to Macha</Text>
       <Text style={styles.blurb}>
-        {guestAllowed
-          ? 'Sign in to see your own history and settings.'
-          : 'This server requires an account to watch anything.'}
+        {notice ??
+          (guestAllowed
+            ? 'Sign in to see your own history and settings.'
+            : 'This server requires an account to watch anything.')}
       </Text>
 
       <View style={styles.form}>

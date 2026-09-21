@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
-import { progressFor, sessionManager, type MediaSummary, type PlaybackProgress } from '@machafoundation/core';
+import {
+  errorMessage,
+  progressFor,
+  sessionManager,
+  type MediaSummary,
+  type PlaybackProgress,
+} from '@machafoundation/core';
 import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime } from './app/usePlaybackRuntime';
 import { hydrateStorage } from './state/storage';
@@ -13,6 +19,7 @@ import { orphanedSessions } from './state/liveSessions';
 import { playbackLog } from './diagnostics/playbackLog';
 import { androidTvPlatform } from './platform/AndroidTvPlatform';
 import { TopBar, type NavItem } from './components/TopBar';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { Loading } from './components/Status';
 import { HomeScreen } from './screens/HomeScreen';
 import { LibraryScreen } from './screens/LibraryScreen';
@@ -26,7 +33,13 @@ import { MusicScreen } from './screens/MusicScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { OfflineScreen } from './screens/OfflineScreen';
 import { useCurrentSession } from './app/useCurrentSession';
-import { accessState, useAccessLatched, useSessionFacts } from './app/access';
+import {
+  accessState,
+  lapsedIdentity,
+  useAccessLatched,
+  useSessionFacts,
+  type AdmissionEnded,
+} from './app/access';
 import { colour, screenSize } from './styles/theme';
 
 /**
@@ -90,8 +103,29 @@ function Shell(): React.JSX.Element {
   // infers access from an absent token, which is the mistake that put a login
   // wall in front of a network blip. Latched, so a failed refresh mid-film can
   // never replace the player.
-  const { failure, roles } = useSessionFacts();
-  const access = useAccessLatched(accessState(sessionReady, failure, roles));
+  const { failure, roles, identity } = useSessionFacts();
+  /** Set the moment the viewer's sign-out is committed, and cleared by signing in again. */
+  const [signedOut, setSignedOut] = useState(false);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string>();
+  /**
+   * The two things that end an admission the viewer already had.
+   *
+   * Everything else that looks like a refusal after admission is a transient
+   * the latch is there to absorb. These are not: one is the viewer asking, and
+   * the other is core stating that the session stopped belonging to them and
+   * that what replaced it can do nothing. Without this the second state has no
+   * exit at all — the shell stays up, every screen answers
+   * `403 requires the 'media_viewer' role`, and there is nothing to press.
+   * Tom met exactly that on `.133` on 2026-09-21. See `access.ts`.
+   */
+  const ended: AdmissionEnded | undefined = signedOut
+    ? 'signed-out'
+    : lapsedIdentity(identity, roles)
+      ? 'identity-changed'
+      : undefined;
+  const access = useAccessLatched(accessState(sessionReady, failure, roles, ended));
   const [settingsWhileLocked, setSettingsWhileLocked] = useState(false);
   /**
    * A stack, so Back unwinds season → series → library rather than jumping to
@@ -179,7 +213,51 @@ function Shell(): React.JSX.Element {
     pop();
   }, [runtime, route, continueWatching, pop]);
 
+  /**
+   * Leave the account, which on a television is a thing a viewer can otherwise
+   * not do at all.
+   *
+   * **Playback is stopped first, and that ordering is core's requirement rather
+   * than tidiness.** Nothing connects a playback session to an identity, so
+   * once the token changes a session created under the old one can no longer be
+   * closed: the node holds its transcode entitlement until `session_idle` —
+   * thirty minutes — and on a one-slot node the next viewer gets
+   * `429 resource_limit` with nothing pointing at the client that caused it.
+   * The stop is awaited for the same reason `closePlayer`'s is not: there,
+   * nothing follows that could invalidate it; here, the very next line does.
+   *
+   * **The revoke's failure is shown rather than swallowed.** Core clears local
+   * state first and unconditionally — once the viewer has asked to be signed
+   * out, still being signed in is the one outcome that must not happen — and
+   * only then revokes, so a throw here means the session is gone from this
+   * television but may still be live on a node. That is worth a sentence,
+   * because the remedy is somebody else's.
+   */
+  const signOut = useCallback(async () => {
+    setSignOutError(undefined);
+    setSigningOut(true);
+    try {
+      await runtime.stop();
+      await sessionManager.signOut();
+    } catch (cause) {
+      setSignOutError(errorMessage(cause));
+    } finally {
+      setSigningOut(false);
+      // Regardless of the revoke: local state is cleared either way, so this
+      // television is signed out and the wall belongs up. Sending the stack
+      // home as well, so signing back in does not resume three levels deep in
+      // somebody else's library.
+      setSignedOut(true);
+      setConfirmingSignOut(false);
+      setStack([{ name: 'home' }]);
+    }
+  }, [runtime]);
+
   const onBack = useCallback((): boolean => {
+    if (confirmingSignOut) {
+      if (!signingOut) setConfirmingSignOut(false);
+      return true;
+    }
     if (route.name === 'player') {
       closePlayer();
       return true;
@@ -189,7 +267,7 @@ function Shell(): React.JSX.Element {
     if (stack.length === 1 && TOP_LEVEL.has(route.name)) return false;
     pop();
     return true;
-  }, [route.name, stack.length, closePlayer, pop]);
+  }, [route.name, stack.length, closePlayer, pop, confirmingSignOut, signingOut]);
 
   useTvNavigation({
     onBack,
@@ -363,8 +441,28 @@ function Shell(): React.JSX.Element {
         ) : (
           <LoginScreen
             guestAllowed={false}
+            /*
+             * Said only for the case core can actually report, and said as what
+             * it is. "Signed out" would be a guess: a 401 does not separate an
+             * expiry from a revoke from a role change, and core states no
+             * sentence for exactly that reason. What is known is that the
+             * session stopped belonging to this account and the one that
+             * replaced it may do nothing — which is what the viewer is looking
+             * at, and it is not a fault in the television.
+             */
+            notice={
+              access.kind === 'sign-in' && access.because === 'identity-changed'
+                ? 'This session stopped belonging to your account. Sign in again to carry on watching.'
+                : undefined
+            }
             onSignIn={(username, password) => sessionManager.signIn({ username, password })}
-            onSignedIn={refreshSession}
+            onSignedIn={() => {
+              // Clears the wall this screen was raised by. Without it a viewer
+              // who signs out and straight back in is held at the login screen
+              // by their own earlier decision.
+              setSignedOut(false);
+              refreshSession();
+            }}
             onOpenSettings={() => setSettingsWhileLocked(true)}
           />
         )}
@@ -385,10 +483,37 @@ function Shell(): React.JSX.Element {
         active={TOP_LEVEL.has(route.name) ? route.name : 'home'}
         onSelect={(key) => replaceTop({ name: key } as Route)}
         username={session?.username}
+        // Only where there is an account to leave. An unnamed session is one
+        // nobody chose to be, so signing out of it would do nothing a viewer
+        // could see — the web client draws the same line, offering a way *in*
+        // there rather than an account to manage.
+        onSignOut={session?.username ? () => setConfirmingSignOut(true) : undefined}
         settingsActive={route.name === 'settings'}
         onOpenSettings={() => replaceTop({ name: 'settings' })}
       />
       <View style={styles.main}>{body}</View>
+      {confirmingSignOut ? (
+        <ConfirmDialog
+          title="Sign out?"
+          /*
+           * What sign-out actually does, in the web client's words, because it
+           * measured them: `logout` revokes *this* token, and the revocation
+           * propagating to every node means this token cannot be used against a
+           * different one — not that every session the account holds is ended.
+           * That client shipped the stronger sentence once and corrected it;
+           * telling somebody their other devices have been signed out when they
+           * have not is the kind of wrong that stops them doing the thing they
+           * actually needed.
+           */
+          body={`This signs ${session?.username ?? 'you'} out on this television only — anywhere else stays signed in. Anything playing here will stop.`}
+          confirmLabel="Sign out"
+          destructive
+          busy={signingOut}
+          error={signOutError}
+          onConfirm={() => void signOut()}
+          onCancel={() => setConfirmingSignOut(false)}
+        />
+      ) : null}
     </View>
   );
 }

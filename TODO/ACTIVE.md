@@ -103,6 +103,71 @@ device-notes bullets above carry the mechanics that caused it.
 restoring `^0.14.0` from the registry and running the three checks against
 *that*.
 
+### A viewer could not leave an account — fixed and run on the set, 2026-09-21
+
+**Tom, at the set: the client insisted the account had no media read access,
+and there was no way to sign out of it.** Both halves are now closed, and the
+second was the cause of the first being inescapable rather than merely wrong.
+
+**What the account actually has, measured against `10.35.1.50:7438`:**
+`POST /api/v1/session` for `tvtest` with core's nested credentials envelope
+returns `roles: ["media_viewer","view_status"]`. The same request with a *flat*
+body returns `username: anonymous`, `roles: []`. The server grants the account
+what it should; a session that cannot read the catalogue is one that was minted
+without credentials.
+
+**Why a client holding such a session could not escape it.** Core documents and
+measured the degrade: a re-mint presents no credentials, so it returns the
+anonymous account, and `/catalogue/items` then answers `403 requires the
+'media_viewer' role` — "the library empties mid-use and the application renders
+its refused state, unannounced, looking exactly like a fault". Core publishes
+both halves of the answer, `lastIdentityChange` and `roles`, and **this client
+consumed neither** — no reference to `lastIdentityChange` existed anywhere in
+`src/`. `useAccessLatched` then held the shell up over it by design, which its
+own "known deferral" paragraph had recorded. So: every screen failing, and a
+top bar whose account chip was a plain `View` — drawn, never registered, so the
+D-pad walked past it to the cog.
+
+**What triggered the re-mint on `.133` is not measured.** The logcat buffer was
+lost to a reboot at 22:00 before it could be read. §0's `nodeId` note is the
+standing candidate and nobody has read that path.
+
+**Landed:**
+- `access.ts` — `accessState` takes a fourth fact, `AdmissionEnded`, and it
+  outranks `ready`; `stillAdmitted` is the latch's rule extracted as a value so
+  it is tested without a renderer; `lapsedIdentity` reads core's two halves
+  together. The latch now lets exactly two states through and no others.
+- `TopBar` — the account chip is a `Focusable`, and selecting it signs out.
+- `ConfirmDialog` — the web client's `ConfirmModal` re-laid for a remote, own
+  focus scope, **Cancel holding focus**. Generalise *this* when music needs
+  `Modal` and `OverflowMenu` (§4.6) rather than copying it.
+- `LoginScreen` — an optional `notice`, used only for `identity-changed`, and
+  only saying what core can actually support. A false "you were signed out" is
+  worse than a missing one.
+- `App` — sign-out stops playback and **awaits it** before the token changes,
+  because a session created under the old token can no longer be closed and the
+  node holds its transcode entitlement for thirty minutes.
+
+**Run on `10.35.1.133`**, APK `md5 66bf82e6…` matching the local build: chip
+reachable by D-pad, dialogue up with the right sentence, Cancel returns without
+signing out, Sign out returns the wall, and signing back in as `tvtest` restores
+the library. **The set is now signed in as `tvtest`, not `tom`.**
+
+**Not covered:** the `identity-changed` wall has never been seen on hardware —
+it needs a session to actually lapse under a viewer, which is the unmeasured
+trigger above. Cancel returns focus to the screen default rather than to the
+chip the viewer opened it from; minor, and it is `popScope` behaviour rather
+than this dialogue's.
+
+**`verify-on-device.sh bundle` was reporting false MISSINGs**, fixed here.
+Hermes stores any string containing a non-ASCII character as UTF-16, so a byte
+grep for `on this television only` found nothing while the string was plainly
+in the bundle — and `This signs `, the ASCII part of the *same template*, was
+found at once. Every sentence this client shows a viewer is a candidate: the
+house style uses `—` and `…` throughout. The stage now checks both encodings
+and says which one matched. This is the second way that check has read "stale
+bundle" when the bundle was fine; the first was the `-I` grep wrapper.
+
 ### Where the tree is, for whoever picks this up
 
 - **`develop` carries `"@machafoundation/core": "file:../macha-ts"`** — a

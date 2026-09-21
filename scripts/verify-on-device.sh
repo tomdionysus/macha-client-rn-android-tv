@@ -191,6 +191,20 @@ bundle)
   # indistinguishable from "the literal is missing", which is the exact wrong
   # conclusion: it says the bundle is stale when it is fine. Cost an hour on
   # 2026-09-21. `strings` is not the problem and is not needed.
+  #
+  # **And a second way to reach the same wrong conclusion, measured 2026-09-21
+  # on the sign-out build: Hermes stores a string containing any non-ASCII
+  # character as UTF-16.** A byte grep for `on this television only` found
+  # nothing while the string was plainly in the bundle, because its literal
+  # carries an em dash; `This signs ` — the ASCII part of the very same
+  # template — was found at once. Every sentence this client shows a viewer is
+  # a candidate: the house style uses `—` and `…` throughout, so the literals
+  # most worth checking are the ones this check was quietest about.
+  #
+  # So each literal is looked for in **both** encodings and counted as present
+  # in either. Searching UTF-16 needs the needle transcoded rather than the
+  # haystack: `iconv` on 1.8 MB of bytecode would have to guess at an encoding
+  # it does not have, while the needle is known text.
   shift
   [ $# -gt 0 ] || { echo "usage: verify-on-device.sh bundle <literal>..." >&2; exit 1; }
   [ -f "$APK" ] || { echo "APK missing — build it first." >&2; exit 1; }
@@ -203,10 +217,23 @@ bundle)
   echo "  bytes: $(wc -c < "$b" | tr -d ' ')"
   echo "  sha:   $(shasum -a 256 < "$b" | cut -c1-16)"
   missing=0
+  # Counted in Python rather than with `grep`, because the UTF-16 needle is
+  # mostly NUL bytes: every shell mechanism for handing a pattern to grep —
+  # an argument, `xargs -0`, a `-f` pattern file — either splits on NUL or
+  # truncates at the first one, and each fails by reporting *absent*. Which is
+  # the one answer this stage must never give wrongly.
   for lit in "$@"; do
-    n="$(LC_ALL=C grep -a -o -- "$lit" "$b" 2>/dev/null | wc -l | tr -d ' ')"
-    if [ "$n" -gt 0 ]; then
-      printf '  present  %s (%s)\n' "$lit" "$n"
+    read -r n enc <<<"$(LIT="$lit" B="$b" python3 -c '
+import os, sys
+needle, blob = os.environ["LIT"], open(os.environ["B"], "rb").read()
+for label, raw in (("utf-8", needle.encode("utf-8")), ("utf-16", needle.encode("utf-16-le"))):
+    n = blob.count(raw)
+    if n:
+        print(n, label); sys.exit()
+print(0, "-")
+')"
+    if [ "${n:-0}" -gt 0 ]; then
+      printf '  present  %s (%s, %s)\n' "$lit" "$n" "$enc"
     else
       printf '  MISSING  %s\n' "$lit"
       missing=$((missing + 1))
