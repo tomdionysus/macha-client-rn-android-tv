@@ -11,11 +11,19 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 **It works, and it has now been read against the web client on a screen.**
 **0.5.0 is tagged and on `main` (2026-09-21)**, built against core `^0.14.0`
-from the registry with the link proven gone — the gate caught `npm install`
-keeping the symlink because the linked checkout already satisfied the range,
-so the release procedure is now: remove `node_modules/@machafoundation`,
-`npm uninstall`, `npm install @machafoundation/core@^x.y.z`, and read the
-lockfile's `resolved` before believing it. The set runs a `develop` build
+from the registry with the link proven gone. **The unlink is not a step, it
+is a check.** Measured twice on this machine and once on the phone client's
+(same npm 11.9.0, node 24.14.0, lockfile v3), and the *same* command gave
+different answers: editing the spec and running plain `npm install` kept the
+symlink on 2026-09-21 morning and produced a real directory the same
+afternoon; deleting the directory then plain-installing recreated the link on
+the phone's machine and did not on this one. Nobody has isolated what state
+it depends on. So the procedure is: `npm install @machafoundation/core@^x.y.z`
+**explicitly** (the one step that rewrote the lockfile every time it was
+tried), then **`test -L node_modules/@machafoundation/core` must fail**, then
+read the lockfile's `resolved` and see a registry URL — and never trust
+`package.json`, the installed `version` string, or a green typecheck, all of
+which agreed with the link every time. The set runs a `develop` build
 against core's tree, which is not release behaviour (§0, below). Sign-in, the library, detail
 and playback all work; a film direct-plays with 5.1 intact (§1.2). Core is
 `0.14.0`.
