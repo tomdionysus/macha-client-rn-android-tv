@@ -281,6 +281,23 @@ checked).
   so every step between "regenerating" and "attached" is on screen. **Built,
   unrun.**
 
+### The build waiting for the set, 2026-09-21
+
+**Core's tree moves under a fixed version by design** ("`0.17.0` is the name
+of the thing being built until it is published" — Tom, via core), so a
+measurement names **core's SHA and a hash of `dist`**, never the version.
+Hash from *inside* `dist`, because `shasum` includes the path it is given.
+
+    core 9a37ce3 (2 files uncommitted at build time)   dist 364733574ba860cb
+    APK  f849f44527eedf69b7e8564dd110219a               bundle forced, literals verified:
+         client_recovery_deadline, failed-session-close-timeout, account_session_limit,
+         HlsManifestUnavailableError, fatal-error-code
+
+Carries: the walk fix, the bounded close, the 48 s recovery supervision, the
+`410`/`429` tolerance, the cap accessors, the two log levels, the deferred
+session release; and this client's `info` trail and cap sentence. **Not
+installed** — the set was asleep when it was built.
+
 ### The re-run, 2026-09-20 23:54 — recovered, and the bound was not exercised
 
 Same reap (`GET 200 → DELETE 204 → GET 404`, resumed at 23:54:08, position
@@ -1464,9 +1481,9 @@ client on one account is four viewers before any standby, so anything under 8
 looks tight, and per-viewer would be better than per-account. The number is
 the server's; watch what they land on.
 
-**The release this repo waits for is named: core `0.17.0`** (tagged 2026-09-21;
-`0.15.0` and `0.16.0` were tagged and deliberately never published so three
-clients pin one number). It carries the `410` tolerance, the `429
+**The release this repo waits for is named: core `0.17.0`** — the name of the
+thing being built, which keeps accumulating under that number until it is
+proven and published; `0.15.0`/`0.16.0` were waypoints and mean nothing. It carries the `410` tolerance, the `429
 account_session_limit` tolerance, `playbackFailureCode` /
 `isAccountSessionLimit`, the walk fix, the bounded recovery and close, and
 the two log levels. **Not on npm, and not because of anything to clear: Tom has ruled
