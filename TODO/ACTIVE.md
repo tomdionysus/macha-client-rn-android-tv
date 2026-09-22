@@ -29,6 +29,13 @@ and playback all work; a film direct-plays with 5.1 intact (§1.2). **Core on
 `develop` is `0.17.0` from the linked checkout — `648474d` at the 2026-09-21
 sitting — not the `0.14.0` `main` installs from the registry.**
 
+**Standing down on the cluster, 2026-09-23.** Tom: server problems, stop until
+they are fixed. The catalogue is answering `503 catalogue_unavailable` (§1.9),
+so nothing that needs a library can be run on either set — that includes the
+resume-point test (§ above) and the stereo-track A/B (§1.8). Everything written
+up here is documentation of work already done or measurements already taken;
+**nothing below was started after that instruction.**
+
 **Failover has now run once, and it recovered the expensive way** (§1.0,
 2026-09-20). A session reaped underneath a paused viewer was recovered with
 nothing visible on screen — Law 2 held — but the client left a healthy local
@@ -229,6 +236,15 @@ then, a change to the rule here is a change owed upstream, not a local fix.
 
 **Also asked of core, and not verified from here:** whether the phone and web
 clients write progress on any cadence. Neither tree was read — asserted.
+
+**The on-device test is owed and blocked.** Build `md5 1b528dea…` is installed
+on `.133` and hash-matched, but the run — play, pass core's 30 s floor,
+`am force-stop`, relaunch, confirm the resume point survived — could not start:
+the catalogue went to `503` (§1.9) and there is no library to pick a title
+from. The two attempts that *did* run both failed usefully, which is the
+argument for finishing it rather than taking the unit tests as proof: the first
+found that core declines writes under 30 s, the second was caught by reading
+`ExpoVideoAdapter` before shipping a 4 Hz retry. Third run is confirmation.
 
 ### Where the tree is, for whoever picks this up
 
@@ -929,12 +945,12 @@ verification and the 5.1 measurement — are in
 - **Criterion 1 is inferred, not observed.** The instantiated decoder's *name*
   was never captured — `dumpsys media.codec` was empty and logcat had rotated.
   Catch `OMX.realtek.audio.dolby.eac3.decoder` actually in use.
-- **Whether the panel renders six discrete channels downstream is unproven.**
-  The reading was taken at the AudioTrack and mixer layer, not at the HAL
-  output, and the same dump showed a `Multichannel Downmix To Stereo` effect
-  present in the system. Core has a P1 resting on this distinction
-  (*"speaker layout is not a concept core has"*), so capture the HAL output
-  configuration and the effect chain on the active track.
+- ~~**Whether the panel renders six discrete channels downstream is
+  unproven.**~~ **Captured 2026-09-22, and it answers the question in the
+  unwelcome direction.** See §1.8 — the HAL output configuration and the effect
+  chain on the active track were both read off `.133` during a film, and what
+  they show is that the six channels reach the HAL intact and are then folded
+  down by a path that has none of the set's own speaker processing on it.
 
 ### 1.3 Decoder instance limits — **measured 2026-09-20, and the shell check cannot settle it**
 
@@ -1375,6 +1391,121 @@ still arriving, because a reaped generation goes on emitting while its buffer
 drains. The case here is the player that has *stopped*. Their figure is evidence
 that the snapshot can be current when the stream is alive, and silent about the
 case this asks.
+
+### 1.9 A catalogue `503` is reported to the viewer as every endpoint failing — 2026-09-22, **not fixed**
+
+**Measured against the node with a token that demonstrably holds
+`media_viewer`, no client involved:**
+
+    GET /api/v1/catalogue/items   ->  503, three of three
+    {"error":"catalogue_unavailable",
+     "message":"catalogue metadata durability unavailable:
+                a tree-backed namespace requires an exact delta"}
+
+That is a server condition and Tom stood the client work down for it. What it
+exposed here is ours.
+
+**The Home screen renders that as "All configured Macha API endpoints
+failed."** The server was online at `0.51.0`, answering, with playback
+available and the one configured endpoint healthy — the *catalogue* was down.
+The Settings screen gets it exactly right in the same moment: **"Server online;
+catalogue unavailable"**, with `PLAYBACK: Available` beside it. So the client
+holds the correct information and Home throws it away.
+
+**Why this is the same fault class this file keeps recording**, rather than a
+wording nit: it is "we could not ask" presented as "everything is broken", one
+layer down from the distinction `access.ts` exists to preserve. A viewer told
+their endpoints have failed will go and edit endpoint settings that are not
+broken — on a television, with a D-pad, to fix something that was never wrong.
+The endpoints had not failed; one API family on a healthy node had.
+
+Unexamined: whether the endpoint registry is *marking* endpoints failed on a
+`503` from the catalogue, or whether Home is only wording an error badly. Those
+want different fixes and only one of them is this client's — if it is the
+former, the question of whether a `503` on a catalogue route should cost a node
+its place in the candidate list belongs beside §2.8's status mapping.
+
+### 1.8 Quiet, and slightly out of sync — measured 2026-09-22, and the cause is that we hand the set six channels
+
+**Tom, watching a film on `.133`: the sound is slightly out of sync, and the
+overall volume is very quiet.** Both are the same root, and the good news comes
+first because it is the part this repo has been chasing for a fortnight.
+
+**Measured during playback, app pid 4412, `The Hunger Games`, direct play,
+AAC 5.1 48 kHz:**
+
+| | |
+| --- | --- |
+| Audio route | `AUDIO_DEVICE_OUT_SPEAKER` — the set's own speakers |
+| `STREAM_MUSIC` on speaker | **86 / 100** |
+| Our output thread | `AudioOut_8D`, **type 1 (DIRECT)** |
+| Channels / mask | **6**, `0x0000003F` — positional (FL, FR, FC, LFE, BL, BR) |
+| HAL format | PCM 16-bit, 48 kHz |
+| Track gain | `G db 0 · L dB 0 · R dB 0 · VS dB 0` |
+| Underruns / flushed | **0 / 0** |
+| Effect chains on our thread | **0** |
+| Threadloop write latency | ave 196.9, std 1.6, min 163.3, max 205.0 |
+
+**`docs/HISTORY.md`'s downmix criteria 2 and 3 both hold.** Six channels reach
+AudioTrack with a *positional* mask — not the `0x8000003F` index mask that
+defeats the web client. **This client direct-plays 5.1 correctly**, and that
+standing unknown is answered in this client's favour.
+
+**And that is exactly why it is quiet.** The track sits on a **DIRECT** output
+thread, which bypasses AudioFlinger's mixer — so the fold-down the positional
+mask makes possible never runs, and the set's HAL has to fold 5.1 into two
+speakers itself. `0 Effect Chains` on our thread is the sharp end: the same dump
+shows effect chains on the mixer threads, so **the set's own speaker
+processing — the loudness and EQ that make a thin panel audible — is applied to
+everything on the television except us.** Nothing in AudioFlinger is attenuating
+us; we are skipping the stage that would make it loud.
+
+The sync half shares the root: ~197 average write latency on that DIRECT path
+with **zero** underruns. Not dropouts — a sink latency that leaves picture ahead
+of sound.
+
+There is an irony worth keeping. `Capabilities.kt`'s header says this app exists
+*because* the WebView client loses dialogue to a six-channel track the mixer
+cannot fold down. Here the mask is fold-downable — but we are not on the mixer.
+
+**What is asserted rather than measured:** that the TCL's DIRECT path genuinely
+mishandles the fold-down. That is inferred from the architecture and the
+symptom; nothing has been measured at the speakers. And whether forcing stereo
+fixes both is untested — the cheap check is the player options panel's Audio
+group, picking a 2.0 track if the file carries one.
+
+#### The fix, and why it is ours
+
+**Nothing in this client reads the audio route.** No `AudioManager`, no
+`AudioDeviceInfo`, no `channelCount` anywhere in `modules/` or `src/` — checked.
+`Capabilities.Inventory` reports `audioCodecs` and never how many channels the
+sink can take, so core is told "this set decodes AAC, AC-3, E-AC-3" and
+reasonably direct-plays 5.1.
+
+That is an asymmetry with video, and the precedent sits beside it: **Dolby
+Vision is gated on the *display*, deliberately** — `.115` has DV decoders its
+panel cannot present and `Capabilities.kt` withholds it. Audio has no equivalent
+gate on the *route*.
+
+So: when the active output is the set's own speakers, do not advertise
+multichannel. Core then picks a stereo track or has the node fold down, and we
+land on the mixer with the set's processing on it. `Capabilities.read(context)`
+already takes a `Context` and already reads `Display`; `AudioManager` is the
+same shape, in a module we own. **It needs nothing from `expo-video`**, because
+it changes what we ask core *for* rather than how the player renders — which
+matters, because the technically nicer fix does not: asking the decoder for
+`max-output-channel-count = 2` needs a custom `RenderersFactory`, and
+`expo-video` exposes no injection point (§2.0's wrapper gap).
+
+It would need an `AudioDeviceCallback` so plugging in a soundbar mid-film
+re-opens 5.1.
+
+**Boosting gain in the app is not an option and should not be attempted:**
+ExoPlayer's volume is 0..1, so there is no turning it up past unity, and
+`VolumeStore` already defaults to 1.
+
+**Open for Tom:** take the capability gate now, or run the stereo-track A/B on
+the set first. Neither is started.
 
 ## 2. Player work
 
@@ -2068,6 +2199,67 @@ not call) but **not on npm**, and nothing goes to npm without Tom's word.
 Core will name the version; then: remove `node_modules/@machafoundation`,
 `npm uninstall`, `npm install @machafoundation/core@^x.y.z`, read `resolved`,
 gate, release.
+
+### 2.11 Flash the logo when the stream switches — **Tom, 2026-09-23. Not started**
+
+**What he asked for:** when the client switches streams, flash the Macha logo —
+the splash screen's — small and subtle, in the **top right corner, over the
+video**.
+
+**Why it is worth building, in this project's own terms.** Seamless failover is
+the literal reason this repo exists, and the better it works the less evidence
+it leaves. The Diagnostics description on the settings screen already states the
+problem it was built for: *"a television has no console, so without this a
+failover and a dead node look identical from across the room — and a failover
+that recovers silently leaves no trace at all."* Diagnostics answers that for
+whoever is developing; this answers it for whoever is **watching**. A viewer who
+sees a half-second logo knows the picture hiccuped because the client moved,
+rather than because the film is broken or the set is dying — and a viewer who
+sees it *often* has information worth reporting that no log on a television will
+ever reach.
+
+It is also the honest counterpart to §2.1. Tier 3's goal is that a switch costs
+the viewer nothing visible; this says a switch may still cost them *something*,
+and that the something should be legible and deliberate rather than a stutter
+they have to interpret.
+
+**What has to be decided before it is built — none of this is settled:**
+
+- **What counts as "switching streams".** The coordinator distinguishes several
+  things a viewer cannot: failover to another node, a regenerate of a reaped
+  session on the *same* node, a promoted standby, and a viewer-initiated change
+  of mode, quality or audio track from the options panel. The last of those is
+  the viewer's own action and almost certainly should **not** flash — they
+  already know, they just pressed it. The first three are the interesting ones.
+  My reading is that it should mark *involuntary* switches only, but that is a
+  reading and Tom should say.
+- **Whether a park counts.** §2.1's park holds the shutter rather than switching;
+  flashing there would announce something that has not happened yet.
+- **What it must not become.** It must not fire on ordinary rebuffering, or it
+  becomes wallpaper and stops meaning anything. And it must not read as an
+  error — this is deliberately the *logo*, not a warning, because the client
+  recovering is the good outcome.
+- **Whether it survives the chrome being hidden.** The transport auto-hides; this
+  should almost certainly show regardless, since the whole point is the viewer
+  was not touching the remote.
+
+**Where it would live.** `PlayerScreen`, above the video and outside the chrome's
+visibility gate, driven off the coordinator snapshot the failure trail already
+reads (`src/screens/player/failureTrail.ts` is the precedent for turning
+coordinator events into something on screen). The asset is `assets/icon.png`,
+which `App.tsx` already uses for the watermark — so this is a second, smaller,
+transient use of a thing already loaded, at `colour`/`rem` sizes from
+`theme.ts`.
+
+**Worth knowing before it is designed:** the player screencaps black, because
+video is a hardware layer and only the chrome composites into a screenshot
+(§0's device notes). So this can be *verified* from a screenshot the same way
+the transport is — but its timing and subtlety cannot be judged from one, and
+will want somebody in front of the set.
+
+**Parity note:** the web client has no equivalent, so this is not a port and
+`macha-client` is not the reference for it. If it turns out well it is a
+candidate to propose *to* them rather than from them.
 
 ## 3. Decisions for Tom
 
