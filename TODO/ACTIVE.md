@@ -2200,66 +2200,117 @@ Core will name the version; then: remove `node_modules/@machafoundation`,
 `npm uninstall`, `npm install @machafoundation/core@^x.y.z`, read `resolved`,
 gate, release.
 
-### 2.11 Flash the logo when the stream switches — **Tom, 2026-09-23. Not started**
+### 2.11 "Macha is working on it" — **Tom, 2026-09-23. Not started**
 
-**What he asked for:** when the client switches streams, flash the Macha logo —
-the splash screen's — small and subtle, in the **top right corner, over the
-video**.
+**The trigger, in Tom's words: any recoverable *error* — anything which might
+unavoidably make the viewer wait.** The visual is the splash screen's Macha
+logo, small and subtle, **top right, over the video**. What it says to the
+person on the sofa is *Macha is working on it*.
 
-**Why it is worth building, in this project's own terms.** Seamless failover is
-the literal reason this repo exists, and the better it works the less evidence
-it leaves. The Diagnostics description on the settings screen already states the
-problem it was built for: *"a television has no console, so without this a
-failover and a dead node look identical from across the room — and a failover
-that recovers silently leaves no trace at all."* Diagnostics answers that for
-whoever is developing; this answers it for whoever is **watching**. A viewer who
-sees a half-second logo knows the picture hiccuped because the client moved,
-rather than because the film is broken or the set is dying — and a viewer who
-sees it *often* has information worth reporting that no log on a television will
-ever reach.
+**This is not a stream-switch indicator**, which is how it was first written up
+here and was too narrow. It is a **recoverable-wait** indicator. The distinction
+that matters is not what the client is doing — failing over, regenerating,
+holding for a fragment — but what the viewer is experiencing: the picture is not
+moving, and that is not a fault.
 
-It is also the honest counterpart to §2.1. Tier 3's goal is that a switch costs
-the viewer nothing visible; this says a switch may still cost them *something*,
-and that the something should be legible and deliberate rather than a stutter
-they have to interpret.
+#### The gap it fills, which is worse than it looks
 
-**What has to be decided before it is built — none of this is settled:**
+The client already computes this information and already renders it —
+`PlayerScreen.tsx:551` shows `playback.notice`, falling back to
+`preparingSource` with the endpoint currently held, so watching that line
+through a failover shows how far round the cluster it has got.
 
-- **What counts as "switching streams".** The coordinator distinguishes several
-  things a viewer cannot: failover to another node, a regenerate of a reaped
-  session on the *same* node, a promoted standby, and a viewer-initiated change
-  of mode, quality or audio track from the options panel. The last of those is
-  the viewer's own action and almost certainly should **not** flash — they
-  already know, they just pressed it. The first three are the interesting ones.
-  My reading is that it should mark *involuntary* switches only, but that is a
-  reading and Tom should say.
-- **Whether a park counts.** §2.1's park holds the shutter rather than switching;
-  flashing there would announce something that has not happened yet.
-- **What it must not become.** It must not fire on ordinary rebuffering, or it
-  becomes wallpaper and stops meaning anything. And it must not read as an
-  error — this is deliberately the *logo*, not a warning, because the client
-  recovering is the good outcome.
-- **Whether it survives the chrome being hidden.** The transport auto-hides; this
-  should almost certainly show regardless, since the whole point is the viewer
-  was not touching the remote.
+**And the whole block is behind `chromeVisible || playback?.fatalError`
+(`PlayerScreen.tsx:535`).** The transport auto-hides. So the one case this
+exists for — a viewer who is not touching the remote when a node dies — is
+exactly the case where the client says **nothing at all**. A recovery that works
+is indistinguishable from a set that has frozen, from ten feet, with no remote
+in hand. §0's Diagnostics copy makes the same point about a console; this is the
+same hole for somebody who is only watching.
 
-**Where it would live.** `PlayerScreen`, above the video and outside the chrome's
-visibility gate, driven off the coordinator snapshot the failure trail already
-reads (`src/screens/player/failureTrail.ts` is the precedent for turning
-coordinator events into something on screen). The asset is `assets/icon.png`,
-which `App.tsx` already uses for the watermark — so this is a second, smaller,
-transient use of a thing already loaded, at `colour`/`rem` sizes from
-`theme.ts`.
+So this must render **outside** that gate. That is the substance of the change;
+the logo is the presentation.
 
-**Worth knowing before it is designed:** the player screencaps black, because
-video is a hardware layer and only the chrome composites into a screenshot
-(§0's device notes). So this can be *verified* from a screenshot the same way
-the transport is — but its timing and subtlety cannot be judged from one, and
-will want somebody in front of the set.
+#### What can drive it, without inventing anything
 
-**Parity note:** the web client has no equivalent, so this is not a port and
-`macha-client` is not the reference for it. If it turns out well it is a
-candidate to propose *to* them rather than from them.
+On the coordinator snapshot the client already holds:
+
+- `starting` and `preparingSource` — the client is acquiring a source.
+- `notice` — **undocumented in core.** `fatalError` above it carries a long
+  docblock and `notice?: string` has none (read in
+  `macha-ts/src/playback/PlaybackCoordinator.ts`). Ask core what it guarantees
+  before resting a viewer-facing signal on it.
+- `fatalError` — **explicitly not this.** That is terminal and gets the failure
+  screen; "working on it" would be a lie.
+
+Not on the snapshot, and worth checking: the readiness walk's segment hold
+(`src/player/readiness.ts`) waits out a `500 segment_not_ready` on the same node
+before the source ever reaches `expo-video`. That is a wait, it is recoverable,
+and it is invisible — it may need to raise something for this to see.
+
+`src/screens/player/failureTrail.ts` is the precedent for turning coordinator
+state into something on screen.
+
+#### Open, and genuinely undecided
+
+- **Flash once, or stay up for the wait?** "Macha is working on it" reads as a
+  *state*, not an event. The bounded regenerate can take ~19 s (§P-1); a
+  half-second flash at the start of that leaves eighteen seconds of nothing,
+  which is the problem again. My reading is that it should be present for the
+  duration and subtly animated — a breathing logo rather than a blink — but Tom
+  should say.
+- **Viewer-initiated changes.** An earlier draft of this item guessed they
+  should be excluded because the viewer already knows they pressed something.
+  **Tom's definition supersedes that**: changing mode or quality does
+  unavoidably make them wait, and *Macha is working on it* is true and useful
+  there too. Recorded because the guess is still in the git history.
+- **Ordinary rebuffering.** Still the wallpaper risk. A wait short enough to go
+  unnoticed should probably not announce itself, which implies a delay before it
+  appears rather than a rule about which events qualify — the same shape as not
+  showing a spinner for a 50 ms fetch.
+- **The park** (§2.1) holds the shutter rather than switching, and the viewer is
+  waiting throughout. On Tom's definition it qualifies.
+
+#### Practicalities
+
+The asset is `assets/icon.png`, already loaded for `App.tsx`'s watermark, so
+this is a second and smaller transient use of it, at `theme.ts` sizes.
+
+**It can be verified from a screenshot and its timing cannot.** The player
+screencaps black — video is a hardware layer and only the chrome composites
+(§0's device notes) — so a capture will show the logo, but whether it is subtle
+enough and whether it appears at the right moment wants somebody in front of the
+set.
+
+#### This one originates here, and the other clients port it
+
+**Tom, 2026-09-23: the web client and the phone client will both get a port of
+this, once it is proved to work here.** So `macha-client` is not the reference
+for it — for once, this client is. That is the reverse of the usual direction
+(§0: match the web client's viewer experience) and it changes what "done" means
+twice over.
+
+**It has to be built to be ported, not ported afterwards.** By Tom's standing
+rule the dependency-free part belongs in core and every client refactors onto
+it, and almost all of this *is* dependency-free: what counts as a recoverable
+wait, when it begins and ends, and how long to wait before showing anything so a
+50 ms hiccup does not announce itself. None of that needs a screen. What stays
+platform is the drawing — an RN view here, DOM there — and where it sits
+relative to whatever that client uses for chrome. Same split as
+`progressPersistence.ts` and its hook (§ above), and it should be proposed to
+core in the same way rather than written three times.
+
+**Prove it here first.** Tom's sequencing, and it is the right way round: this
+is the client with the failover, the set that goes through nodes, and the only
+one where a viewer sits ten feet away with no console. Proving it means on the
+television, through a real recovery — which is the same sitting §P-1 is waiting
+for, so the two want scheduling together rather than separately.
+
+A caution for whoever does the ports: the *trigger* travels and the *threshold*
+may not. A browser tab recovering in 200 ms and a television waiting out a 19 s
+bounded regenerate are not the same experience, and a delay tuned here should be
+re-justified there rather than copied — the same argument as the timing budgets
+in `timingBudgets.ts` being stated against what they are calibrated for.
 
 ## 3. Decisions for Tom
 
@@ -2400,6 +2451,12 @@ this is a behaviour port, and the last three behaviour guesses in this file
 were all wrong.
 
 ## 4. Parity with `macha-client` — the complete list
+
+**One item now runs the other way.** §2.11 ("Macha is working on it") originates
+here and the web and phone clients port it once it is proved on the set — Tom,
+2026-09-23. Everything below is still this client catching up; that one is not.
+
+
 
 The whole distance from here to an application with the same functionality as
 the web client. An enumeration, not a recollection: every row was read off
