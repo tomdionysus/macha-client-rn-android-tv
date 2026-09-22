@@ -2251,27 +2251,82 @@ and it is invisible — it may need to raise something for this to see.
 `src/screens/player/failureTrail.ts` is the precedent for turning coordinator
 state into something on screen.
 
-#### Open, and genuinely undecided
+#### It is not the spinner, and the discriminator is kind rather than duration
 
-- **Flash once, or stay up for the wait?** "Macha is working on it" reads as a
-  *state*, not an event. The bounded regenerate can take ~19 s (§P-1); a
-  half-second flash at the start of that leaves eighteen seconds of nothing,
-  which is the problem again. My reading is that it should be present for the
-  duration and subtly animated — a breathing logo rather than a blink — but Tom
-  should say.
-- **Viewer-initiated changes.** An earlier draft of this item guessed they
-  should be excluded because the viewer already knows they pressed something.
-  **Tom's definition supersedes that**: changing mode or quality does
-  unavoidably make them wait, and *Macha is working on it* is true and useful
-  there too. Recorded because the guess is still in the git history.
-- **Ordinary rebuffering.** Still the wallpaper risk. A wait short enough to go
-  unnoticed should probably not announce itself, which implies a delay before it
-  appears rather than a rule about which events qualify — the same shape as not
-  showing a spinner for a 50 ms fetch.
-- **The park** (§2.1) holds the shutter rather than switching, and the viewer is
-  waiting throughout. On Tom's definition it qualifies.
+**Tom, 2026-09-23: the spinner is simply a streaming/seeking indicator. The logo
+appears when the system is recovering in a way that a normal media system could
+not.** That settles the wallpaper question, and it settles it better than the
+delay heuristic drafted above: the test is not *how long is the viewer waiting*
+but *is Macha doing something no other player could*.
 
-#### Practicalities
+So, two signals with two meanings:
+
+| | means | examples |
+| --- | --- | --- |
+| **Spinner** | the stream is catching up | start, seek, rebuffer |
+| **Logo** | a recovery is under way that would have ended playback anywhere else | failover to another node, regenerate of a reaped session, standby promotion, the park, waiting out a `500 segment_not_ready` hold |
+
+Two earlier entries here are **withdrawn** by that, and are named rather than
+quietly deleted because both are in the git history:
+
+- *Ordinary rebuffering* — not this. That is the spinner's job, and no delay
+  heuristic is needed to keep the logo off it.
+- *Viewer-initiated changes* — not this either. Changing mode or quality makes
+  the viewer wait, but it is not a **recovery**; nothing went wrong. The
+  previous entry had it the other way round on a reading of "anything which
+  might unavoidably make the viewer wait" that was too literal.
+
+**The web client reached the same conclusion already**, for the spinner rather
+than the logo, and the sentence is worth carrying:
+*"A rebuffer mid-film has the picture behind it to say what is going on, and a
+timer over that would turn every brief hesitation into an announcement"*
+(`macha-client/src/screens/PlayerScreen.tsx`). Its wider argument is this one's
+foundation — *"an unmarked spinner says only that something is happening"*, and
+Law 2, that a degraded state must be visible rather than becoming indefinite
+waiting. The logo is what makes a recovery *marked*.
+
+#### **This client has no spinner at all** — the pair is half missing
+
+Checked, and it is the thing most likely to derail this item. `ExpoVideoAdapter`
+produces the flag correctly — `buffering: this.video.status === 'loading'`
+(line 332), which is from the player's own state as core's contract demands,
+not derived from an empty buffer. **Nothing renders it.** There is no spinner,
+no buffering indicator, nothing in `PlayerScreen` between a black frame and a
+picture.
+
+The web client has one: `showBuffering = !fatalError && (playback.starting ||
+Boolean(event.buffering))`, shown immediately on `starting` and after
+`playerSeekSpinnerDelayMs` otherwise.
+
+So a distinction defined against the spinner cannot be built here until the
+spinner exists, or **the logo will silently become the indicator for everything**
+— which is exactly what Tom's instruction rules out. The spinner is an ordinary
+port from the web client (the usual direction, §4.2) and should land first or
+alongside. Whether the delay figure travels is a `timingBudgets.ts` question,
+not a copy.
+
+#### A switch to turn it off — **Tom, 2026-09-23**
+
+In Settings, beside Diagnostics. The precedent is
+`src/diagnostics/failureTrailSetting.ts`: a key, absent-means-default, read at
+the moment it is consulted rather than subscribed to, and the rule and storage
+key shared with the web client *"so a person who has debugged one client already
+knows where this lives"* — which matters more than usual here, because the other
+two clients are porting this (below).
+
+**One deliberate difference from that precedent: this defaults to *on*.**
+Diagnostics is off by default because *"diagnostics that are on by default stop
+being diagnostics and start being the product"*. The logo **is** the product —
+it is the one moment the client tells a viewer what makes it different from
+every other player. So the switch exists for the person who finds it
+distracting, not as an opt-in; absent means on.
+
+Still open: what it is called in the settings list, and whether turning it off
+also silences the notice text behind it or only the logo. My reading is only the
+logo — the text lives in the chrome, which a viewer has to summon deliberately,
+and silencing what somebody asked to see is a different decision.
+
+#### Practicalities#### Practicalities
 
 The asset is `assets/icon.png`, already loaded for `App.tsx`'s watermark, so
 this is a second and smaller transient use of it, at `theme.ts` sizes.
@@ -2500,6 +2555,14 @@ keyboard through `TvTextInput` — and keeps the web client's query rules exactl
 largest single block.
 
 ### 4.2 Player chrome — 7 of 12 controls
+
+**Add one that was not on this list: there is no buffering indicator.** The
+adapter produces `buffering` correctly and nothing renders it, so between a
+black frame and a picture this client shows a viewer nothing at all. The web
+client has one, shown immediately on `starting` and after a delay otherwise.
+It is an ordinary port in the usual direction, and **§2.11 depends on it** —
+a logo defined as "not the spinner" cannot be built against a spinner that does
+not exist.
 
 Built: restart, rewind, play/pause, forward, options, close, plus the scrubber
 with a buffered range, the accelerating seek, and a cold Left/Right that raises
