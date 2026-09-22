@@ -19,12 +19,24 @@
  * Separated from the hook so it can be tested without a renderer, which is how
  * the rest of this client tests its logic.
  *
- * **A candidate for core, not a decision core has made.** The rule is
- * dependency-free — two booleans, a duration and a clock — and every client
- * that resumes playback wants it, so by Tom's rule it belongs upstream rather
- * than here. It is local because core has no home for it yet; `ContinueWatching`
- * in core owns the *store* and nothing owns the *cadence*. Propose it to the
- * session that owns `macha-ts` before a second client writes its own.
+ * **DELETE THIS FILE when core publishes the rule.** It is dependency-free —
+ * two booleans, a duration and a clock — and every client that resumes playback
+ * wants it, so by Tom's rule it belongs upstream. It is local only because core
+ * has no home for it yet: core owns the *store* (`ContinueWatchingStore`,
+ * `progressFor`) and nothing owns the *cadence*.
+ *
+ * Put to the session that owns `macha-ts` on 2026-09-22, with this shape and
+ * the reasoning above, and asked for a TODO and the version it lands in. When
+ * that version is published: replace `progressWriteDue` with core's, delete
+ * this file and its test, and keep the hook — the timer, the playback
+ * subscription and the app-scope placement are platform and stay here. Until
+ * then, **do not let the two drift**: a change to the rule here is a change
+ * owed upstream, not a local fix.
+ *
+ * `CONTINUE_WATCHING_WRITE_INTERVAL_MS` in `timingBudgets.ts` may or may not
+ * come back with it — core may take an opinion on the cadence or leave it a
+ * parameter. Either is fine; what must not survive is two implementations of
+ * the decision.
  */
 
 /** Why a write is owed, kept for the trail rather than for the store. */

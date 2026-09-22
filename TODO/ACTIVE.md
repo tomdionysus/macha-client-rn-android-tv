@@ -168,6 +168,45 @@ house style uses `—` and `…` throughout. The stage now checks both encodings
 and says which one matched. This is the second way that check has read "stale
 bundle" when the bundle was fine; the first was the `-I` grep wrapper.
 
+### The resume point is written while watching — and the rule is owed to core
+
+**Landed 2026-09-22.** Progress is persisted on every pause, on a five-minute
+interval while playing, and once shortly after a film starts so *currently
+watching* reaches Continue Watching within a tick rather than within five
+minutes. Before this the only write was `closePlayer`, which runs on a
+deliberate exit and never on a kill.
+
+**The kill is measured, not imagined.** At 20:42:15 the set replaced Android
+System WebView and force-stopped this app at `adj 0`, in the foreground:
+`Killing 3554:foundation.macha.client.tv (adj 0): stop com.google.android.webview
+due to installPackageLI`. `ApplicationExitInfo` calls it `reason=10 (USER
+REQUESTED)` — **all sixteen recorded exits for this package are that reason and
+none is a crash.** A kill of that shape runs no teardown at all.
+
+- `src/player/progressPersistence.ts` — the rule, pure and tested. Each of its
+  four cases was mutated and shown to fail a test before being trusted.
+- `src/app/useContinueWatchingWriter.ts` — the hook, at **app scope**, for the
+  reason `usePlaybackRuntime` gives for the live-session record: a screen that
+  unmounts on Back stops writing exactly when there is still something to
+  record. Two triggers, because neither is enough alone — every snapshot for
+  the pause, a tick because snapshots cannot be relied on to keep arriving
+  while a film simply plays.
+- `timingBudgets.ts` — the interval, calibrated against core's
+  `SERVER_SESSION_IDLE_MS`, which is the same event survived from the other
+  side. The tests assert the relationships, not the numbers.
+
+**`progressPersistence.ts` is to be DELETED when core publishes this.** The rule
+is dependency-free and all four clients want it, so it is core's by Tom's rule;
+it is local only because core has no home for the *cadence* yet, owning just the
+store. **Put to the `macha-ts` session on 2026-09-22** with the function shape
+and the reasoning, asking for a TODO and the version it lands in. When it ships:
+take core's `progressWriteDue`, delete this file and its test, keep the hook —
+the timer, the subscription and the app-scope placement are platform. Until
+then, a change to the rule here is a change owed upstream, not a local fix.
+
+**Also asked of core, and not verified from here:** whether the phone and web
+clients write progress on any cadence. Neither tree was read — asserted.
+
 ### Where the tree is, for whoever picks this up
 
 - **`develop` carries `"@machafoundation/core": "file:../macha-ts"`** — a
