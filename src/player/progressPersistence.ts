@@ -45,8 +45,17 @@ export type ProgressWrite = 'paused' | 'interval';
 export interface ProgressWatermark {
   /** Whether playback was paused when the last decision was taken. */
   paused: boolean;
-  /** When a record was last written, on the same clock as `nowMs`. */
+  /** When a record was last *stored*, on the same clock as `nowMs`. */
   wroteAtMs: number;
+  /**
+   * When a write was last *attempted*, stored or declined.
+   *
+   * Separate from `wroteAtMs` because a declined write deliberately does not
+   * advance that one, and without this the retry would fire on every snapshot
+   * — 4 Hz, per `ExpoVideoAdapter`'s `timeUpdateEventInterval` — for the whole
+   * of the first 30 s of every film.
+   */
+  attemptedAtMs: number;
 }
 
 export function progressWriteDue(
@@ -54,6 +63,8 @@ export function progressWriteDue(
   current: { paused: boolean; durationMs: number } | undefined,
   nowMs: number,
   intervalMs: number,
+  /** Floor between attempts, so a declined write retries on the tick, not at 4 Hz. */
+  minAttemptGapMs: number,
 ): ProgressWrite | undefined {
   // No playback is the clean stop, and it is not a moment to record anything:
   // whoever stopped has already written, and the last event's position would
@@ -69,7 +80,11 @@ export function progressWriteDue(
   // a write per playback event is churn on a device that is doing nothing.
   if (current.paused) return previous.paused ? undefined : 'paused';
 
-  return nowMs - previous.wroteAtMs >= intervalMs ? 'interval' : undefined;
+  // Both must hold: due by the interval since the last *stored* record, and not
+  // attempted within the floor. The pause edge above is deliberately exempt —
+  // that is a thing the viewer did once, not a timer.
+  if (nowMs - previous.wroteAtMs < intervalMs) return undefined;
+  return nowMs - previous.attemptedAtMs >= minAttemptGapMs ? 'interval' : undefined;
 }
 
 /**
@@ -100,5 +115,11 @@ export function nextWatermark(
   nowMs: number,
   landed: boolean,
 ): ProgressWatermark {
-  return { paused, wroteAtMs: landed ? nowMs : previous.wroteAtMs };
+  return {
+    paused,
+    wroteAtMs: landed ? nowMs : previous.wroteAtMs,
+    // Always, landed or not. If a declined attempt did not record itself the
+    // floor would do nothing and the next snapshot would retry immediately.
+    attemptedAtMs: nowMs,
+  };
 }

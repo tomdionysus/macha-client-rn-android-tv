@@ -46,7 +46,7 @@ export function useContinueWatchingWriter(
 ): void {
   const mediaRef = useRef(media);
   mediaRef.current = media;
-  const watermark = useRef<ProgressWatermark>({ paused: true, wroteAtMs: 0 });
+  const watermark = useRef<ProgressWatermark>({ paused: true, wroteAtMs: 0, attemptedAtMs: 0 });
 
   useEffect(() => {
     const evaluate = (): void => {
@@ -64,7 +64,7 @@ export function useContinueWatchingWriter(
         // can appear is the first tick after that — which is the right
         // behaviour, since something opened and abandoned inside half a minute
         // is not unfinished business.
-        watermark.current = { paused: true, wroteAtMs: 0 };
+        watermark.current = { paused: true, wroteAtMs: 0, attemptedAtMs: 0 };
         return;
       }
 
@@ -74,6 +74,7 @@ export function useContinueWatchingWriter(
         current,
         now,
         CONTINUE_WATCHING_WRITE_INTERVAL_MS,
+        CONTINUE_WATCHING_TICK_MS,
       );
       if (!due) {
         watermark.current = { ...watermark.current, paused: current.paused };
