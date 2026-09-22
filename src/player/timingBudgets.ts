@@ -113,22 +113,36 @@ export function firstFragmentTimeoutMs(source?: PlaybackSource): number {
 /**
  * How often a resume point is written while a film is playing.
  *
- * **Tom's figure, 2026-09-22**, and it is a bound on loss rather than a
- * deadline: nothing goes wrong when it elapses, and what it buys is that a
- * process killed without warning discards at most this much of the viewer's
- * place. The motivating kill is measured — the set replaced Android System
- * WebView at 20:42:15 and force-stopped this app in the foreground, running no
- * teardown of any kind (see `progressPersistence.ts`).
+ * **Tom's figure, 2026-09-22.** It is a bound on loss rather than a deadline:
+ * nothing goes wrong when it elapses, and what it buys is that a process killed
+ * without warning discards at most one interval — plus one tick — of the
+ * viewer's place. The motivating kill is measured: the set replaced Android
+ * System WebView at 20:42:15 and force-stopped this app in the foreground,
+ * running no teardown of any kind (see `progressPersistence.ts`).
  *
- * **Calibrated against `SERVER_SESSION_IDLE_MS`**, which is the window a
- * session the client can no longer close survives on the node — thirty minutes
- * on the deployed cluster. That is the right counterpart because it is the same
- * event being survived from the other side: the kill that orphans a session is
- * the kill that strands the resume point. Writing several times inside that
- * window means any session still holding a slot has a resume point written
- * during its life, so the reclaim and the resume agree about where the viewer
- * was. The relationship is what the test guards; five minutes against thirty is
- * six writes, and nothing turns on the six.
+ * **It is deliberately not calibrated against anything the server states, and
+ * `SERVER_SESSION_IDLE_MS` in particular.** This was tied to it on the
+ * reasoning that a kill which orphans a session is the kill that strands the
+ * resume point, and core corrected it the same day — read back from
+ * `macha-ts/src/playback/streamProtocol.ts`, whose docblock says the constant
+ * is *the server's default*, that a node states its own `session_idle_ms` on
+ * `/api/v1/status`, that core does not read it on purpose because "nothing here
+ * should be timing against a session's erasure", and to "never let correctness
+ * depend on it". A test asserting a relationship to it did exactly that.
+ *
+ * The relationship also did no work. What bounds the viewer's loss is this
+ * interval alone: an unannounced kill lands when it lands, and the stored
+ * position is stale by at most one interval whether the node reaps at thirty
+ * minutes, at five, or never. Session reaping is the node reclaiming a
+ * transcode slot; this is the device surviving a process kill. The incident
+ * shares a *trigger* between the two and not a mechanism — the WebView install
+ * killed the app, it reaped nothing. Anchored to the node, a cluster configured
+ * to reap sooner would have become an argument for more AsyncStorage churn that
+ * buys nobody anything.
+ *
+ * So the question it answers is how much progress a viewer may lose, and that
+ * has no counterpart in the protocol. The relationships worth guarding are with
+ * the tick below, and those are what the test asserts.
  */
 export const CONTINUE_WATCHING_WRITE_INTERVAL_MS = 5 * 60_000;
 

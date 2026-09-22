@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   BROKEN_GENERATION_STATUS,
-  SERVER_SESSION_IDLE_MS,
   generationAttemptBudgetMs,
   MEDIA_STALL_TIMEOUT_MS,
   SEGMENT_NOT_READY_STATUS,
@@ -251,15 +250,29 @@ describe('the unavoidable Kotlin copy of the hold rule', () => {
  * carelessly, not the values themselves.
  */
 describe('the resume-point cadence', () => {
-  it('writes several times inside the window an orphaned session survives', () => {
-    // The counterpart is the same event from the other side: the kill that
-    // orphans a session on the node is the kill that strands the resume point
-    // on the device. If a write could not land inside that window, a session
-    // still holding a transcode slot would have no resume point written during
-    // its life, and the reclaim and the resume would disagree about where the
-    // viewer was.
-    expect(CONTINUE_WATCHING_WRITE_INTERVAL_MS).toBeLessThan(SERVER_SESSION_IDLE_MS);
-    expect(SERVER_SESSION_IDLE_MS / CONTINUE_WATCHING_WRITE_INTERVAL_MS).toBeGreaterThanOrEqual(4);
+  const timingBudgetsSource = readFileSync(join(__dirname, 'timingBudgets.ts'), 'utf8');
+
+  it('is not tied to anything the server states', () => {
+    // It was tied to `SERVER_SESSION_IDLE_MS` for a day, and core corrected it:
+    // that constant is the server's *default*, a node states its own
+    // `session_idle_ms` on `/api/v1/status`, and core deliberately does not read
+    // it — "never let correctness depend on it"
+    // (`macha-ts/src/playback/streamProtocol.ts`, read 2026-09-22). This repo
+    // carries the same warning for `SERVER_SEGMENT_HOLD_MS` a few lines up and
+    // it was missed anyway.
+    //
+    // The relationship also did no work: this interval alone bounds what a kill
+    // discards, whether the node reaps at thirty minutes or never. Guarded as
+    // an absence, because re-deriving it is the easy mistake — the budget must
+    // stay a plain number, not a function of a server figure.
+    // Asserted on the declaration rather than on the file: the docblock names
+    // the constant in order to say why it is not used, and a test that forbade
+    // the word would forbid the explanation. What must hold is that the value
+    // is arithmetic on literals — derived from nothing the wire can move.
+    const declaration = /export const CONTINUE_WATCHING_WRITE_INTERVAL_MS = ([^;]+);/
+      .exec(timingBudgetsSource)?.[1];
+    expect(declaration).toBeDefined();
+    expect(declaration).toMatch(/^[\d_\s*+]+$/);
   });
 
   it('evaluates the interval far more often than the interval itself', () => {

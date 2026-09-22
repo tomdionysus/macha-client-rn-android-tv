@@ -191,9 +191,20 @@ none is a crash.** A kill of that shape runs no teardown at all.
   record. Two triggers, because neither is enough alone — every snapshot for
   the pause, a tick because snapshots cannot be relied on to keep arriving
   while a film simply plays.
-- `timingBudgets.ts` — the interval, calibrated against core's
-  `SERVER_SESSION_IDLE_MS`, which is the same event survived from the other
-  side. The tests assert the relationships, not the numbers.
+- `timingBudgets.ts` — the interval, anchored to the question it answers: how
+  much progress a viewer may lose to a kill. **It was briefly calibrated
+  against core's `SERVER_SESSION_IDLE_MS` and that was wrong**, corrected by the
+  core session the same day and verified here by reading
+  `macha-ts/src/playback/streamProtocol.ts`: that constant is the *server's
+  default*, a node states its own `session_idle_ms` on `/api/v1/status`, core
+  does not read it deliberately, and its docblock says never to let correctness
+  depend on it. This repo carries the identical warning for
+  `SERVER_SEGMENT_HOLD_MS` a few lines above, and it was missed anyway — the
+  same fault class as sizing against `look_ahead_ms`'s default, which cost a
+  12.7 s viewer freeze. The relationship also did no work: the interval alone
+  bounds what a kill discards, whether the node reaps at thirty minutes or
+  never. A test now asserts the declaration is arithmetic on literals, so
+  re-deriving it from a server figure fails.
 
 **`progressPersistence.ts` is to be DELETED when core publishes this.** The rule
 is dependency-free and all four clients want it, so it is core's by Tom's rule;
