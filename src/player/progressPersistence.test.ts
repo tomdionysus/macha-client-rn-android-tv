@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { progressWriteDue } from './progressPersistence';
+import { nextWatermark, progressWriteDue } from './progressPersistence';
 
 const INTERVAL = 300_000;
 const playing = { paused: false, durationMs: 7_200_000 };
@@ -76,5 +76,34 @@ describe('when there is nothing worth recording', () => {
     expect(
       progressWriteDue({ paused: false, wroteAtMs: 0 }, { paused: true, durationMs: 0 }, 1_000, INTERVAL),
     ).toBeUndefined();
+  });
+});
+
+/**
+ * The hole the television found, which no unit test had: a write core declines
+ * must not count as a write.
+ */
+describe('after an attempted write', () => {
+  it('advances the clock when the entry landed', () => {
+    expect(nextWatermark({ paused: false, wroteAtMs: 10 }, false, 5_000, true)).toEqual({
+      paused: false,
+      wroteAtMs: 5_000,
+    });
+  });
+
+  it('leaves the clock alone when core declined the entry', () => {
+    // Core stores nothing below 30 s of position and reports it by returning a
+    // list the entry is absent from. Advancing here pushed the next attempt a
+    // full interval out, so a film killed at seventy seconds recorded nothing —
+    // measured on the set, 2026-09-22.
+    expect(nextWatermark({ paused: false, wroteAtMs: 10 }, false, 5_000, false)).toEqual({
+      paused: false,
+      wroteAtMs: 10,
+    });
+  });
+
+  it('tracks the pause either way, because that edge is not about storage', () => {
+    expect(nextWatermark({ paused: false, wroteAtMs: 10 }, true, 5_000, false).paused).toBe(true);
+    expect(nextWatermark({ paused: true, wroteAtMs: 10 }, false, 5_000, true).paused).toBe(false);
   });
 });

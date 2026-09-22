@@ -71,3 +71,34 @@ export function progressWriteDue(
 
   return nowMs - previous.wroteAtMs >= intervalMs ? 'interval' : undefined;
 }
+
+/**
+ * Where the watermark lands after an attempted write.
+ *
+ * **A write that core declined is not a write**, and treating it as one is the
+ * bug this function exists to prevent. `ContinueWatchingStore.update` stores
+ * nothing for an entry below its own minimum — 30 s of position, so that a film
+ * someone opened and left is not offered back to them as unfinished business —
+ * and it says so by returning a list the entry is absent from, not by throwing.
+ *
+ * Advancing the clock on a declined write pushes the next attempt a full
+ * interval away, which left a real hole: the first write of a film lands at a
+ * second or two, is declined, and nothing is then written until five minutes
+ * in. **Measured on the set 2026-09-22** — a film killed at about seventy
+ * seconds recorded nothing at all, which is the exact case this feature was
+ * built for. Leaving the clock where it was makes the next tick try again, and
+ * the attempt after the minimum is the one that sticks.
+ *
+ * The minimum itself is core's and is deliberately not mirrored here: this
+ * reads the outcome rather than re-deriving the rule, so a change to core's
+ * floor needs no change here. Same argument as the interval not being anchored
+ * to a server figure.
+ */
+export function nextWatermark(
+  previous: ProgressWatermark,
+  paused: boolean,
+  nowMs: number,
+  landed: boolean,
+): ProgressWatermark {
+  return { paused, wroteAtMs: landed ? nowMs : previous.wroteAtMs };
+}

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
+  isFinished,
   progressFor,
   type ContinueWatchingStore,
   type MediaSummary,
@@ -9,7 +10,11 @@ import {
   CONTINUE_WATCHING_TICK_MS,
   CONTINUE_WATCHING_WRITE_INTERVAL_MS,
 } from '../player/timingBudgets';
-import { progressWriteDue, type ProgressWatermark } from '../player/progressPersistence';
+import {
+  nextWatermark,
+  progressWriteDue,
+  type ProgressWatermark,
+} from '../player/progressPersistence';
 
 /**
  * Keep the viewer's place on disk while they are still watching.
@@ -50,10 +55,15 @@ export function useContinueWatchingWriter(
 
       if (!snapshot) {
         // No playback is the boundary between one film and the next. Resetting
-        // here is what makes the *next* film record itself within a tick
-        // instead of inheriting this one's clock and staying out of Continue
-        // Watching for five minutes — which is most of what "currently
-        // watching" is for.
+        // here stops the next film inheriting this one's clock and waiting a
+        // full interval for its first attempt.
+        //
+        // It does **not** put the next film into Continue Watching
+        // immediately, and an earlier version of this comment claimed it did:
+        // core stores nothing below 30 s of position, so the earliest a film
+        // can appear is the first tick after that — which is the right
+        // behaviour, since something opened and abandoned inside half a minute
+        // is not unfinished business.
         watermark.current = { paused: true, wroteAtMs: 0 };
         return;
       }
@@ -79,10 +89,23 @@ export function useContinueWatchingWriter(
         return;
       }
 
-      continueWatching.update(
-        progressFor(playing, snapshot.event.positionMs, snapshot.event.durationMs),
-      );
-      watermark.current = { paused: current.paused, wroteAtMs: now };
+      const progress = progressFor(playing, snapshot.event.positionMs, snapshot.event.durationMs);
+
+      if (isFinished(progress)) {
+        // Core drops a finished item from the list rather than storing a
+        // position in it, so attempting this every tick through the closing
+        // credits is a storage write per tick that removes an entry already
+        // gone. `closePlayer` does the removal once, on the way out.
+        watermark.current = nextWatermark(watermark.current, current.paused, now, true);
+        return;
+      }
+
+      // **Core may decline this, and says so by returning a list without it** —
+      // it stores nothing below 30 s of position. Read the outcome rather than
+      // re-deriving the rule, so its floor can move without this moving.
+      const stored = continueWatching.update(progress);
+      const landed = stored.some((entry) => entry.mediaId === progress.mediaId);
+      watermark.current = nextWatermark(watermark.current, current.paused, now, landed);
     };
 
     const unsubscribe = runtime.subscribePlayback(evaluate);

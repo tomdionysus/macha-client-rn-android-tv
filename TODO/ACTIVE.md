@@ -170,11 +170,23 @@ bundle" when the bundle was fine; the first was the `-I` grep wrapper.
 
 ### The resume point is written while watching — and the rule is owed to core
 
-**Landed 2026-09-22.** Progress is persisted on every pause, on a five-minute
-interval while playing, and once shortly after a film starts so *currently
-watching* reaches Continue Watching within a tick rather than within five
-minutes. Before this the only write was `closePlayer`, which runs on a
-deliberate exit and never on a kill.
+**Landed 2026-09-22.** Progress is persisted on every pause and on a
+five-minute interval while playing. Before this the only write was
+`closePlayer`, which runs on a deliberate exit and never on a kill.
+
+**The first on-device run failed, and it was right to.** A film killed at about
+seventy seconds recorded nothing. Core's `ContinueWatchingStore.update` stores
+nothing below `MINIMUM_PROGRESS_MS` — 30 s of position — and says so by
+returning a list the entry is absent from rather than by throwing. This client
+wrote once as playback began, at a position of a second or two, had it silently
+declined, and **advanced its own clock anyway** — so the next attempt was five
+minutes away and a kill anywhere between 30 s and 5 m 30 s stored nothing. That
+is the exact case the feature exists for. `nextWatermark` now leaves the clock
+where it was when core declines, so the next tick tries again; it reads the
+outcome rather than mirroring core's floor, so that floor can move without this
+moving. An earlier note here claimed *currently watching* appears within a tick
+of starting a film — **it does not and should not**, and that claim was wrong
+before the set disproved it.
 
 **The kill is measured, not imagined.** At 20:42:15 the set replaced Android
 System WebView and force-stopped this app at `adj 0`, in the foreground:
