@@ -109,3 +109,38 @@ export function firstFragmentTimeoutMs(source?: PlaybackSource): number {
   }
   return stated;
 }
+
+/**
+ * How often a resume point is written while a film is playing.
+ *
+ * **Tom's figure, 2026-09-22**, and it is a bound on loss rather than a
+ * deadline: nothing goes wrong when it elapses, and what it buys is that a
+ * process killed without warning discards at most this much of the viewer's
+ * place. The motivating kill is measured — the set replaced Android System
+ * WebView at 20:42:15 and force-stopped this app in the foreground, running no
+ * teardown of any kind (see `progressPersistence.ts`).
+ *
+ * **Calibrated against `SERVER_SESSION_IDLE_MS`**, which is the window a
+ * session the client can no longer close survives on the node — thirty minutes
+ * on the deployed cluster. That is the right counterpart because it is the same
+ * event being survived from the other side: the kill that orphans a session is
+ * the kill that strands the resume point. Writing several times inside that
+ * window means any session still holding a slot has a resume point written
+ * during its life, so the reclaim and the resume agree about where the viewer
+ * was. The relationship is what the test guards; five minutes against thirty is
+ * six writes, and nothing turns on the six.
+ */
+export const CONTINUE_WATCHING_WRITE_INTERVAL_MS = 5 * 60_000;
+
+/**
+ * How often that interval is *evaluated*.
+ *
+ * The interval cannot be its own timer. A pause has to be recorded when it
+ * happens rather than up to five minutes later, and playback snapshots alone
+ * cannot be relied on to arrive while a film simply plays — so the decision is
+ * re-taken on this tick as well as on every snapshot, and
+ * `progressWriteDue` decides. Granularity, therefore: the write lands within
+ * one tick of its due time, which is why this must stay well under the
+ * interval it measures.
+ */
+export const CONTINUE_WATCHING_TICK_MS = 30_000;

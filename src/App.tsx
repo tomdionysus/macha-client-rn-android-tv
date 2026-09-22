@@ -10,6 +10,7 @@ import {
 } from '@machafoundation/core';
 import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime } from './app/usePlaybackRuntime';
+import { useContinueWatchingWriter } from './app/useContinueWatchingWriter';
 import { hydrateStorage } from './state/storage';
 import { syncDiagnosticsLevel } from './diagnostics/failureTrailSetting';
 import { useTvNavigation } from './hooks/useTvNavigation';
@@ -190,6 +191,21 @@ function Shell(): React.JSX.Element {
   );
 
   const { runtime } = usePlaybackRuntime(androidTvPlatform, services.playbackResolver, runtimeOptions);
+
+  /**
+   * Write the resume point while the viewer is still watching, not only when
+   * they leave.
+   *
+   * `closePlayer` below covers the deliberate exit and cannot cover anything
+   * else: a process killed without warning runs none of it. That is not
+   * hypothetical here — the set force-stopped this app in the foreground on
+   * 2026-09-22 when it replaced Android System WebView.
+   */
+  useContinueWatchingWriter(
+    runtime,
+    continueWatching,
+    route.name === 'player' ? route.media : undefined,
+  );
 
   useEffect(() => {
     if (route.name === 'home') setProgress(continueWatching.list());

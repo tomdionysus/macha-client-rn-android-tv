@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   BROKEN_GENERATION_STATUS,
+  SERVER_SESSION_IDLE_MS,
   generationAttemptBudgetMs,
   MEDIA_STALL_TIMEOUT_MS,
   SEGMENT_NOT_READY_STATUS,
@@ -12,6 +13,8 @@ import {
   type PlaybackSource,
 } from '@machafoundation/core';
 import {
+  CONTINUE_WATCHING_TICK_MS,
+  CONTINUE_WATCHING_WRITE_INTERVAL_MS,
   FIRST_FRAGMENT_TIMEOUT_MS,
   FRAGMENT_READ_TIMEOUT_MS,
   firstFragmentTimeoutMs,
@@ -237,5 +240,40 @@ describe('the unavoidable Kotlin copy of the hold rule', () => {
     // The mapping moved to core. If these strings come back, protocol knowledge
     // has leaked into the platform layer again.
     expect(engine).not.toContain('"not-ready"');
+  });
+});
+
+/**
+ * The resume-point cadence, as relationships rather than as numbers.
+ *
+ * Both figures are choices — Tom's five minutes and the tick that evaluates it
+ * — so what is pinned here is what would actually be broken by changing them
+ * carelessly, not the values themselves.
+ */
+describe('the resume-point cadence', () => {
+  it('writes several times inside the window an orphaned session survives', () => {
+    // The counterpart is the same event from the other side: the kill that
+    // orphans a session on the node is the kill that strands the resume point
+    // on the device. If a write could not land inside that window, a session
+    // still holding a transcode slot would have no resume point written during
+    // its life, and the reclaim and the resume would disagree about where the
+    // viewer was.
+    expect(CONTINUE_WATCHING_WRITE_INTERVAL_MS).toBeLessThan(SERVER_SESSION_IDLE_MS);
+    expect(SERVER_SESSION_IDLE_MS / CONTINUE_WATCHING_WRITE_INTERVAL_MS).toBeGreaterThanOrEqual(4);
+  });
+
+  it('evaluates the interval far more often than the interval itself', () => {
+    // The tick is granularity: a write lands within one tick of being due, so a
+    // tick at or above the interval would double the worst-case loss while
+    // looking like it had changed nothing.
+    expect(CONTINUE_WATCHING_TICK_MS).toBeLessThan(CONTINUE_WATCHING_WRITE_INTERVAL_MS);
+    expect(CONTINUE_WATCHING_WRITE_INTERVAL_MS / CONTINUE_WATCHING_TICK_MS).toBeGreaterThanOrEqual(4);
+  });
+
+  it('does not tick faster than the stall watchdog it shares a device with', () => {
+    // Not a correctness coupling, a cost one: this timer runs for the whole of
+    // every film on a television with a load average that reached 30 during the
+    // WebView update. It has no business being the busiest thing in the app.
+    expect(CONTINUE_WATCHING_TICK_MS).toBeGreaterThanOrEqual(MEDIA_STALL_TIMEOUT_MS);
   });
 });
