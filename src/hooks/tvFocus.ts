@@ -61,12 +61,27 @@ function rectGap(start: number, size: number, otherStart: number, otherSize: num
 }
 
 /**
- * The web client's candidate score, unchanged.
+ * The web client's candidate score, with its geometry taken from edges rather
+ * than centres (Tom, 2026-09-24 — see below).
  *
- * Primary axis distance dominates; cross-axis drift is discounted to a fifth so
- * a slightly-offset neighbour still wins over a distant aligned one; and a
- * lane gap is penalised six-fold so focus prefers staying within a row or
- * column rather than cutting diagonally across the grid.
+ * The weights are the port's and unchanged: primary-axis distance dominates;
+ * cross-axis drift is discounted to a fifth so a slightly-offset neighbour
+ * still wins over a distant aligned one; and a lane gap is penalised six-fold
+ * so focus prefers staying within a row or column.
+ *
+ * **What changed, and why.** The port judged "is it to the right?" and "how
+ * far?" from the two centres. For a wide element — Search's field, which takes
+ * most of a row — the centre is nowhere near the edge a viewer is moving
+ * towards, so every card whose centre lay right of the field's middle counted
+ * as "right" of it, and one a row down beat the sort control beside it. Tom:
+ * "moving right on the D-pad from search drops into the results".
+ *
+ * So a candidate is in the direction of travel only when its centre is past
+ * the current element's *edge* on that side, and the primary distance is the
+ * gap between the facing edges. For two equal cards in a grid this chooses
+ * exactly what the centre rule chose; it differs only where sizes differ,
+ * which is where the centre rule was wrong. **Owed to the web client**, whose
+ * `useTvNavigation.ts` has the same rule and the same fault.
  */
 export function scoreTvCandidate(
   current: FocusRect,
@@ -80,19 +95,49 @@ export function scoreTvCandidate(
   const dx = tx - cx;
   const dy = ty - cy;
 
-  if (direction === 'left' && dx >= -1) return null;
-  if (direction === 'right' && dx <= 1) return null;
-  if (direction === 'up' && dy >= -1) return null;
-  if (direction === 'down' && dy <= 1) return null;
+  if (direction === 'left' && tx >= current.left) return null;
+  if (direction === 'right' && tx <= current.left + current.width) return null;
+  if (direction === 'up' && ty >= current.top) return null;
+  if (direction === 'down' && ty <= current.top + current.height) return null;
 
   const horizontal = direction === 'left' || direction === 'right';
-  const primary = horizontal ? Math.abs(dx) : Math.abs(dy);
+  const primary = horizontal
+    ? rectGap(current.left, current.width, candidate.left, candidate.width)
+    : rectGap(current.top, current.height, candidate.top, candidate.height);
   const secondary = horizontal ? Math.abs(dy) : Math.abs(dx);
   const laneGap = horizontal
     ? rectGap(current.top, current.height, candidate.top, candidate.height)
     : rectGap(current.left, current.width, candidate.left, candidate.width);
 
   return primary + secondary * 0.2 + laneGap * 6;
+}
+
+/**
+ * Which candidate a direction moves to, from the current element's rectangle.
+ *
+ * Pure, so the choice can be tested with the geometry of a real screen rather
+ * than through a registry.
+ */
+export function pickTvCandidate<T extends { rect: FocusRect }>(
+  current: FocusRect,
+  candidates: readonly T[],
+  direction: TvDirection,
+): T | undefined {
+  const scored = candidates
+    .map((entry) => ({ entry, score: scoreTvCandidate(current, entry.rect, direction) }))
+    .filter((item): item is { entry: T; score: number } => item.score !== null);
+  // **The row first.** When anything in the direction of travel shares the
+  // current element's row (or column, going up or down), only those compete;
+  // the next row is where a move goes once its own row has run out. The lane
+  // penalty alone could not promise this — a far control on the same row lost
+  // to a near card on the next (Search: field → refresh past a results row).
+  const horizontal = direction === 'left' || direction === 'right';
+  const inLane = scored.filter(({ entry }) =>
+    horizontal
+      ? rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0
+      : rectGap(current.left, current.width, entry.rect.left, entry.rect.width) === 0,
+  );
+  return (inLane.length > 0 ? inLane : scored).sort((a, b) => a.score - b.score)[0]?.entry;
 }
 
 function sequentialCandidate(
@@ -456,11 +501,11 @@ class TvFocusRegistry {
     let next: Focusable | undefined;
 
     if (rect && rect.width > 0 && rect.height > 0) {
-      next = elements
-        .filter((entry) => entry !== current && entry.rect)
-        .map((entry) => ({ entry, score: scoreTvCandidate(rect, entry.rect!, command) }))
-        .filter((scored): scored is { entry: Focusable; score: number } => scored.score !== null)
-        .sort((a, b) => a.score - b.score)[0]?.entry;
+      next = pickTvCandidate(
+        rect,
+        elements.filter((entry): entry is Focusable & { rect: FocusRect } => entry !== current && !!entry.rect),
+        command,
+      );
     } else {
       next = sequentialCandidate(elements, current, command);
     }

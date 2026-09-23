@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { scoreTvCandidate, tvFocus, type FocusRect } from './tvFocus';
+import { pickTvCandidate, scoreTvCandidate, tvFocus, type FocusRect } from './tvFocus';
 
 function rect(left: number, top: number, width = 50, height = 50): FocusRect {
   return { left, top, width, height };
@@ -437,5 +437,43 @@ describe('a default that registers after the screen has fallen back', () => {
     nav();
     card();
     restored();
+  });
+});
+
+/**
+ * Search's control row, measured off `.133` on 2026-09-24 (1920-wide
+ * screenshot): a field that takes most of the width, the sort control to its
+ * right, and a row of result cards below.
+ *
+ * Tom, the same night: "moving right on the D-pad from search drops into the
+ * results". Scoring from centres made anything whose centre lay right of the
+ * wide field's centre count as "right" of it, and a card one row down was
+ * nearer than the sort control on the same row.
+ */
+describe('a wide element beside smaller ones', () => {
+  const field = { id: 'field', rect: rect(58, 172, 1264, 46) };
+  const sort = { id: 'sort', rect: rect(1340, 172, 152, 46) };
+  const cards = [62, 290, 518, 746, 974, 1202, 1430, 1658].map((left, index) => ({
+    id: `card-${index}`,
+    rect: rect(left, 250, 200, 360),
+  }));
+
+  it('moves right along its own row, not down into the row below', () => {
+    expect(pickTvCandidate(field.rect, [sort, ...cards], 'right')?.id).toBe('sort');
+  });
+
+  it('prefers a far control on its own row to a near one on the next', () => {
+    const refresh = { id: 'refresh', rect: rect(1812, 172, 46, 46) };
+    expect(pickTvCandidate(field.rect, [refresh, ...cards], 'right')?.id).toBe('refresh');
+  });
+
+  it('still steps sideways along a row of cards', () => {
+    expect(pickTvCandidate(cards[1]!.rect, [field, sort, ...cards.filter((_, i) => i !== 1)], 'right')?.id).toBe(
+      'card-2',
+    );
+  });
+
+  it('still goes down from the field into the results', () => {
+    expect(pickTvCandidate(field.rect, [sort, ...cards], 'down')?.id).toMatch(/^card-/);
   });
 });
