@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { MediaApi, MediaSummary } from '@machafoundation/core';
+import {
+  DEFAULT_SEARCH_SORT,
+  orderMedia,
+  SEARCH_SORTS,
+  type MediaApi,
+  type MediaSortKey,
+  type MediaSummary,
+} from '@machafoundation/core';
 import { MediaCard } from '../components/MediaCard';
 import { TvTextInput } from '../components/TvTextInput';
+import { SortControl } from '../components/SortControl';
 import { ErrorMessage, Loading, PageTitle } from '../components/Status';
 import { scrollTarget } from '../hooks/focusScroll';
 import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
@@ -35,6 +43,8 @@ export function SearchScreen({
   const [results, setResults] = useState<MediaSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<Error | undefined>();
+  const [sort, setSort] = useState<MediaSortKey>(DEFAULT_SEARCH_SORT);
+  const ordered = useMemo(() => orderMedia(results, sort, SEARCH_SORTS), [results, sort]);
 
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);
@@ -101,13 +111,21 @@ export function SearchScreen({
       <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
         <PageTitle>Search</PageTitle>
 
-        <View style={styles.field}>
-          <TvTextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search your library"
-            defaultFocus
-          />
+        {/*
+          * `.search-bar { display: flex; align-items: center; gap: 1rem; width: 100% }`
+          * with `.search-input { flex: 1 }` — the field takes the row, and the
+          * sort sits at its end (Tom, 2026-09-23).
+          */}
+        <View style={styles.bar}>
+          <View style={styles.field}>
+            <TvTextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search your library"
+              defaultFocus
+            />
+          </View>
+          <SortControl sorts={SEARCH_SORTS} value={sort} onChange={setSort} />
         </View>
 
         {error ? <ErrorMessage error={error} /> : null}
@@ -125,7 +143,7 @@ export function SearchScreen({
               gridY.current = event.nativeEvent.layout.y;
             }}
           >
-            {results.map((item, index) => (
+            {ordered.map((item, index) => (
               <MediaCard
                 key={item.id}
                 media={item}
@@ -161,10 +179,17 @@ const styles = StyleSheet.create({
     paddingTop: rem(1),
     paddingBottom: rem(4),
   },
-  field: {
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rem(1),
     paddingHorizontal: pageGutter,
     marginBottom: rem(1.4),
-    maxWidth: rem(34),
+  },
+  // `.search-input { flex: 1; min-width: 0 }`
+  field: {
+    flex: 1,
+    minWidth: 0,
   },
   hint: {
     paddingHorizontal: pageGutter,
