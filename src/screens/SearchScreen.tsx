@@ -7,7 +7,6 @@ import {
   orderMedia,
   SEARCH_CATEGORIES,
   SEARCH_SORTS,
-  trackSubtitle,
   type MediaApi,
   type MediaSortKey,
   type SearchCategoryKey,
@@ -51,15 +50,9 @@ export function SearchScreen({
   const [error, setError] = useState<Error | undefined>();
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_SEARCH_SORT);
   const [categories, setCategories] = useState<SearchCategoryKey[]>([...DEFAULT_SEARCH_CATEGORIES]);
-  // A track reads "Artist - Album (year)" (Tom, via core's `trackSubtitle`);
-  // core's search already gives an episode its series, so only tracks need it.
-  const ordered = useMemo(
-    () =>
-      orderMedia(results, sort, SEARCH_SORTS).map((item) =>
-        item.kind === 'track' ? { ...item, subtitle: trackSubtitle(item) ?? item.subtitle } : item,
-      ),
-    [results, sort],
-  );
+  // Every hit arrives already named by core's search: an episode with its
+  // series, a track as "Artist - Album (year)".
+  const ordered = useMemo(() => orderMedia(results, sort, SEARCH_SORTS), [results, sort]);
 
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);
