@@ -369,11 +369,12 @@ below: **the close settles**, in one attempt, once the node answers.
    is endpoint evidence, `ClusterPlaybackResolver.failover` charges the node
    and walks away, while `not-found` would have made it check liveness and
    **regenerate on the same node, uncharged**. So the fix is at the
-   classification, and it is ours: a one-byte `Range: bytes=0-0` probe of the
-   progressive source on its terminal error, status through
-   `playbackFailureKindForStatus`. It is dependency-free, so it has been
-   **proposed to core as a sibling of `probeHlsReadiness`** (message
-   `746321cc`) rather than written here.
+   classification, and it is ours. **How is open.** A one-byte
+   `Range: bytes=0-0` probe of the progressive source was proposed to core,
+   and core built it (`probeSourceReadiness`, core `9885730`). **Tom rejected
+   it the same evening — "a filthy brittle hack. No." — and it is not used
+   here.** Core has been told (message `e4e2f7bd`). Do not re-propose a stream
+   probe.
    The trail line that would have shown this on screen was lost because **one
    recovery emits at least nine lines and the overlay holds eight**. That still
    wants fixing before the next reap, because the next thing to confirm is the
