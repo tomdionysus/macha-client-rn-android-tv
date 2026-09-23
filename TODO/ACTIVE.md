@@ -391,9 +391,18 @@ below: **the close settles**, in one attempt, once the node answers.
 4. **A deleted session on `macnessa` kept serving for two and a half
    minutes.** The buffer grew for 2 min 28 s after its `DELETE` returned `204`
    — the stream already open was not cut. Reap 1 against `10.35.1.50` stopped
-   within ~6 s of the next request. Whether that is by design is the server
-   session's to say; it matters because a reap that does not stop the stream
-   is not the event P-1 is about.
+   within ~6 s of the next request. **The server session answered from its
+   code** (server 0.53.2, `src/playback.cpp`, asserted, not measured):
+   `erase_session` removes the record, stops any transcode and returns `204`,
+   but has no handle on open response bodies. The `/direct` route checks the
+   session only when a request *arrives*, and the body it then streams captures
+   the file, not the session. So an in-flight ranged body runs to the end of
+   its range, and only the *next* request gets `404 stream not found`. The
+   server code is the same on every node; its guess at the 2.5 min vs 6 s gap
+   is one long open-ended range versus several short ones (unverified). Whether
+   a delete should also cut in-flight bodies is with Tom, and nothing on the
+   server has changed. **For P-1 this means a reap on direct play surfaces
+   only at the player's next request**, which can be minutes away.
 
 **Not verified, kept honest:** that "failover" here is a misclassification
 rather than correct behaviour for a stream-fetch error; and whether a
