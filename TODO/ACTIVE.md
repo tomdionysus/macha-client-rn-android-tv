@@ -404,6 +404,18 @@ below: **the close settles**, in one attempt, once the node answers.
    a delete should also cut in-flight bodies is with Tom, and nothing on the
    server has changed. **For P-1 this means a reap on direct play surfaces
    only at the player's next request**, which can be minutes away.
+   **And a third reap, the same night, says even that may not hold.**
+   Measured on build `d0298604…`, which carries core's liveness-before-charge
+   change (`2bcce57`): session `b9d5aed0…` on `10.35.1.50` deleted at 23:03:21
+   (`204`), after which no node listed any session for the account. Playback
+   carried on for eight minutes with its buffer growing. Then a seek of more
+   than two minutes past the buffered edge (529 s → 661 s) at 23:11:31, and
+   playback **still** carried on, the buffer reaching 808 s over two open
+   connections to `10.35.1.50`. Whether that seek opened a new request, which
+   the server says would `404`, or reused an open one could not be seen from
+   here. **Consequence: core's liveness fix could not be exercised on direct
+   play, because the reap never reached the player.** It stays unverified on
+   the set.
 
 **Not verified, kept honest:** that "failover" here is a misclassification
 rather than correct behaviour for a stream-fetch error; and whether a
@@ -845,6 +857,43 @@ first.
 The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
+
+### 1.13 Episode navigation, Tom's business P0 — built and **measured working on `.133`**, 2026-09-23
+
+**Measured** on build md5 `d0298604…` (develop `9b4b638`, core `3f77ef4`
+through the link, bundle checked for `episodeNav`, `chromeButtonDisabled` and
+`provisional`, each absent from the older bundle), signed in as `tvtest`.
+
+| Step | What the set did |
+| --- | --- |
+| Resume Bushwhacked S01E02 from Continue Watching | control bar: restart · **previous** · rewind · pause · forward · **next** · options · close, both enabled |
+| Next | switched to Our Mrs. Reynolds S01E03 at 0:07, direct from `10.35.1.50` |
+| Back | **Season 1**, focus on 1×03, rail scrolled to it, TV Shows lit in the top bar |
+| Back | **Firefly**, synopsis shown, Season 1 focused |
+| Back | **TV Shows**, Firefly focused |
+| TV Shows → Firefly → Season 1 → episode 1 | The Train Job S01E01: **previous greyed**, next enabled |
+| Left twice from pause | pause → rewind → **restart**; the greyed button is stepped over |
+
+The rule is core's (`episodeNeighbours`, core `8dd1fcf`): it crosses season
+boundaries, keeps specials as their own chain, and answers empty instead of
+failing. This client owns the lifecycle (`src/app/useEpisodeNeighbours.ts`),
+the stack (`src/app/libraryTrail.ts`, six tests) and the buttons.
+
+**One defect found and fixed on the way** (`9b4b638`): opening a series from TV
+Shows left focus on the top bar's Home, so the next OK went Home. The screen's
+default card registers only after its fetch, and `focusDefault` had fallen back
+to the first thing on screen. That fallback is now provisional: a late
+`defaultFocus` element takes over unless the viewer has moved. Four tests; the
+first was seen red with `'nav-home'` where `'season-1'` belonged. **Asserted,
+not measured:** that this predates tonight's change. A plain `push` ran the
+same effect.
+
+**Seen and not fixed:** after Back to TV Shows, focus returns to the right card
+but the page does not scroll to it, so Firefly sat half below the fold. Not
+checked on the old build, so whether it is new is open.
+
+**The remote's own previous/next media keys are not wired.** Not attempted:
+nothing here confirmed which `eventType` the TCL's remote sends for them.
 
 ### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **none fixed**
 
