@@ -306,6 +306,36 @@ Both are `leanback_only`, `type.television`, no touchscreen. The APK's
 
 ## P-1. The regenerate path froze the viewer once — bound landed, freeze not reproduced, **not closed**
 
+### Reaped on a transcode, 2026-09-23 23:51 — **recovered on the same node**. Core's liveness fix works on the set.
+
+**Measured.** Build `d0298604…` (core `2bcce57` onward through the link).
+*Arrival* chosen because the set cannot decode its DTS audio, so Auto built an
+HLS session without touching the options menu: `9ea528ac…` on `10.35.1.50`,
+`mode: transcode`. The chrome read `FMP4 · http://10.35.1.50:7438`, `VIDEO COPY ·
+H264`, `AUDIO TRANSCODE · DTS 5.1 → AAC 5.1`.
+
+| Time | |
+| --- | --- |
+| 23:51:35 | session deleted, `204` |
+| 23:51:36 | buffer stops at 105.5 s. Each HLS segment is its own request, so the reap bites at once, unlike direct play |
+| 23:52:42.185 | ExoPlayer `state=7` at 105.3 s, the buffer's end, **66 s** after the reap |
+| 23:52:43.46 | new source, buffering |
+| 23:52:50.42 | playing |
+| 23:52:49 (node) | replacement `fbfbe0b1…` on **`10.35.1.50`**, `transcode`. Nothing on macnessa or ramaroja |
+
+On screen the film resumed where it stopped: 2:54 at 23:53:55, which is 1:45
+at 23:52:50 plus the elapsed time. About 8 s without picture (error plus
+buffering). The two direct-play reaps earlier the same night left `10.35.1.50`
+for remote nodes. **This one stayed**, which is what core `2bcce57` changed:
+an unclassified fatal now asks the node whether the session exists before
+charging it.
+
+**Still true:** nothing reacted for 66 s after the first failed segment.
+Detection waits for the buffer to run dry because `expo-video` reports no
+per-request failure (point 3 below). The trail was off for this run, so the
+classification lines were not seen. The evidence is the node's session list
+and the resumed position.
+
 ### Reaped twice on `.133`, 2026-09-23 — no freeze, ~4 s visible, but it failed over instead of regenerating
 
 **Measured.** Build md5 `1b528dea…` — which **does carry everything this
@@ -866,6 +896,34 @@ first.
 The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
+
+### 1.14 Search and focus — Tom's list, 2026-09-23, **not started**
+
+From Tom, verbatim in substance:
+
+1. **Episode results name their series.** A search hit that is an episode
+   shows only `S01E01` under its title today; it needs the series name too.
+2. **The search field spans the full width**, and a **sort by** control sits
+   in the same row.
+3. **Search results use the movie card's focus look**: the thicker red border
+   with a gap between image and border. Same settings as the movie selector.
+4. **Episode cards the same** (Tom, same evening, before the Search list):
+   the season rail's episode cards get the movie card's focus look. They
+   currently show a thin outline.
+
+Found on the set while trying to switch a stream to transcode, measured on
+`.133`:
+
+- **The options panel's focus is nearly invisible.** A focused chip differs
+  from a selected one only by a one-pixel red border. Three attempts to reach
+  Transcode by D-pad landed on Direct or left the row without any visible
+  sign. On a 10-foot UI that is unusable.
+- **Opening the panel does not reliably move focus into it.** Once focus
+  stayed on the transport row, so the next Right moved to ✕.
+- **Up from the season page's episode rail does not reach the top bar**; it
+  moves along the rail.
+- **`dumpsys media_session` `state=` readings can be stale** — check the
+  `updated` stamp against `/proc/uptime` before trusting one.
 
 ### 1.13 Episode navigation, Tom's business P0 — built and **measured working on `.133`**, 2026-09-23
 
