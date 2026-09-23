@@ -360,20 +360,33 @@ below: **the close settles**, in one attempt, once the node answers.
    own**: `3055.8s cluster.health preemptive-endpoint-swap` from ramaroja
    (272 ms) to `10.35.1.50` (14.3 ms), 51 s after the second failover — which
    moves preference, not the playing session.
-2. **Why it failed over is not established, and this build cannot establish
-   it.** The trigger here was ExoPlayer erroring on a stream fetch at the end
-   of its buffer, not the session `GET` that returned `404` on 2026-09-20 — a
-   different entry into core, and plausibly a different classification. The
-   line that would say so sits before `session-create`, and **one recovery
-   emits at least nine trail lines while the overlay holds eight**, so it is
-   always scrolled off by the time recovery completes. The release build does
-   not send the trail to logcat either. **The next reap needs a longer window
-   or the classification line pinned** — a client change, and a small one.
-3. **Detection waits for the buffer, not for the failure.** The fetch against
-   the dead session failed at 18:39:07 and nothing reacted for 59 s, until the
-   player ran dry. For the viewer that is invisible and arguably ideal; for
-   failover it is 59 s in which a standby could have been prepared and was
-   not.
+2. **Why it failed over: this client sends every direct-play fatal to core as
+   `unknown`.** Read from `src/player/ExpoVideoAdapter.ts`
+   (`kindForTerminalError`), not seen on the trail: `if (!source.isManifest)
+   { warn('terminal-failure-unclassified', { state: 'not-a-manifest' });
+   return 'unknown'; }`. Both reaps were progressive MKV. Core confirmed the
+   other half the same evening, from its tree at `d58375a`: an `unknown` fatal
+   is endpoint evidence, `ClusterPlaybackResolver.failover` charges the node
+   and walks away, while `not-found` would have made it check liveness and
+   **regenerate on the same node, uncharged**. So the fix is at the
+   classification, and it is ours: a one-byte `Range: bytes=0-0` probe of the
+   progressive source on its terminal error, status through
+   `playbackFailureKindForStatus`. It is dependency-free, so it has been
+   **proposed to core as a sibling of `probeHlsReadiness`** (message
+   `746321cc`) rather than written here.
+   The trail line that would have shown this on screen was lost because **one
+   recovery emits at least nine lines and the overlay holds eight**. That still
+   wants fixing before the next reap, because the next thing to confirm is the
+   `not-found` → regenerate path on hardware.
+3. **Detection waits for the buffer, not for the failure, and on `expo-video`
+   it has to.** The fetch against the dead session failed at 18:39:07 and
+   nothing reacted for 59 s, until the player ran dry. Core's answer is the
+   degradation channel: report the first failed fetch, and it regenerates
+   inside the remaining buffer (the web client measured 3.44 s, same node,
+   invisible). But this adapter's `subscribeDegradation` is fed only by the
+   stall watchdog, and `expo-video` exposes no per-load error (§2's "failure
+   evidence is weaker"). The native `PlayerEngine.kt` does see `onLoadError`
+   with `responseCode` (line ~450), and it is not the adapter the set runs.
 4. **A deleted session on `macnessa` kept serving for two and a half
    minutes.** The buffer grew for 2 min 28 s after its `DELETE` returned `204`
    — the stream already open was not cut. Reap 1 against `10.35.1.50` stopped
