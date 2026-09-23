@@ -96,6 +96,25 @@ if (existsSync(gradle)) {
   }
 }
 
+/**
+ * The version a reader sees first, under the README's title as `_v0.6.0_`.
+ *
+ * Tom, 2026-09-23: it goes there and it stays current. A hand-written copy of
+ * a number is the kind that goes stale in silence, so it is checked here with
+ * the others rather than trusted to be remembered at release time. Only the
+ * first line after the title counts, so a version quoted in prose further down
+ * can neither satisfy this nor trip it.
+ */
+const readme = readFileSync(join(root, 'README.md'), 'utf8').split('\n');
+const titleAt = readme.findIndex((line) => line.startsWith('# '));
+const underTitle = readme.slice(titleAt + 1).find((line) => line.trim() !== '');
+const wanted = `_v${pkg.version}_`;
+if (titleAt < 0 || underTitle?.trim() !== wanted) {
+  problems.push(
+    `README.md should carry ${wanted} as the first line under its title; found ${JSON.stringify(underTitle ?? '')}`,
+  );
+}
+
 if (problems.length > 0) {
   console.error('version-check: inconsistent version\n  ' + problems.join('\n  '));
   process.exit(1);
