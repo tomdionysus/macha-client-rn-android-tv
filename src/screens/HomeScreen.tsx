@@ -1,5 +1,11 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { newestCatalogueFirst, type MediaApi, type MediaSummary, type PlaybackProgress } from '@machafoundation/core';
+import {
+  episodeSubtitle,
+  newestCatalogueFirst,
+  type MediaApi,
+  type MediaSummary,
+  type PlaybackProgress,
+} from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaRow } from '../components/MediaRow';
@@ -34,7 +40,19 @@ export function HomeScreen({
     );
   }
 
-  const progressItems = continueWatching.flatMap((entry) => (entry.media ? [entry.media] : []));
+  // An episode names its series and "Season x Episode y" rather than the
+  // stored `S01E03` (Tom, via core's `episodeSubtitle`, 2026-09-24). The stored
+  // subtitle came from `details()`; the label is composed here, per render, so
+  // entries saved before the ruling read the same as new ones.
+  const progressItems = continueWatching.flatMap((entry) =>
+    entry.media
+      ? [
+          entry.media.kind === 'episode'
+            ? { ...entry.media, subtitle: episodeSubtitle(entry.media) ?? entry.media.subtitle }
+            : entry.media,
+        ]
+      : [],
+  );
   const progressById = new Map(continueWatching.map((entry) => [entry.mediaId, entry]));
 
   const progressFor = (media: MediaSummary): number | undefined => {

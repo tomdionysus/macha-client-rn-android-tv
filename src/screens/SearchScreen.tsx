@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
+  DEFAULT_SEARCH_CATEGORIES,
   DEFAULT_SEARCH_SORT,
   isSearchable,
   orderMedia,
+  SEARCH_CATEGORIES,
   SEARCH_SORTS,
+  trackSubtitle,
   type MediaApi,
   type MediaSortKey,
+  type SearchCategoryKey,
   type MediaSummary,
 } from '@machafoundation/core';
 import { MediaCard } from '../components/MediaCard';
 import { TvTextInput } from '../components/TvTextInput';
 import { SortControl } from '../components/SortControl';
+import { CategoryToggles } from '../components/CategoryToggles';
 import { ErrorMessage, Loading, PageTitle } from '../components/Status';
 import { scrollTarget } from '../hooks/focusScroll';
 import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
@@ -45,7 +50,16 @@ export function SearchScreen({
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<Error | undefined>();
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_SEARCH_SORT);
-  const ordered = useMemo(() => orderMedia(results, sort, SEARCH_SORTS), [results, sort]);
+  const [categories, setCategories] = useState<SearchCategoryKey[]>([...DEFAULT_SEARCH_CATEGORIES]);
+  // A track reads "Artist - Album (year)" (Tom, via core's `trackSubtitle`);
+  // core's search already gives an episode its series, so only tracks need it.
+  const ordered = useMemo(
+    () =>
+      orderMedia(results, sort, SEARCH_SORTS).map((item) =>
+        item.kind === 'track' ? { ...item, subtitle: trackSubtitle(item) ?? item.subtitle } : item,
+      ),
+    [results, sort],
+  );
 
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);
@@ -68,7 +82,7 @@ export function SearchScreen({
     setError(undefined);
     const timer = setTimeout(() => {
       void api
-        .search(normalised)
+        .search(normalised, undefined, { categories })
         .then((value) => {
           if (active) setResults(value);
         })
@@ -83,7 +97,7 @@ export function SearchScreen({
       active = false;
       clearTimeout(timer);
     };
-  }, [api, query]);
+  }, [api, query, categories]);
 
   const columns = Math.max(
     1,
@@ -130,6 +144,10 @@ export function SearchScreen({
           </View>
           <SortControl sorts={SEARCH_SORTS} value={sort} onChange={setSort} />
         </View>
+        {/* Movies, TV Shows, Music — any combination (Tom, 2026-09-24, via core). */}
+        <View style={styles.categories}>
+          <CategoryToggles categories={SEARCH_CATEGORIES} selected={categories} onChange={setCategories} />
+        </View>
 
         {error ? <ErrorMessage error={error} /> : null}
 
@@ -137,6 +155,10 @@ export function SearchScreen({
           <Text style={styles.hint}>Type two letters or more to search.</Text>
         ) : searching && results.length === 0 ? (
           <Loading />
+        ) : categories.length === 0 ? (
+          // Core answers no categories with nothing and asks nobody, so
+          // "nothing matched" would be untrue: nothing was looked for.
+          <Text style={styles.hint}>Choose Movies, TV Shows or Music to search.</Text>
         ) : results.length === 0 ? (
           <Text style={styles.hint}>Nothing matched “{query.trim()}”.</Text>
         ) : (
@@ -186,6 +208,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: rem(1),
+    paddingHorizontal: pageGutter,
+    marginBottom: rem(0.9),
+  },
+  categories: {
     paddingHorizontal: pageGutter,
     marginBottom: rem(1.4),
   },
