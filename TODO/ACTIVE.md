@@ -373,8 +373,9 @@ below: **the close settles**, in one attempt, once the node answers.
    `Range: bytes=0-0` probe of the progressive source was proposed to core,
    and core built it (`probeSourceReadiness`, core `9885730`). **Tom rejected
    it the same evening — "a filthy brittle hack. No." — and it is not used
-   here.** Core has been told (message `e4e2f7bd`). Do not re-propose a stream
-   probe.
+   here.** Core reverted it in `629e89c`; it was never published, and core's `dist`
+   no longer contains it (checked here, dist hash `27c7fdf7742a`). Do not
+   re-propose a stream probe.
    The trail line that would have shown this on screen was lost because **one
    recovery emits at least nine lines and the overlay holds eight**. That still
    wants fixing before the next reap, because the next thing to confirm is the
