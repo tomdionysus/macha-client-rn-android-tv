@@ -20,6 +20,18 @@ they are fixed. The catalogue answers `503 catalogue_unavailable` (§1.9), so
 nothing that needs a library can run on either set. Everything since is
 documentation. **Nothing below was started after that instruction.**
 
+**The catalogue came back the same day — measured 2026-09-23 17:40 EEST, and
+the stand-down has not been lifted by Tom.** `GET /api/v1/catalogue/items`
+answers `200` with items on **`10.44.1.50`** and on **`10.34.1.50`**, both with
+a `tvtest` token minted through the nested envelope. **`10.44.1.51` is
+unreachable** — no session, no route, `000` — so the cluster is two nodes, not
+three, and *that* is the state any failover work would meet. **Both
+televisions are off**: neither `10.35.1.133` nor `10.34.1.115` answers a ping,
+and `adb devices` is empty. So the three things owed to a set are still owed,
+and nothing about them is blocked on the server any more — only on a set being
+switched on, and on Tom saying the stand-down is over. **Do not read the `200`
+as permission**; the instruction was his and so is lifting it.
+
 **The unlink is a check, not a step**, and still not isolated: the same plain
 `npm install` produced a link on one run and a directory on another. The
 procedure that worked every time is `npm install @machafoundation/core@^x.y.z`
@@ -95,9 +107,18 @@ test are **deleted** and the hook keeps only the timer and the subscription
 
 ### The single next action
 
-**While the cluster is down: nothing on a set.** When it is back, the order is
-the one in "State at the end of 2026-09-23" above — the resume-point kill test
-and the stereo-track A/B first because they are cheap and owed, then P-1.
+**Nothing on a set until Tom lifts the stand-down**, which he has not, even
+though the condition it was called for has cleared (§0, measured 17:40). Both
+sets are off in any case. When it is lifted, the order is the one in "State at
+the end of 2026-09-23" above — the resume-point kill test and the stereo-track
+A/B first because they are cheap and owed, then P-1. Note that the cluster is
+**two nodes** today, `10.44.1.51` being unreachable, which is a smaller
+candidate list than any failover work so far has assumed.
+
+**Off the set, §1.9 is the live thread**: its cause is traced to core's charge
+gate and reported (message `167950ec`), and the client half — screens rendering
+`error.message` raw — is specified there and needs neither a node nor a
+television.
 
 **P-1, below: a reaped session now freezes the viewer, and it is the direct
 consequence of the classification being fixed.** Everything else in this file
@@ -1182,7 +1203,7 @@ drains. The case here is the player that has *stopped*. Their figure is evidence
 that the snapshot can be current when the stream is alive, and silent about the
 case this asks.
 
-### 1.9 A catalogue `503` is reported to the viewer as every endpoint failing — 2026-09-22, **not fixed**
+### 1.9 A catalogue `503` is reported to the viewer as every endpoint failing — 2026-09-22, cause traced 2026-09-23, **not fixed**
 
 **Measured against the node with a token that demonstrably holds
 `media_viewer`, no client involved:**
@@ -1209,11 +1230,66 @@ their endpoints have failed will go and edit endpoint settings that are not
 broken — on a television, with a D-pad, to fix something that was never wrong.
 The endpoints had not failed; one API family on a healthy node had.
 
-Unexamined: whether the endpoint registry is *marking* endpoints failed on a
-`503` from the catalogue, or whether Home is only wording an error badly. Those
-want different fixes and only one of them is this client's — if it is the
-former, the question of whether a `503` on a catalogue route should cost a node
-its place in the candidate list belongs beside §2.8's status mapping.
+~~Unexamined: whether the endpoint registry is *marking* endpoints failed on a
+`503` from the catalogue, or whether Home is only wording an error badly.~~
+**Examined 2026-09-23. It is both, and the registry half is core's.**
+
+**Read from core at `a3b40ca` (0.18.0), `src/cluster/endpointRouting.ts` and
+the matching `dist/cluster/endpointRouting.js` — asserted from the
+implementation, not measured against a node.** The walk is right and the charge
+is wrong:
+
+- `retryableEndpointFailure` returns `true` for any `5xx`
+  (`endpointFailure.ts`, `status >= 500 && status <= 599`), so the `503` walks
+  every candidate. **That part is correct** — a `5xx` can be node-local, and
+  the comment above it says so.
+- `route()` then records the failure against **every** endpoint it walked, with
+  no gate: `advisory ? recordProbeFailure : recordFailure`. `find()` and
+  `mutation()` do the same. Only `pinned()` asks `failureBlamesEndpoint`.
+- The catalogue condition was identical on every node, so the walk charged the
+  whole cluster for one API family and threw `MachaClusterRouteError` with
+  `unreachable: false`, whose message is the literal string Home showed.
+
+**So Home is not wording anything badly — it is showing `error.message`
+verbatim**, and for an exhausted walk that message is exactly "All configured
+Macha API endpoints failed." Core assembled a true sentence about the walk;
+what is false is the conclusion a viewer draws from it, and Settings gets it
+right in the same moment only because it reads catalogue health directly
+instead of inferring it from a routing error.
+
+**The second half is bigger than this client and was reported to core the same
+day** (message `167950ec`, 2026-09-23): `failureBlamesEndpoint`'s own docstring
+says it is "the charge gate, and the only one. Every site that records a
+failure against the registry asks this" — and three of the four sites do not.
+The docstring even names the consequence — *"the moment the walk was corrected,
+the charge would have followed it onto every healthy node in the cluster"* —
+and that is the state the walking paths are in, for `429
+account_session_limit` as much as for this `503`. **Read the loop, not the
+comment beside it**, which is the rule that comment itself states.
+
+**Still ours, and it does not go away when core fixes the charge**: even with
+the registry corrected, every node really is refusing, the walk really does
+exhaust, and Home will still print core's sentence. Two things follow, and
+neither needs a set:
+
+1. `ErrorMessage` and `RefreshError` in `src/components/Status.tsx` render
+   `error.message` raw. That is the exact practice core's
+   `playbackFailureDetail` docstring exists to retire — it records three
+   clients putting *"Macha endpoint http://10.35.1.50:7438 failed: …"*, two of
+   core's envelopes and a node address, in front of a viewer. `failureCopy.ts`
+   already does this properly for the player and is the model; the catalogue
+   screens never got the same treatment, and `failureCopy` itself still falls
+   back to `error.message` for its headline rather than
+   `playbackFailureDetail`.
+2. Whether a `503` on a catalogue route should cost a node its place in the
+   candidate list at all still belongs beside §2.8's status mapping — but it is
+   now a question **to put to core**, not one to answer here.
+
+**Unverified, and it is the part a television would have to answer:** what the
+escalating cooldown actually did to the candidate list while the catalogue was
+down. Nothing was read off a set — both were off by the time this was traced,
+and the `503` has since cleared, so reproducing it needs the server condition
+back.
 
 ### 1.8 Quiet, and slightly out of sync — measured 2026-09-22, and the cause is that we hand the set six channels
 
