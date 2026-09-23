@@ -140,6 +140,21 @@ class TvFocusRegistry {
    */
   private pendingRestoreId: string | undefined;
 
+  /**
+   * The selection is a fallback nobody chose: `focusDefault` found no element
+   * marked `defaultFocus` and took the first thing on screen instead.
+   *
+   * Measured on `.133`, 2026-09-23 — a screen's default card registers only
+   * after its content is fetched, so the fallback is usually the top bar. The
+   * series screen opened with Home selected and the viewer's OK went there.
+   * While this holds, a `defaultFocus` element that registers takes over; any
+   * real selection — a key, a restore, an explicit `select` — clears it.
+   *
+   * **Not in the web client**, whose DOM autofocus runs after render; the
+   * scoring weights `tvFocus.test.ts` guards are untouched by this.
+   */
+  private provisional = false;
+
   register(focusable: Omit<Focusable, 'order'>): () => void {
     const existing = this.focusables.get(focusable.id);
     // Keep the original order across a re-registration, so a focusable that
@@ -166,6 +181,16 @@ class TvFocusRegistry {
     // The card Back was waiting for has arrived.
     if (this.pendingRestoreId === focusable.id) {
       this.pendingRestoreId = undefined;
+      this.select(focusable.id);
+    }
+    // The screen's own default has arrived after the fallback took its place.
+    // A restore waiting for its card outranks it, as the viewer's place does.
+    else if (
+      focusable.defaultFocus &&
+      this.provisional &&
+      this.pendingRestoreId === undefined &&
+      this.candidates().some((entry) => entry.id === focusable.id)
+    ) {
       this.select(focusable.id);
     }
     // A newly-mounted screen with nothing selected should land on its default.
@@ -290,6 +315,7 @@ class TvFocusRegistry {
   }
 
   select(id: string | undefined): void {
+    this.provisional = false;
     if (this.selectedId === id) return;
     const previous = this.selectedId ? this.focusables.get(this.selectedId) : undefined;
     this.selectedId = id;
@@ -302,7 +328,9 @@ class TvFocusRegistry {
     const elements = this.candidates();
     if (elements.length === 0) return;
     const preferred = elements.find((entry) => entry.defaultFocus) ?? elements[0];
-    if (preferred) this.select(preferred.id);
+    if (!preferred) return;
+    this.select(preferred.id);
+    this.provisional = !preferred.defaultFocus;
   }
 
   selected(): string | undefined {

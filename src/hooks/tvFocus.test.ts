@@ -378,3 +378,64 @@ describe('a restore armed before its card exists', () => {
     late();
   });
 })
+
+/**
+ * Measured on `.133`, 2026-09-23: opening a series from TV Shows left focus on
+ * the top bar's Home, so the viewer's next OK sent them Home. The screen's
+ * default card — its first season — registers only after the series is
+ * fetched, and `focusDefault` had already fallen back to the first thing on
+ * screen by then.
+ */
+describe('a default that registers after the screen has fallen back', () => {
+  beforeEach(() => {
+    tvFocus.resumeAll();
+    tvFocus.select(undefined);
+    tvFocus.restoreWhenPresent(undefined);
+  });
+
+  it('takes focus from the fallback the viewer never chose', () => {
+    const nav = tvFocus.register({ id: 'nav-home' });
+    tvFocus.focusDefault();
+    expect(tvFocus.selected()).toBe('nav-home');
+
+    const card = tvFocus.register({ id: 'season-1', defaultFocus: true });
+    expect(tvFocus.selected()).toBe('season-1');
+    nav();
+    card();
+  });
+
+  it('does not take focus the viewer moved themselves', () => {
+    const nav = tvFocus.register({ id: 'nav-home' });
+    const other = tvFocus.register({ id: 'nav-movies' });
+    tvFocus.focusDefault();
+    tvFocus.select('nav-movies');
+
+    const card = tvFocus.register({ id: 'season-1', defaultFocus: true });
+    expect(tvFocus.selected()).toBe('nav-movies');
+    nav();
+    other();
+    card();
+  });
+
+  it('does not take focus a default already holds', () => {
+    const first = tvFocus.register({ id: 'first', defaultFocus: true });
+    tvFocus.focusDefault();
+    const second = tvFocus.register({ id: 'second', defaultFocus: true });
+    expect(tvFocus.selected()).toBe('first');
+    first();
+    second();
+  });
+
+  it('gives way to a restore that is waiting for its card', () => {
+    const nav = tvFocus.register({ id: 'nav-home' });
+    tvFocus.focusDefault();
+    tvFocus.restoreWhenPresent('media:ep-3');
+
+    const card = tvFocus.register({ id: 'season-1', defaultFocus: true });
+    const restored = tvFocus.register({ id: 'media:ep-3' });
+    expect(tvFocus.selected()).toBe('media:ep-3');
+    nav();
+    card();
+    restored();
+  });
+});
