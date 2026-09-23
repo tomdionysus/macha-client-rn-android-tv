@@ -24,13 +24,21 @@ documentation. **Nothing below was started after that instruction.**
 the stand-down has not been lifted by Tom.** `GET /api/v1/catalogue/items`
 answers `200` with items on **`10.44.1.50`** and on **`10.34.1.50`**, both with
 a `tvtest` token minted through the nested envelope. **`10.44.1.51` is
-unreachable** — no session, no route, `000` — so the cluster is two nodes, not
-three, and *that* is the state any failover work would meet. **Both
-televisions are off**: neither `10.35.1.133` nor `10.34.1.115` answers a ping,
-and `adb devices` is empty. So the three things owed to a set are still owed,
-and nothing about them is blocked on the server any more — only on a set being
-switched on, and on Tom saying the stand-down is over. **Do not read the `200`
-as permission**; the instruction was his and so is lifting it.
+unreachable** — no session, no route, `000`. The node's own
+`/api/v1/status` agrees and names it: `health: healthy`,
+`metadata_availability: "writable"`, quorum available and validated, with
+`conditions: ["1 node accepts no inbound connections"]`.
+
+**There is a fourth node, `10.35.1.50`, and this file had not recorded it.**
+It is the one `.133` actually streams from — read off the set's own socket
+table during playback and confirmed by the trail on screen,
+`MATROSKA : http://10.35.1.50:7438` (§1.11). It answers `401` on
+`server/info`, mints a `tvtest` session and serves the catalogue. The cluster
+list elsewhere in this project says `10.44.1.50`, `10.44.1.51` and
+`10.34.1.50`; **that list is incomplete.**
+
+**`10.35.1.133` was switched on by Tom at about 17:50** and the owed work
+started on it immediately — see §1.11. `10.34.1.115` was still off.
 
 **The unlink is a check, not a step**, and still not isolated: the same plain
 `npm install` produced a link on one run and a directory on another. The
@@ -70,18 +78,23 @@ the time of writing; `.115` has not been touched since 2026-09-21.
 - **`10.35.1.133`** — Android 12, 4K panel, DV 4/5/8/9. Last build
   `1b528dea…`. Diagnostics **off** (was turned off at some point after
   2026-09-21; the setting is the viewer's, not this session's).
+  **Confirmed still on `1b528dea9c6a24dbc5b9306e5a9c12ec` on 2026-09-23** by
+  `md5sum` of the installed `base.apk`, which is the only thing that tells the
+  three `versionCode 600` builds apart. `lastUpdateTime` 2026-09-22 21:31:52,
+  signed in as `tom`.
 - **`10.34.1.115`** — Android 11, 1080p, `DOLBY VISION: none`. Installed
   2026-09-21, signed out, never smoke-tested.
 
 **Owed to the set, in this order, when the cluster is back:**
 
-1. **The resume-point kill test** — cheap, owed, and the first two attempts
-   both found real bugs. Play, pass core's 30 s floor, `am force-stop`,
-   relaunch, confirm Continue Watching. **Query the node for sessions *before*
-   relaunching**, which was done in the wrong order once.
-2. **The stereo-track A/B** for §1.8 — player options, Audio, pick a 2.0 track
-   if one exists; if level and sync both snap back, the diagnosis is confirmed
-   end to end.
+1. ~~**The resume-point kill test**~~ — **run and passed on `.133`, 2026-09-23
+   17:55–18:00.** Detail in §1.11 below. The next two remain.
+2. **The stereo-track A/B** for §1.8 — **attempted 2026-09-23 and it cannot be
+   run the way this line describes.** The title offered exactly one audio
+   track, `ENG · AAC · 6ch`, so there is no 2.0 to switch to; and the test as
+   written asks whether *level and sync snap back*, which is a judgement only
+   somebody in front of the set can make. It needs **a title that actually has
+   a stereo track, and Tom listening.** See §1.11.
 3. **P-1's five reaps** — unchanged, and still the thing this repo exists for.
 
 **Waiting on other sessions:** core will name the version that carries the
@@ -107,13 +120,23 @@ test are **deleted** and the hook keeps only the timer and the subscription
 
 ### The single next action
 
-**Nothing on a set until Tom lifts the stand-down**, which he has not, even
-though the condition it was called for has cleared (§0, measured 17:40). Both
-sets are off in any case. When it is lifted, the order is the one in "State at
-the end of 2026-09-23" above — the resume-point kill test and the stereo-track
-A/B first because they are cheap and owed, then P-1. Note that the cluster is
-**two nodes** today, `10.44.1.51` being unreachable, which is a smaller
-candidate list than any failover work so far has assumed.
+**P-1's reap is the next thing, and it is the only one of the three left that
+this session can start.** The resume-point kill test is done and passed
+(§1.11); the stereo A/B is blocked on a title with a 2.0 track and on somebody
+listening, neither of which `adb` supplies. That leaves the reap, which is
+where §0 said the value was all along — *"One reap, with the set on, decides
+whether it is closed."*
+
+**It was not started, deliberately.** It wants the screensaver disabled on
+`.133` (the dream takes the foreground and kills the session before the node's
+reaper fires — `screensaver_enabled` reads `1` and `screen_off_timeout` is
+600 000 ms), it holds a session open on a cluster that came back from an
+outage hours earlier, and the set belongs to somebody who may be watching it.
+**Ask Tom before the first reap.**
+
+Note the cluster is **three reachable nodes**, `10.44.1.51` being the one
+refusing inbound, which is a different candidate list from anything the
+failover work has assumed so far.
 
 **Off the set, §1.9 is the live thread**: its cause is traced to core's charge
 gate and reported (message `167950ec`), and the client half — screens rendering
@@ -716,6 +739,104 @@ first.
 The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
+
+### 1.11 The resume-point kill test — run 2026-09-23, **passed**, and the stored position matched the model to the second
+
+**Measured on `10.35.1.133`** (TCL, Android 12), md5 `1b528dea9c6a24db…`,
+`versionCode 600`, signed in as `tom`, serving node `10.35.1.50`. Everything
+below is read off the device or the node; nothing is inferred from the source
+except where it says so.
+
+*Harry Potter and the Half-Blood Prince* (2009) was chosen **because it was not
+in Continue Watching** — the rail held Joy of Cooking S04E05, The Day After
+Tomorrow and 28 Days Later — so a new entry could not be confused with an old
+one. Its detail page offered **Play only**, no resume affordance.
+
+| | |
+| --- | --- |
+| Play pressed | 17:55:39 |
+| Playing, confirmed | `state=3`, position 14 927 ms, `speed=1.0` |
+| Trail on screen | `MATROSKA : http://10.35.1.50:7438`, `DIRECT · HEVC · 1920×800 · 2.4 Mb/s`, `DIRECT · ENG · AAC · 5.1 · 48 kHz` |
+| `am force-stop` | 17:59:11, at position **204 209 ms (3:24)** |
+| Process after | gone |
+| Relaunch | 17:59:31 |
+| Continue Watching | **Half-Blood Prince first**, ahead of Joy of Cooking and Day After Tomorrow |
+| Resumed position | back-extrapolated to **53 456 ms** at the moment Resume was pressed |
+
+**The stored point was ~53 s, and that is exactly what the design predicts.**
+`useContinueWatchingWriter` ticks every `CONTINUE_WATCHING_TICK_MS` (30 s) from
+mount; core declines anything below `MINIMUM_PROGRESS_MS`, which is **30 000**
+(read from `macha-ts/src/state/continueWatching.ts` at `a3b40ca`). So the tick
+at position ≈23 s was attempted and declined, the tick at ≈53 s landed, and
+`CONTINUE_WATCHING_WRITE_INTERVAL_MS` (5 min) then held off the next one —
+which never came, because the kill was at 3:24. **One write, exactly where the
+model says it should be**, including the declined attempt that
+`nextWatermark` exists to retry.
+
+**Loss on the kill: 150.7 s**, against a bound of one write interval. The
+feature does what `progressPersistence.ts` claims, on the kill shape it was
+written for.
+
+How the position was established, since `dumpsys media_session` misleads here:
+its `position` is a **snapshot, not a live counter** — two reads 20 s apart
+returned the same figure. Each snapshot carries an `updated` stamp on the
+device's uptime clock, and two of those give the line (54 601 ms of clock to
+54 607 ms of position, so 1:1), which extrapolates back to the Resume press.
+That is a **lower bound**: playback cannot have begun before the press, so the
+true stored value is 53 456 ms plus however long session setup took.
+
+**Also confirmed, incidentally:**
+
+- **The detail page gained a Restart button.** Before the kill it showed one
+  control; after, it shows **Play and Restart**. The stored point is read back
+  on that screen too, not only in the rail.
+- **28 Days Later fell off the rail, and that is correct.**
+  `CONTINUE_WATCHING_LIMIT = 3` in core (same file, same commit). A fourth
+  entry evicts the oldest. Nobody should chase this as a fault.
+- **§1.8 reproduces on a second title.** `AudioOut_FD`, **type 1 (DIRECT)**,
+  channel count **6**, mask **`0x0000003f`** — positional, PCM 16-bit, 48 kHz.
+  The Hunger Games measurement was not a one-off.
+
+**What could not be done, and it is a hole in the procedure rather than in the
+client.** §0 said to *query the node for sessions before relaunching*.
+`GET /api/v1/playback/sessions` is **account-scoped** — it answers
+`{"account":{"max_sessions":32,"sessions":0},"items":[]}` for `tvtest` while
+the set plays as `tom`. So the step is unperformable from here unless the set
+is signed in as the account whose token we hold, or `tom`'s token is to hand.
+**Whoever rewrites that line should say so**, rather than leaving the next
+session to discover it mid-test.
+
+**Two things for anyone driving this set over `adb`:**
+
+- **The player chrome auto-hides, and the first keypress after it hides is
+  spent revealing it.** Several D-pad presses vanished before that was
+  understood. Budget one extra press, or keep the gaps under the hide timeout.
+- **`screencap` of the player is black** — the video sits on a surface the
+  capture does not see. The chrome overlay *does* capture, so the transport
+  row and the trail are readable; the picture is not.
+
+#### The stereo A/B could not be run, and the reason is not a fault
+
+Player options on Half-Blood Prince offered **MODE** Auto/Direct/Remux/Transcode
+(Auto selected, "Chosen automatically: this device plays the file as it is"),
+**QUALITY** Original/720p/480p/360p, **SUBTITLES** Off/ENG/CHI — and under
+**AUDIO**, exactly one entry: **`ENG · AAC · 6ch`**, annotated "Server
+processing: copy".
+
+There is no 2.0 track to select, so §0's item 2 cannot be run on this title.
+Two things are needed before it can be:
+
+1. **A title that carries a stereo track.** Not yet surveyed; the catalogue can
+   be asked without a set.
+2. **Somebody in front of the television.** The test asks whether level and
+   sync *snap back*, which is a listening judgement. The channel mask and the
+   output-thread type can be read over `adb` and were; loudness cannot.
+
+`MODE → Transcode` is the obvious way to force a different audio path without
+finding another title, and it was **deliberately not tried**: it starts a
+transcode on a cluster that had just come back from an outage, and it changes
+what is on screen for whoever is watching. That is Tom's call, not this
+session's.
 
 ### 1.1 Navigation faults found on hardware
 
