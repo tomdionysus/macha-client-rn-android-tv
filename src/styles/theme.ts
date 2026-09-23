@@ -188,6 +188,17 @@ export const radius = {
 } as const;
 
 /**
+ * How faint a control is drawn when it cannot act.
+ *
+ * `.player-button-row button:disabled { opacity: .35 }` — the player's own row,
+ * which is where the episode buttons live and which greys them out rather than
+ * hiding them (Tom, 2026-09-23: the buttons always appear).
+ */
+export const disabledOpacity = {
+  playerButton: 0.35,
+} as const;
+
+/**
  * How far a card's artwork stands inside the card's own box.
  *
  * The focus border plus its offset — see `MediaCard`'s `poster`. Declared here

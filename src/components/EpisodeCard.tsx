@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Episode } from '@machafoundation/core';
 import { Focusable } from './Focusable';
+import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { px, colour, font, layout, rem, type } from '../styles/theme';
 
 /**
@@ -29,6 +30,10 @@ export function EpisodeCard({
   return (
     <Focusable
       ring={false}
+      // Addressable by the episode's id, so Back out of the player can hand
+      // focus to the episode that was playing rather than to the season's
+      // first — `App.tsx` seeds the season level's focus memory with it.
+      focusId={mediaFocusId(episode.id)}
       onSelect={onSelect}
       defaultFocus={defaultFocus}
       onFocusChange={onFocusChange}

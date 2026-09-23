@@ -3,6 +3,7 @@ import { BackHandler, StyleSheet, Text, View } from 'react-native';
 import {
   describePlaybackSession,
   formatPlaybackTime,
+  type Episode,
   type MediaSummary,
   type PlaybackCoordinatorSnapshot,
   type PlaybackRuntime,
@@ -32,7 +33,8 @@ import { useMacha } from '../app/MachaProvider';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
-import { px, colour, font, pageGutter, radius, rem, type } from '../styles/theme';
+import { px, colour, disabledOpacity, font, pageGutter, radius, rem, type } from '../styles/theme';
+import type { EpisodeNavigation } from '../app/useEpisodeNeighbours';
 
 /**
  * How long the chrome stays up after the last button press.
@@ -75,14 +77,20 @@ export function PlayerScreen({
   media,
   runtime,
   onClose,
+  episodeNav,
+  onPlayEpisode,
 }: {
   media: MediaSummary;
   runtime: PlaybackRuntime;
   onClose: () => void;
+  /** The episodes either side, for an episode. Ignored for anything else. */
+  episodeNav?: EpisodeNavigation;
+  onPlayEpisode?: (episode: Episode) => void;
 }): React.JSX.Element {
   const [playback, setPlayback] = useState<PlaybackCoordinatorSnapshot | undefined>(() =>
     runtime.getPlaybackSnapshot(),
   );
+  const isEpisode = media.kind === 'episode';
   const [chromeVisible, setChromeVisible] = useState(true);
   /**
    * Read by the command subscription, which is made once and must not be torn
@@ -632,6 +640,25 @@ export function PlayerScreen({
           <View style={styles.buttonRow}>
             <ChromeButton icon="restart" onSelect={() => { runtime.seek(0); showChrome(); }} />
             {/*
+              * **Previous and next episode, on every episode** (Tom,
+              * 2026-09-23, business P0) — whether it was started from
+              * Continue Watching or from its season. Always drawn, and greyed
+              * out when there is no neighbour or core has not answered yet,
+              * so the row never changes shape under the viewer's thumb. A
+              * greyed button takes no focus, so the D-pad steps over it.
+              *
+              * Placed outside rewind/forward, the order media controls take
+              * everywhere: the web client's music bar reads previous, play,
+              * next.
+              */}
+            {isEpisode ? (
+              <ChromeButton
+                icon="previous"
+                disabled={!episodeNav?.previous}
+                onSelect={() => episodeNav?.previous && onPlayEpisode?.(episodeNav.previous)}
+              />
+            ) : null}
+            {/*
               * The buttons keep a fixed step. They are pressed, not held — the
               * ladder belongs to the scrubber, which is where a viewer hunting
               * a moment actually holds a key down.
@@ -643,6 +670,13 @@ export function PlayerScreen({
               onSelect={() => { runtime.setPaused(!paused); showChrome(); }}
             />
             <ChromeButton icon="forward" onSelect={() => { runtime.seekBy(10_000); showChrome(); }} />
+            {isEpisode ? (
+              <ChromeButton
+                icon="next"
+                disabled={!episodeNav?.next}
+                onSelect={() => episodeNav?.next && onPlayEpisode?.(episodeNav.next)}
+              />
+            ) : null}
             {/*
               * **No volume control here** (Tom, 2026-09-19). A television's own
               * remote has volume keys and they drive the set's output stage,
@@ -671,18 +705,21 @@ function ChromeButton({
   icon,
   onSelect,
   defaultFocus,
+  disabled,
 }: {
   icon: PlayerIconName;
   onSelect: () => void;
   defaultFocus?: boolean;
+  disabled?: boolean;
 }): React.JSX.Element {
   return (
     <Focusable
       ring={false}
       scope={CHROME_SCOPE}
       defaultFocus={defaultFocus}
+      disabled={disabled}
       onSelect={onSelect}
-      style={styles.chromeButton}
+      style={[styles.chromeButton, disabled && styles.chromeButtonDisabled]}
       focusedStyle={styles.chromeButtonFocused}
     >
       <PlayerIcon name={icon} />
@@ -693,6 +730,10 @@ function ChromeButton({
 const BUTTON = rem(3.25);
 
 const styles = StyleSheet.create({
+  // `.player-button-row button:disabled { opacity: .35 }`
+  chromeButtonDisabled: {
+    opacity: disabledOpacity.playerButton,
+  },
   // `.player-page { background: #050506 }` + `.player-presentation-full { inset: 0 }`
   page: {
     position: 'absolute',

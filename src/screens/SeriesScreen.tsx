@@ -24,20 +24,23 @@ export function SeriesScreen({
 }): React.JSX.Element {
   const details = useRefreshableAsync(() => api.details(show.id), [api, show.id]);
   const seasons = (details.value as ShowDetails | undefined)?.seasons ?? [];
+  // The route's summary may be only an id and a title — an episode's stack is
+  // built from its `playbackContext` — so the fetched show wins once it lands.
+  const shown = details.value ?? show;
 
   return (
     <ScrollView contentContainerStyle={styles.page} scrollEnabled={false}>
-      <PageTitle>{show.title}</PageTitle>
-      {show.synopsis ? (
+      <PageTitle>{shown.title}</PageTitle>
+      {shown.synopsis ? (
         <Text style={styles.synopsis} numberOfLines={3}>
-          {show.synopsis}
+          {shown.synopsis}
         </Text>
       ) : null}
       {details.error ? (
         details.value ? <RefreshError error={details.error} /> : <ErrorMessage error={details.error} />
       ) : null}
       {!details.value && details.loading ? <Loading /> : null}
-      <MediaRow title="Seasons" items={seasons} onSelect={onOpenSeason} defaultFocusFirst />
+      <MediaRow title="Seasons" items={seasons} onSelect={onOpenSeason} defaultFocusFirst addressable />
     </ScrollView>
   );
 }

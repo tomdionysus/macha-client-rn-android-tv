@@ -5,6 +5,7 @@ import {
   errorMessage,
   progressFor,
   sessionManager,
+  type Episode,
   type MediaSummary,
   type PlaybackProgress,
 } from '@machafoundation/core';
@@ -15,7 +16,9 @@ import { hydrateStorage } from './state/storage';
 import { syncDiagnosticsLevel } from './diagnostics/failureTrailSetting';
 import { useTvNavigation } from './hooks/useTvNavigation';
 import { tvFocus } from './hooks/tvFocus';
-import { isMediaFocusId } from './hooks/useAlphabetIndex';
+import { isMediaFocusId, mediaFocusId } from './hooks/useAlphabetIndex';
+import { libraryTrail, type KnownAncestry } from './app/libraryTrail';
+import { useEpisodeNeighbours } from './app/useEpisodeNeighbours';
 import { orphanedSessions } from './state/liveSessions';
 import { playbackLog } from './diagnostics/playbackLog';
 import { androidTvPlatform } from './platform/AndroidTvPlatform';
@@ -175,6 +178,26 @@ function Shell(): React.JSX.Element {
   }, []);
 
   /**
+   * Put a TV item on its library trail: TV Shows, then its series, then its
+   * season, with `top` above them. See `libraryTrail` for Tom's rule.
+   *
+   * The focus memory is rebuilt with the stack, one card per level, so each
+   * Back lands on the thing the viewer came up from — the episode that was
+   * playing, its season, its series — exactly as if they had walked down.
+   *
+   * Answers false when the item names no ancestry, and the caller keeps its
+   * ordinary stack.
+   */
+  const placeOnTrail = useCallback((top: Route, media: MediaSummary, known?: KnownAncestry): boolean => {
+    const trail = libraryTrail(media, known);
+    if (!trail) return false;
+    focusMemory.current = trail.map((level) => mediaFocusId(level.returnTo));
+    focusToRestore.current = undefined;
+    setStack([...trail.map((level) => level.route as Route), top]);
+    return true;
+  }, []);
+
+  /**
    * What the instruction chooser reasons from.
    *
    * The playback facts endpoint, not the catalogue profile: it carries the
@@ -217,7 +240,7 @@ function Shell(): React.JSX.Element {
    * The stop matters as much as the position: a session left open holds the
    * node's single transcode slot, and the next viewer is refused with a 429.
    */
-  const closePlayer = useCallback(() => {
+  const recordPlayingProgress = useCallback(() => {
     const snapshot = runtime.getPlaybackSnapshot();
     const media = route.name === 'player' ? route.media : undefined;
     if (media && snapshot?.event && snapshot.event.durationMs > 0) {
@@ -225,9 +248,13 @@ function Shell(): React.JSX.Element {
         progressFor(media, snapshot.event.positionMs, snapshot.event.durationMs),
       );
     }
+  }, [runtime, route, continueWatching]);
+
+  const closePlayer = useCallback(() => {
+    recordPlayingProgress();
     void runtime.stop();
     pop();
-  }, [runtime, route, continueWatching, pop]);
+  }, [runtime, recordPlayingProgress, pop]);
 
   /**
    * Leave the account, which on a television is a thing a viewer can otherwise
@@ -326,7 +353,13 @@ function Shell(): React.JSX.Element {
     tvFocus.restoreWhenPresent(remembered);
   }, [route.name]);
 
-  const open = useCallback((media: MediaSummary) => push(routeForMedia(media)), [push]);
+  const open = useCallback(
+    (media: MediaSummary) => {
+      const next = routeForMedia(media);
+      if (!placeOnTrail(next, media)) push(next);
+    },
+    [push, placeOnTrail],
+  );
 
   /**
    * Playing leaves the item's own detail screen underneath the player.
@@ -348,7 +381,13 @@ function Shell(): React.JSX.Element {
    * player's own close — so nothing else has to know this happened.
    */
   const play = useCallback(
-    (media: MediaSummary, startPositionMs: number) => {
+    (media: MediaSummary, startPositionMs: number, known?: KnownAncestry) => {
+      // An episode goes on its library trail, so Back arrives at its season
+      // (Tom, 2026-09-23). Everything else keeps the detail-beneath rule below.
+      if (placeOnTrail({ name: 'player', media }, media, known)) {
+        void runtime.play({ media, startPositionMs, returnTo: 'detail' });
+        return;
+      }
       setStack((current) => {
         const beneath = current[current.length - 1];
         const detail = routeForMedia(media);
@@ -363,11 +402,52 @@ function Shell(): React.JSX.Element {
       });
       void runtime.play({ media, startPositionMs, returnTo: 'detail' });
     },
-    [runtime],
+    [runtime, placeOnTrail],
   );
 
+  const playingMedia = route.name === 'player' ? route.media : undefined;
+  const episodeNav = useEpisodeNeighbours(services.mediaApi, playingMedia);
+
+  /**
+   * Previous / next from inside the player.
+   *
+   * The place in the episode being left is written first — the same write
+   * Back makes — and the neighbour then plays from its own resume point.
+   * `runtime.play` closes the current session itself, and the player screen
+   * stays mounted across the switch: remounting it would detach the surface
+   * in the middle of the handover.
+   */
+  const switchEpisode = useCallback(
+    (episode: Episode) => {
+      recordPlayingProgress();
+      play(episode, continueWatching.positionFor(episode.id));
+    },
+    [recordPlayingProgress, play, continueWatching],
+  );
+
+  // An episode resumed without its ancestry (a Continue Watching entry saved
+  // before core carried it) cannot be placed on its trail until core has
+  // looked it up. Once it has, put the season beneath it after all.
+  useEffect(() => {
+    if (!playingMedia || playingMedia.kind !== 'episode' || playingMedia.playbackContext) return;
+    if (!episodeNav.show || !episodeNav.season) return;
+    if (stack[stack.length - 2]?.name === 'season') return;
+    placeOnTrail({ name: 'player', media: playingMedia }, playingMedia, {
+      show: episodeNav.show,
+      season: episodeNav.season,
+    });
+  }, [playingMedia, episodeNav.show, episodeNav.season, stack, placeOnTrail]);
+
   if (route.name === 'player') {
-    return <PlayerScreen media={route.media} runtime={runtime} onClose={closePlayer} />;
+    return (
+      <PlayerScreen
+        media={route.media}
+        runtime={runtime}
+        onClose={closePlayer}
+        episodeNav={episodeNav}
+        onPlayEpisode={switchEpisode}
+      />
+    );
   }
 
   const body = !sessionReady ? (
@@ -496,7 +576,10 @@ function Shell(): React.JSX.Element {
       />
       <TopBar
         items={NAV}
-        active={TOP_LEVEL.has(route.name) ? route.name : 'home'}
+        // The section the stack is rooted in, not only the screen on top: a
+        // season reached from Continue Watching sits on the TV Shows trail,
+        // and the bar should say so.
+        active={TOP_LEVEL.has(route.name) ? route.name : TOP_LEVEL.has(stack[0]?.name ?? '') ? stack[0]!.name : 'home'}
         onSelect={(key) => replaceTop({ name: key } as Route)}
         username={session?.username}
         // Only where there is an account to leave. An unnamed session is one

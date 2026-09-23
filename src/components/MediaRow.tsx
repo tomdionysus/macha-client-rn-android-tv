@@ -21,6 +21,7 @@ export function MediaRow({
   defaultFocusFirst,
   progressFor,
   onRowFocus,
+  addressable,
 }: {
   title?: string;
   items: MediaSummary[];
@@ -29,6 +30,12 @@ export function MediaRow({
   progressFor?: (media: MediaSummary) => number | undefined;
   /** Any card in this row taking focus. For a page scroller following focus. */
   onRowFocus?: () => void;
+  /**
+   * Give each card its media focus id, so a Back to this screen can return
+   * focus to the card that was opened. **Opt-in because ids must be unique on
+   * screen**, and Home can show one title in two rails.
+   */
+  addressable?: boolean;
 }): React.JSX.Element | null {
   const scroller = useRef<ScrollView | null>(null);
   const viewportWidth = useRef(0);
@@ -82,6 +89,7 @@ export function MediaRow({
             media={media}
             onSelect={() => onSelect(media)}
             defaultFocus={defaultFocusFirst && index === 0}
+            addressable={addressable}
             progress={progressFor?.(media)}
             onExtent={(box) => cards.current.set(index, { offset: box.x, length: box.width })}
             onFocusChange={(focused) => {
