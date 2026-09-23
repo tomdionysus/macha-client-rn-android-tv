@@ -9,305 +9,95 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 ## 0. Where this stands
 
-**It works, and it has now been read against the web client on a screen.**
-**0.5.0 is tagged and on `main` (2026-09-21)**, built against core `^0.14.0`
-from the registry with the link proven gone. **The unlink is not a step, it
-is a check.** Measured twice on this machine and once on the phone client's
-(same npm 11.9.0, node 24.14.0, lockfile v3), and the *same* command gave
-different answers: editing the spec and running plain `npm install` kept the
-symlink on 2026-09-21 morning and produced a real directory the same
-afternoon; deleting the directory then plain-installing recreated the link on
-the phone's machine and did not on this one. Nobody has isolated what state
-it depends on. So the procedure is: `npm install @machafoundation/core@^x.y.z`
-**explicitly** (the one step that rewrote the lockfile every time it was
-tried), then **`test -L node_modules/@machafoundation/core` must fail**, then
-read the lockfile's `resolved` and see a registry URL — and never trust
-`package.json`, the installed `version` string, or a green typecheck, all of
-which agreed with the link every time. The set runs a `develop` build
-against core's tree, which is not release behaviour (§0, below). Sign-in, the library, detail
-and playback all work; a film direct-plays with 5.1 intact (§1.2). **Core on
-`develop` is `0.17.0` from the linked checkout — `648474d` at the 2026-09-21
-sitting — not the `0.14.0` `main` installs from the registry.**
+**0.6.0 is tagged and on `main` (2026-09-21), against core `^0.18.0` from the
+registry, with the link proven gone.** It carries sign-out from the set and the
+lapsed-session wall. `develop` is 8 commits ahead of origin — **not pushed,
+that is Tom's** — on the `file:../macha-ts` link, and the sibling checkout is
+`a3b40ca`, which *is* 0.18.0, so linked and published core agree today.
 
 **Standing down on the cluster, 2026-09-23.** Tom: server problems, stop until
-they are fixed. The catalogue is answering `503 catalogue_unavailable` (§1.9),
-so nothing that needs a library can be run on either set — that includes the
-resume-point test (§ above) and the stereo-track A/B (§1.8). Everything written
-up here is documentation of work already done or measurements already taken;
-**nothing below was started after that instruction.**
+they are fixed. The catalogue answers `503 catalogue_unavailable` (§1.9), so
+nothing that needs a library can run on either set. Everything since is
+documentation. **Nothing below was started after that instruction.**
 
-**Failover has now run once, and it recovered the expensive way** (§1.0,
-2026-09-20). A session reaped underneath a paused viewer was recovered with
-nothing visible on screen — Law 2 held — but the client left a healthy local
-node for a cross-site one and turned a video copy into a transcode. The rest of
-the failover surface is still unexercised: no stall watchdog has fired on its
-own, no standby has been promoted deliberately, and whether the park path is
-ever reached here is the open question §1.0 ends on.
+**The unlink is a check, not a step**, and still not isolated: the same plain
+`npm install` produced a link on one run and a directory on another. The
+procedure that worked every time is `npm install @machafoundation/core@^x.y.z`
+**explicitly**, then `test -L node_modules/@machafoundation/core` **must fail**,
+then read the lockfile's `resolved` and see a registry URL. Never trust
+`package.json`, the installed `version` string, or a green typecheck; all three
+agreed with the link every time.
 
-### State at the end of 2026-09-21, for whoever picks this up next
+**What the last three days did** is in `COMPLETED.md`, including the eight
+things they got wrong. In one line each: a viewer can leave an account; a
+session that lapses says so instead of emptying the library; the resume point
+is written while watching, so a kill discards at most five minutes; the "crash"
+was the set replacing WebView under the foreground app; and the 5.1 question in
+`docs/HISTORY.md` is answered — six positional channels reach the HAL, which is
+also why it is quiet (§1.8).
 
-**Core is `5077468`, `dist` hash `04554181bfba`**, linked from `../macha-ts`.
-Reproduce the hash with `npm run dist:hash` **in core** — it is
-`find . -type f | sort | xargs shasum | shasum` from inside `dist`, and three
-sessions had three different answers before it became a command. What is in it
-that this client cares about:
+**Failover has run once and recovered the expensive way** (§1.0, 2026-09-20):
+Law 2 held, but the client left a healthy local node for a cross-site one and
+turned a copy into a transcode. No stall watchdog has fired on its own, no
+standby has been promoted deliberately, and whether the park is ever reached is
+the question §1.0 ends on.
 
-- `sessionAlive` recovers provenance from the session id, as `stop` already
-  did, so **an orphan from a previous run can be asked about before it is
-  closed** — which is what a reclaim does first;
-- the unknown-generation throw is typed, `session_provenance_unknown`, so
-  `playbackFailureCode` answers where a bare `Error` used to render verbatim on
-  a television;
-- `playbackFailureDetail(error)` carries a viewer sentence, so no client has to
-  match on core's wording;
-- the standby window is `max(10_000, min(30_000, stated))` — **30 s against our
-  cluster's `pipeline_idle_ms: 60000`**, up from the 10 s floor.
+### State at the end of 2026-09-23, for whoever picks this up next
 
-**Both televisions run `0.5.0` / `versionCode 500`, which is also the released
-`0.5.0`'s code, and neither is that release.** Only a hash separates them.
-`verify-on-device.sh install` compares `versionCode` and `versionName` and will
-say "match" for either.
+**Core is `a3b40ca` (0.18.0)**, linked from `../macha-ts`; `main` installs the
+same version from the registry. Reproduce a dist hash with `npm run dist:hash`
+**in core**.
 
-- **`10.35.1.133`** — Android 12, 4K panel, Dolby Vision profiles 4/5/8/9.
-  Signed in as `tvtest`, Diagnostics **on**, running a build of core `5077468`
-  verified by `session_provenance_unknown` in its bundle. Smoke-tested at the
-  end of the session: direct, remux and transcode all play, transport works,
-  sessions closed, cluster left at `0/32`.
-- **`10.34.1.115`** — Android 11, 1080p panel, **`DOLBY VISION: none`** (it has
-  the decoders, profiles 4 and 5, but the panel reports only HDR10 and HLG, and
-  `Capabilities.kt` gates DV on the display deliberately). Installed, **signed
-  out**, data cleared, never smoke-tested. Its adb authorisation needed the
-  operator to accept a prompt at the set, and after they did, a plain
-  `adb connect` still reported `unauthorized` until `adb kill-server`.
+**Both televisions run versionCode 600, and three different builds have worn
+it.** The released 0.6.0 is `md5 401b665e…`; `.133` was last seen on
+`1b528dea…`, a develop build carrying the resume-point work, signed in as
+`tom`. `verify-on-device.sh install` says "match" for any of them — **only an
+md5 against the local build tells them apart.** `.133` did not answer adb at
+the time of writing; `.115` has not been touched since 2026-09-21.
 
-**The upgrade signed `.133` out.** It had been signed in all evening, nothing
-wiped it, and `install -r` preserves data. Signing in again worked first time.
-The only change that looks capable of causing it is `nodeId` now being
-populated from the server's `node_id`, so a stored session keyed to an endpoint
-may no longer match — which would mean **every existing install signs out when
-this core ships**. Put to core as a symptom; nobody has read that path.
+- **`10.35.1.133`** — Android 12, 4K panel, DV 4/5/8/9. Last build
+  `1b528dea…`. Diagnostics **off** (was turned off at some point after
+  2026-09-21; the setting is the viewer's, not this session's).
+- **`10.34.1.115`** — Android 11, 1080p, `DOLBY VISION: none`. Installed
+  2026-09-21, signed out, never smoke-tested.
 
-**A false finding, recorded so it is not re-derived.** Early in the evening this
-session reported that a fresh sign-in yields an anonymous, role-less session,
-reproduced "2/2". It was wrong. Every attempt had pressed **"Server settings"**
-rather than "Sign in", and the 403 screen it reached is what the app shows
-before anyone signs in at all. Sign-in works: demonstrated on `.133` at the end
-of the session. Core had already relayed the claim to two other clients and a
-device wipe had been requested of the phone before it was retracted. The
-device-notes bullets above carry the mechanics that caused it.
+**Owed to the set, in this order, when the cluster is back:**
 
-**Waiting on other sessions, none of it blocking:**
+1. **The resume-point kill test** — cheap, owed, and the first two attempts
+   both found real bugs. Play, pass core's 30 s floor, `am force-stop`,
+   relaunch, confirm Continue Watching. **Query the node for sessions *before*
+   relaunching**, which was done in the wrong order once.
+2. **The stereo-track A/B** for §1.8 — player options, Audio, pick a 2.0 track
+   if one exists; if level and sync both snap back, the diagnosis is confirmed
+   end to end.
+3. **P-1's five reaps** — unchanged, and still the thing this repo exists for.
 
-- **core** — the reconcile call that acts on `orphanedSessions()`; until it
-  lands `state/liveSessions.ts` is built, tested and inert;
-- **the server** — reproducing the AC-3-into-fMP4 stall with real media and the
-  real read path, and deploying `ec5a65b` so a reclaimed pipeline releases its
-  transcode entitlement;
-- **the phone client** — an exhaustive list of the capability assumptions it
-  still hardcodes, against our six in `docs/ROADMAP.md`.
-
-**`develop` still links `file:../macha-ts`.** Nothing merges to `main` without
-restoring `^0.14.0` from the registry and running the three checks against
-*that*.
-
-### A viewer could not leave an account — fixed and run on the set, 2026-09-21
-
-**Tom, at the set: the client insisted the account had no media read access,
-and there was no way to sign out of it.** Both halves are now closed, and the
-second was the cause of the first being inescapable rather than merely wrong.
-
-**What the account actually has, measured against `10.35.1.50:7438`:**
-`POST /api/v1/session` for `tvtest` with core's nested credentials envelope
-returns `roles: ["media_viewer","view_status"]`. The same request with a *flat*
-body returns `username: anonymous`, `roles: []`. The server grants the account
-what it should; a session that cannot read the catalogue is one that was minted
-without credentials.
-
-**Why a client holding such a session could not escape it.** Core documents and
-measured the degrade: a re-mint presents no credentials, so it returns the
-anonymous account, and `/catalogue/items` then answers `403 requires the
-'media_viewer' role` — "the library empties mid-use and the application renders
-its refused state, unannounced, looking exactly like a fault". Core publishes
-both halves of the answer, `lastIdentityChange` and `roles`, and **this client
-consumed neither** — no reference to `lastIdentityChange` existed anywhere in
-`src/`. `useAccessLatched` then held the shell up over it by design, which its
-own "known deferral" paragraph had recorded. So: every screen failing, and a
-top bar whose account chip was a plain `View` — drawn, never registered, so the
-D-pad walked past it to the cog.
-
-**What triggered the re-mint on `.133` is not measured.** The logcat buffer was
-lost to a reboot at 22:00 before it could be read. §0's `nodeId` note is the
-standing candidate and nobody has read that path.
-
-**Landed:**
-- `access.ts` — `accessState` takes a fourth fact, `AdmissionEnded`, and it
-  outranks `ready`; `stillAdmitted` is the latch's rule extracted as a value so
-  it is tested without a renderer; `lapsedIdentity` reads core's two halves
-  together. The latch now lets exactly two states through and no others.
-- `TopBar` — the account chip is a `Focusable`, and selecting it signs out.
-- `ConfirmDialog` — the web client's `ConfirmModal` re-laid for a remote, own
-  focus scope, **Cancel holding focus**. Generalise *this* when music needs
-  `Modal` and `OverflowMenu` (§4.6) rather than copying it.
-- `LoginScreen` — an optional `notice`, used only for `identity-changed`, and
-  only saying what core can actually support. A false "you were signed out" is
-  worse than a missing one.
-- `App` — sign-out stops playback and **awaits it** before the token changes,
-  because a session created under the old token can no longer be closed and the
-  node holds its transcode entitlement for thirty minutes.
-
-**Run on `10.35.1.133`**, APK `md5 66bf82e6…` matching the local build: chip
-reachable by D-pad, dialogue up with the right sentence, Cancel returns without
-signing out, Sign out returns the wall, and signing back in as `tvtest` restores
-the library. **The set is now signed in as `tvtest`, not `tom`.**
-
-**Not covered:** the `identity-changed` wall has never been seen on hardware —
-it needs a session to actually lapse under a viewer, which is the unmeasured
-trigger above. Cancel returns focus to the screen default rather than to the
-chip the viewer opened it from; minor, and it is `popScope` behaviour rather
-than this dialogue's.
-
-**`verify-on-device.sh bundle` was reporting false MISSINGs**, fixed here.
-Hermes stores any string containing a non-ASCII character as UTF-16, so a byte
-grep for `on this television only` found nothing while the string was plainly
-in the bundle — and `This signs `, the ASCII part of the *same template*, was
-found at once. Every sentence this client shows a viewer is a candidate: the
-house style uses `—` and `…` throughout. The stage now checks both encodings
-and says which one matched. This is the second way that check has read "stale
-bundle" when the bundle was fine; the first was the `-I` grep wrapper.
-
-### The resume point is written while watching — and the rule is owed to core
-
-**Landed 2026-09-22.** Progress is persisted on every pause and on a
-five-minute interval while playing. Before this the only write was
-`closePlayer`, which runs on a deliberate exit and never on a kill.
-
-**The first on-device run failed, and it was right to.** A film killed at about
-seventy seconds recorded nothing. Core's `ContinueWatchingStore.update` stores
-nothing below `MINIMUM_PROGRESS_MS` — 30 s of position — and says so by
-returning a list the entry is absent from rather than by throwing. This client
-wrote once as playback began, at a position of a second or two, had it silently
-declined, and **advanced its own clock anyway** — so the next attempt was five
-minutes away and a kill anywhere between 30 s and 5 m 30 s stored nothing. That
-is the exact case the feature exists for. `nextWatermark` now leaves the clock
-where it was when core declines, so the next tick tries again; it reads the
-outcome rather than mirroring core's floor, so that floor can move without this
-moving. An earlier note here claimed *currently watching* appears within a tick
-of starting a film — **it does not and should not**, and that claim was wrong
-before the set disproved it.
-
-**The kill is measured, not imagined.** At 20:42:15 the set replaced Android
-System WebView and force-stopped this app at `adj 0`, in the foreground:
-`Killing 3554:foundation.macha.client.tv (adj 0): stop com.google.android.webview
-due to installPackageLI`. `ApplicationExitInfo` calls it `reason=10 (USER
-REQUESTED)` — **all sixteen recorded exits for this package are that reason and
-none is a crash.** A kill of that shape runs no teardown at all.
-
-- `src/player/progressPersistence.ts` — the rule, pure and tested. Each of its
-  four cases was mutated and shown to fail a test before being trusted.
-- `src/app/useContinueWatchingWriter.ts` — the hook, at **app scope**, for the
-  reason `usePlaybackRuntime` gives for the live-session record: a screen that
-  unmounts on Back stops writing exactly when there is still something to
-  record. Two triggers, because neither is enough alone — every snapshot for
-  the pause, a tick because snapshots cannot be relied on to keep arriving
-  while a film simply plays.
-- `timingBudgets.ts` — the interval, anchored to the question it answers: how
-  much progress a viewer may lose to a kill. **It was briefly calibrated
-  against core's `SERVER_SESSION_IDLE_MS` and that was wrong**, corrected by the
-  core session the same day and verified here by reading
-  `macha-ts/src/playback/streamProtocol.ts`: that constant is the *server's
-  default*, a node states its own `session_idle_ms` on `/api/v1/status`, core
-  does not read it deliberately, and its docblock says never to let correctness
-  depend on it. This repo carries the identical warning for
-  `SERVER_SEGMENT_HOLD_MS` a few lines above, and it was missed anyway — the
-  same fault class as sizing against `look_ahead_ms`'s default, which cost a
-  12.7 s viewer freeze. The relationship also did no work: the interval alone
-  bounds what a kill discards, whether the node reaps at thirty minutes or
-  never. A test now asserts the declaration is arithmetic on literals, so
-  re-deriving it from a server figure fails.
-
-**`progressPersistence.ts` is to be DELETED when core publishes this.** The rule
-is dependency-free and all four clients want it, so it is core's by Tom's rule;
-it is local only because core has no home for the *cadence* yet, owning just the
-store. **Put to the `macha-ts` session on 2026-09-22** with the function shape
-and the reasoning, asking for a TODO and the version it lands in. When it ships:
-take core's `progressWriteDue`, delete this file and its test, keep the hook —
-the timer, the subscription and the app-scope placement are platform. Until
-then, a change to the rule here is a change owed upstream, not a local fix.
-
-**Also asked of core, and not verified from here:** whether the phone and web
-clients write progress on any cadence. Neither tree was read — asserted.
-
-**The on-device test is owed and blocked.** Build `md5 1b528dea…` is installed
-on `.133` and hash-matched, but the run — play, pass core's 30 s floor,
-`am force-stop`, relaunch, confirm the resume point survived — could not start:
-the catalogue went to `503` (§1.9) and there is no library to pick a title
-from. The two attempts that *did* run both failed usefully, which is the
-argument for finishing it rather than taking the unit tests as proof: the first
-found that core declines writes under 30 s, the second was caught by reading
-`ExpoVideoAdapter` before shipping a 4 Hz retry. Third run is confirmation.
+**Waiting on other sessions:** core will name the version that carries the
+resume-point rule, at which point `src/player/progressPersistence.ts` and its
+test are **deleted** and the hook keeps only the timer and the subscription
+(§ "The resume point" note below is gone; the obligation is at the declaration).
 
 ### Where the tree is, for whoever picks this up
 
-- **`develop` carries `"@machafoundation/core": "file:../macha-ts"`** — a
-  deliberate link to the sibling checkout, Tom's call on 2026-09-20 ("the
-  projects need to work together"), and core development continues from it.
-  **`main` is on `^0.14.0` from the registry and must stay that way**: it is
-  what other people are looking at. Before anything merges to `main`, restore
-  the registry version and run the three checks against *that*.
-- The link reached a commit by accident first (`cc93e43`, a `git add -A`), was
-  going to be reverted, and then turned out to be what Tom wanted. Recorded so
-  the next reader does not "fix" it.
-- **The APK on the television was built against the linked core**, so it
-  contains core's unreleased `develop`. **As of 2026-09-21 it is `versionCode
-  500`, which is also the released `0.5.0`'s code, and it is not that
-  release** — it carries the focus restore and the `410` pin on top of core
-  `648474d`. `md5` against the local build is the only thing that separates
-  them; `verify-on-device.sh install` compares `versionCode` and `versionName`
-  and will say "match" for either. **Rebuild before trusting anything measured
-  on it as release behaviour.**
-
-### Rationalised 2026-09-20 — anomalies found
-
-An audit of this file against the tree and the laws, after the 0.14.0 port and
-the parity work. Recorded so the next reader knows what was wrong here and why.
-
-1. **The "single next action" had been done for a day.** The Settings scroll
-   fault was fixed on 2026-09-19 and the failure trail is switchable; seven
-   cross-references still named §1.1 as the blocker. All re-pointed below.
-2. **The device section described the wrong television.** Every measurement
-   on 2026-09-19 was taken on a *second* TCL — `10.35.1.133`, Android 12,
-   `G10_4K_GB_NF_32BIT` — while this file gave `10.34.1.115` and Android 11. The
-   two are different hardware: the new set reports a 1920×1080 surface at
-   density 320 and so a **960×540 dp** viewport, which is what broke the
-   interface's sizing. Whether the older set reports the same is **unmeasured**.
-   Both are recorded now; which is *the* target is Tom's to say.
-3. ~~**The shipped bootstrap endpoints omit the new set's own site.**~~
-   **Superseded twice over.** The list was changed to `http://10.35.1.50:7438`
-   in `a0e134e` on 2026-09-20, which is why the set reached its own node that
-   evening — it was the shipped default doing it, not a hand edit on the
-   device, and this file said otherwise for a day. And Tom has now answered the
-   underlying question rather than the symptom: **the app should ship with no
-   endpoints at all** (§3.6). Readings taken before `a0e134e` crossed sites and
-   should be read that way; readings after it did not.
-4. **The parity tables were wrong in nine rows.** Search, Status and Music
-   said "no" and exist; Settings said "cannot edit" and edits endpoints; seek
-   acceleration was listed missing and is ported; the failure trail was
-   "unreachable"; `/manage` and the metadata editor were "decide" and Tom
-   decided (§3.3). Corrected in place.
-5. **§2.5 and §4.2 disagreed about volume.** One said volume and mute are in
-   the chrome; the other recorded the control removed. The store is wired; the
-   control is gone. Both now say so.
-6. **A hardware claim outlived the thing it was about.** §1.1 said Right from
-   the *Settings nav item* escaped into the poster row. That item no longer
-   exists — Settings is the cog at the trailing edge — so the fault is
-   **unverified since the top bar was rebuilt**, not fixed and not known.
-7. **The priorities did not match the purpose.** The hardware sitting (§1)
-   was ordered as six measurements, with the failover exercise a paragraph in
-   §2.2. Tom's rule of 2026-09-12 is that seamless failover is *the literal
-   reason this repo exists*, and the trail that reads it is switchable at last.
-   It is first now.
+- **`develop` links `file:../macha-ts`**, Tom's call on 2026-09-20 ("the
+  projects need to work together"). **`main` is on `^0.18.0` from the registry
+  and must stay that way** — it is what other people install. Before anything
+  merges to `main`: restore the registry version explicitly, verify the unlink
+  as above, run the three checks against *that*.
+- **`develop` carries the 0.6.0 bump on purpose.** Left at 0.5.0 it would have
+  minted versionCode 500 again, the collision §0 spent an afternoon on. The
+  cost is the one above: every develop build now wears 600, same as the
+  release.
+- `.gitignore` (`*.local.md`) and the untracked `basemind.toml` were left by an
+  earlier session and are **not committed** — tooling config, nobody's yet.
+- Three checks at the last commit: typecheck clean, **272 tests**, export
+  clean.
 
 ### The single next action
+
+**While the cluster is down: nothing on a set.** When it is back, the order is
+the one in "State at the end of 2026-09-23" above — the resume-point kill test
+and the stereo-track A/B first because they are cheap and owed, then P-1.
 
 **P-1, below: a reaped session now freezes the viewer, and it is the direct
 consequence of the classification being fixed.** Everything else in this file
@@ -2147,7 +1937,14 @@ four-viewers-times-two-to-three-plus-strands. Comfortable. A refusal on this
 set therefore means something has genuinely run away, not that a family is
 watching.
 
-**The release this repo waits for is named: core `0.17.0`** — the name of the
+**Superseded 2026-09-21: core published `0.18.0` and `main` is on it** (see
+§0 and `COMPLETED.md`). The paragraph below is kept as the record of why the
+publish waited and what it was waiting on; the "bump-and-release is off"
+ruling ended when 0.18.0 went to npm, and 0.6.0 shipped against it the same
+day. Whether every item listed below is in 0.18.0 was **not** checked item by
+item — `dist` was grepped for the symbols this client imports, nothing more.
+
+~~**The release this repo waits for is named: core `0.17.0`**~~ — the name of the
 thing being built, which keeps accumulating under that number until it is
 proven and published; `0.15.0`/`0.16.0` were waypoints and mean nothing. It carries the `410` tolerance, the `429
 account_session_limit` tolerance, `playbackFailureCode` /
@@ -2352,7 +2149,7 @@ wait, when it begins and ends, and how long to wait before showing anything so a
 50 ms hiccup does not announce itself. None of that needs a screen. What stays
 platform is the drawing — an RN view here, DOM there — and where it sits
 relative to whatever that client uses for chrome. Same split as
-`progressPersistence.ts` and its hook (§ above), and it should be proposed to
+`progressPersistence.ts` and its hook (`COMPLETED.md`, 2026-09-21..23), and it should be proposed to
 core in the same way rather than written three times.
 
 **Prove it here first.** Tom's sequencing, and it is the right way round: this

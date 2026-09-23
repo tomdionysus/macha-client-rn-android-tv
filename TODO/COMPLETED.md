@@ -1,5 +1,212 @@
 # Completed
 
+## 2026-09-21 to 2026-09-23 — a way out of an account, 0.6.0, the resume point that survives a kill, and the audio answered
+
+**Four things landed, one release shipped, and the television corrected the
+work twice.** The cluster's catalogue went to `503` on the evening of the 22nd
+and Tom stood the client work down; everything after that is documentation.
+
+### A viewer could not leave an account, and a lapsed session looked like a fault
+
+**Tom, at the set: the client insisted the account had no media read access,
+and there was no way to sign out of it.** The second was why the first was
+inescapable.
+
+**What the account actually has, measured against `10.35.1.50:7438`:**
+`POST /api/v1/session` for `tvtest` with core's nested credentials envelope
+returned `roles: ["media_viewer","view_status"]`; the same request with a
+*flat* body returned `username: anonymous`, `roles: []`. The server grants what
+it should; a session that cannot read the catalogue is one minted without
+credentials.
+
+**Why a client holding such a session could not escape it.** Core documents and
+measured the degrade: a re-mint presents no credentials, so it returns the
+anonymous account, and `/catalogue/items` answers `403 requires the
+'media_viewer' role` — *"the library empties mid-use and the application
+renders its refused state, unannounced, looking exactly like a fault"*. Core
+publishes both halves of the answer, `lastIdentityChange` and `roles`, and
+**this client consumed neither** — no reference to `lastIdentityChange` existed
+in `src/`. `useAccessLatched` then held the shell up over it by design (its own
+"known deferral"), and the account chip was a plain `View`, drawn and never
+registered, so the D-pad walked past it to the cog.
+
+**Landed:** `accessState` takes a fourth fact, `AdmissionEnded`, that outranks
+`ready`; `stillAdmitted` is the latch's rule extracted so it is tested without a
+renderer; `lapsedIdentity` reads core's two halves together. The chip is a
+`Focusable` behind a `ConfirmDialog` — the web client's `ConfirmModal` re-laid
+for a remote, own focus scope, **Cancel holding focus**, because an accidental
+OK on a bar the viewer walks past constantly costs a password typed with a
+D-pad. Sign-out stops playback and **awaits it** before the token changes. The
+login screen takes a `notice`, used only for `identity-changed`.
+
+**Run on `.133`**, APK hash-matched: chip reachable, dialogue correct, Cancel
+returns without signing out, Sign out returns the wall, sign back in restores
+the library. **What triggered the re-mint on Tom's session is not measured** —
+the logcat buffer was lost to a reboot first. The `identity-changed` wall has
+never been seen on hardware.
+
+### `verify-on-device.sh bundle` was reporting false MISSINGs
+
+Hermes stores any string containing a non-ASCII character as UTF-16. A byte
+grep for `on this television only` found nothing while the string was plainly
+in the bundle, and `This signs ` — the ASCII part of the *same template* — was
+found at once. Every sentence this client shows a viewer is a candidate: the
+house style uses `—` and `…` throughout. The stage now checks both encodings
+and says which matched. **Second time that check has read "stale bundle" on a
+good bundle**; the first was the `-I` grep wrapper.
+
+### 0.6.0, and the tags put right
+
+`main` fast-forwarded 27 commits and moved to **`^0.18.0` from the registry**,
+published that day. The unlink verified as a check: real directory, lockfile
+resolving to `registry.npmjs.org/…/core-0.18.0.tgz` with no `link: true`, and
+the published `dist` carrying `lastIdentityChange` and `SessionIdentityChange`.
+Three checks green against that copy. Bumped inside the release commit to
+**0.6.0 / versionCode 600**, tagged annotated, pushed. `develop` was then
+fast-forwarded and re-linked in a separate commit (the `eb156c1` shape), so it
+carries the bump too — left at 0.5.0 it would have minted 500s again.
+
+**The tags were audited retrospectively at Tom's ask, and `main` was already
+fully tagged.** 0.3.1 and 0.3.2 never existed on any ref. The one defect was
+**`0.5.0` being lightweight**; retagged annotated at the same commit and
+force-pushed, so the tag object changed and what shipped did not. A `git push
+--tags` run as belt-and-braces also published a genuine historical `0.2.0`
+that had never been on the remote — an accident, and Tom kept it.
+
+**Deployed from `main` at the tag**, `npm ci`, cold build 16m 48s, `aapt2`
+confirming `versionCode='600'` and `armeabi-v7a` only, hash-matched on the set.
+
+### The resume point survives a kill — and the television corrected it twice
+
+**Tom, after the "crash" below: persist position and *currently watching* on
+every pause and every five minutes while playing.**
+
+The rule is pure and tested (`progressPersistence.ts`): no write with no
+playback or no duration; a pause writes on the *edge*, not the state; the
+interval runs only while playing. The hook sits at **app scope** for the reason
+`usePlaybackRuntime` already gives for the live-session record, with two
+triggers — every snapshot for the pause, a tick because snapshots cannot be
+relied on to keep arriving while a film simply plays. Each rule was mutated and
+shown to fail a test before being trusted.
+
+**First device run failed, and it was right to.** A film killed at about
+seventy seconds recorded nothing. Core's `ContinueWatchingStore.update` stores
+nothing below `MINIMUM_PROGRESS_MS` — 30 s — and reports it by returning a list
+the entry is absent from, not by throwing. This client wrote at a second or
+two, had it silently declined, and **advanced its own clock anyway**, so the
+next attempt was five minutes out and a kill anywhere between 30 s and 5 m 30 s
+stored nothing. `nextWatermark` now leaves the clock alone on a decline, reading
+the *outcome* rather than mirroring core's floor.
+
+**Second bug caught by reading before shipping.** That fix made a declined
+write retry on the next snapshot, and `ExpoVideoAdapter` sets
+`timeUpdateEventInterval = 0.25` — 4 Hz, ~120 AsyncStorage writes in the first
+30 s of every film on a set whose load average reached 30. The watermark now
+records the last *attempt* as well as the last *store*, and the interval branch
+needs both; the pause edge is exempt.
+
+**Core corrected the calibration the same day, and it was right.** The interval
+had been anchored to `SERVER_SESSION_IDLE_MS`; read back from
+`macha-ts/src/playback/streamProtocol.ts`, that constant is *the server's
+default*, nodes state their own, core deliberately does not read it, and its
+docblock says **never let correctness depend on it**. This repo carries the
+identical warning for `SERVER_SEGMENT_HOLD_MS` a few lines above where the
+constant was added, and it was read and missed anyway. The relationship also
+did no work — the interval alone bounds what a kill discards. Five minutes
+unchanged; the test now asserts the declaration is arithmetic on literals, and
+was mutated to prove it catches the original mistake.
+
+**The rule is owed to core.** Put to the `macha-ts` session with the shape and
+the four rules; **recorded in core under "P1 — design and contract"**, and they
+will name the version on the thread. The removal obligation is at the
+declaration and in `ACTIVE.md`. **The third on-device run is still owed** —
+blocked by the catalogue `503`, not by the client.
+
+### The "crash" was the set replacing Android System WebView
+
+`ApplicationExitInfo`: sixteen recorded exits for this package, **every one
+`reason=10 (USER REQUESTED)`**, none a crash. The one Tom saw:
+
+    20:42:15.279 Force stopping com.google.android.webview ... installPackageLI
+    20:42:15.284 Killing 3554:foundation.macha.client.tv/u0a96 (adj 0):
+                 stop com.google.android.webview due to installPackageLI
+
+`adj 0` — the foreground app, taken down by a system-package update. Load
+average 30, logcat retaining two minutes. **Why our process was in the WebView
+kill set is not established**: `expo-dom-webview` was the first guess and is
+disproven (not in `node_modules`, gradle, the manifest, or the APK), and a fresh
+process has zero WebView mappings in `/proc/<pid>/maps`.
+
+### Quiet, and slightly out of sync — measured, and HISTORY's downmix question answered
+
+§1.2's second open gap is closed. During a film on `.133`: route
+`AUDIO_DEVICE_OUT_SPEAKER`, `STREAM_MUSIC` 86/100, our track on a **DIRECT**
+output thread, **6 channels, positional `0x0000003F`**, all gains 0 dB, 0
+underruns, **0 effect chains on our thread** while the mixer threads carry them,
+write latency ~197 average. So criteria 2 and 3 hold — this client direct-plays
+5.1 correctly — and that is exactly why it is quiet: DIRECT bypasses the mixer,
+the fold-down never runs, and the set's own speaker processing is applied to
+everything on the television except us. The fix and what remains asserted are
+in `ACTIVE.md` §1.8; it is not started.
+
+### Things this session got wrong, in order of cost
+
+1. **Tied a timing budget to a server default**, with the warning against
+   exactly that a few lines above the line being written. Core caught it.
+2. **Claimed twice in writing that a film enters Continue Watching within a
+   tick of starting.** Core's 30 s floor makes that false, and the claim was
+   wrong before the set disproved it.
+3. **Advanced the write clock on a declined write**, which the unit tests could
+   not have found and the television did in one run.
+4. **Nearly shipped a 4 Hz storage retry.** Found by reading the adapter, not
+   by measuring — the right way round for once.
+5. **Relaunched the app before querying the node** after the WebView kill, so
+   whether a playback session was leaked and reclaimed cannot now be told from
+   "never leaked".
+6. **A bad reachability check** printed "reachable" because the `tail` in the
+   pipeline succeeded rather than the connect.
+7. **`git push --tags`** published a tag nobody asked for. Harmless, and Tom
+   kept it, but it was an outward-facing action taken as belt-and-braces.
+8. **Wrote §2.11 three times** — as a stream-switch indicator, then as any
+   wait, then as a recovery no normal player could make — each narrower and
+   more correct than the last, with Tom supplying the definition each time.
+
+### And two traps that were real
+
+- **Hermes UTF-16 strings** — above. A verification stage that reads "absent"
+  for a present string is the one wrong answer it must never give.
+- **The same `npm install` producing a link on one run and a directory on
+  another** is still not isolated. The explicit `npm install <pkg>@<range>` is
+  the only step that rewrote the lockfile every time.
+
+### Cross-session
+
+- **Core** took the resume-point rule (TODO recorded, version to be named) and
+  corrected the calibration. They declined to read the phone and web trees on
+  our behalf — right — and recorded our "do they write progress on a cadence"
+  as asserted and unread.
+- **Not sent:** the catalogue `503` and its error string were not passed to
+  the server session; Tom's call, and he knew.
+
+### Rationalised 2026-09-20 — anomalies found (moved from ACTIVE)
+
+An audit of `ACTIVE.md` against the tree and the laws, after the 0.14.0 port
+and the parity work. Kept because it says what was wrong and why.
+
+1. The "single next action" had been done for a day; seven cross-references
+   still named §1.1. Re-pointed.
+2. The device section described the wrong television — measurements were on
+   `10.35.1.133` (Android 12, 960×540 dp) while the file said `10.34.1.115`.
+   Both recorded now.
+3. The bootstrap-endpoints claim was superseded twice: `a0e134e` changed the
+   list, and Tom then ruled the app ships with no endpoints (§3.6).
+4. The parity tables were wrong in nine rows; corrected in place.
+5. §2.5 and §4.2 disagreed about volume: store wired, control gone.
+6. A hardware claim outlived its subject — the Settings nav item no longer
+   exists, so the Right-escape fault is unverified, not fixed.
+7. The priorities did not match the purpose: failover is the reason the repo
+   exists and was a paragraph in §2.2. It is first now.
+
 ## 2026-09-20 (night) — the regenerate path, frozen once and recovered once, and the trail that can now tell the difference
 
 **Three runs of the same reap in one evening, three different outcomes**, all
