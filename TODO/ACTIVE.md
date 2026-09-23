@@ -102,10 +102,13 @@ the time of writing; `.115` has not been touched since 2026-09-21.
    remain, and the next one needs the classification line, which this build's
    eight-line trail cannot hold (see there).
 
-**Waiting on other sessions:** core will name the version that carries the
-resume-point rule, at which point `src/player/progressPersistence.ts` and its
-test are **deleted** and the hook keeps only the timer and the subscription
-(§ "The resume point" note below is gone; the obligation is at the declaration).
+~~**Waiting on other sessions:** core will name the version that carries the
+resume-point rule~~ — **done 2026-09-24.** Core took `progressWriteDue` and
+`nextWatermark` at `5061a03` (unpublished; develop has it through the link).
+The logic was diffed against ours with comments stripped and is identical.
+`src/player/progressPersistence.ts` and its test are deleted, and the hook
+imports core's. **`main` still needs a published core carrying it** before
+this can merge there — core will say when.
 
 ### Where the tree is, for whoever picks this up
 

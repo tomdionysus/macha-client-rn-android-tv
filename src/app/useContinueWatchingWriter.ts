@@ -1,23 +1,27 @@
 import { useEffect, useRef } from 'react';
 import {
   isFinished,
+  nextWatermark,
   progressFor,
+  progressWriteDue,
   type ContinueWatchingStore,
   type MediaSummary,
   type PlaybackRuntime,
+  type ProgressWatermark,
 } from '@machafoundation/core';
 import {
   CONTINUE_WATCHING_TICK_MS,
   CONTINUE_WATCHING_WRITE_INTERVAL_MS,
 } from '../player/timingBudgets';
-import {
-  nextWatermark,
-  progressWriteDue,
-  type ProgressWatermark,
-} from '../player/progressPersistence';
 
 /**
  * Keep the viewer's place on disk while they are still watching.
+ *
+ * **The rule is core's** (`progressWriteDue`, `nextWatermark`, core `5061a03`),
+ * taken over from this client's `progressPersistence.ts` on 2026-09-24 with
+ * identical logic, checked by diff. What stays here is platform: the tick, the
+ * playback subscription, the app-scope placement, the interval Tom set, the
+ * `isFinished` short-circuit and the reset between films.
  *
  * **At app scope rather than the player screen's, for the reason
  * `usePlaybackRuntime` gives for the live-session record**: the whole job of
@@ -29,8 +33,8 @@ import {
  *
  * Until this existed the only write was in `closePlayer`, which runs when a
  * viewer leaves deliberately and never when the process is killed. `SIGKILL`
- * runs nothing; see `progressPersistence.ts` for the measured kill that
- * prompted it.
+ * runs nothing; see `docs/HISTORY.md` / `COMPLETED.md` for the measured kill
+ * that prompted it.
  *
  * Two triggers, because neither is sufficient alone: every playback snapshot,
  * so a pause is recorded when it happens rather than up to five minutes later;

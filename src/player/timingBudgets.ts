@@ -118,7 +118,8 @@ export function firstFragmentTimeoutMs(source?: PlaybackSource): number {
  * without warning discards at most one interval — plus one tick — of the
  * viewer's place. The motivating kill is measured: the set replaced Android
  * System WebView at 20:42:15 and force-stopped this app in the foreground,
- * running no teardown of any kind (see `progressPersistence.ts`).
+ * running no teardown of any kind (`TODO/COMPLETED.md`, 2026-09-22). The rule
+ * that spends this interval is core's `progressWriteDue`.
  *
  * **It is deliberately not calibrated against anything the server states, and
  * `SERVER_SESSION_IDLE_MS` in particular.** This was tied to it on the
