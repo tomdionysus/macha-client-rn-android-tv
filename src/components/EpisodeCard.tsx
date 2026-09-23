@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Episode } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
-import { px, colour, font, layout, rem, type } from '../styles/theme';
+import { px, colour, focusFrame, font, layout, radius, rem, type } from '../styles/theme';
 
 /**
  * One episode in the rail, from `.episode-card` / `.episode-still` in base.css.
@@ -38,6 +38,7 @@ export function EpisodeCard({
       defaultFocus={defaultFocus}
       onFocusChange={onFocusChange}
       style={styles.card}
+      focusedStyle={styles.cardFocused}
     >
       {({ focused }) => (
         <>
@@ -82,30 +83,52 @@ const styles = StyleSheet.create({
   card: {
     width: layout.episodeCardWidth,
     padding: rem(0.45),
+    borderRadius: radius.card,
+    backgroundColor: 'transparent',
   },
-  // `.episode-still { aspect-ratio: 16/9; border-radius: .62rem; background: var(--surface-2) }`
+  /**
+   * **The movie card's focus, not the web client's episode focus** (Tom,
+   * 2026-09-23: episodes are selected "the same as the movie selector").
+   * base.css gives `.episode-still-link` a 1px outline and a 1.018 scale; at
+   * three metres that read as a thin line, so the card now takes
+   * `focusFrame`'s wash and scale, like `MediaCard`.
+   */
+  cardFocused: {
+    backgroundColor: colour.accentFocusWash,
+    transform: [{ scale: focusFrame.scale }],
+  },
+  /**
+   * `.episode-still { aspect-ratio: 16/9; border-radius: .62rem }`, as the
+   * frame rather than the picture: the border is always present and only its
+   * colour changes, standing off the still by `focusFrame.gap`, exactly as
+   * `MediaCard`'s poster does. The fill moved onto the image and placeholder
+   * so the gap reads as background, not as a grey frame.
+   */
   still: {
     aspectRatio: 16 / 9,
     borderRadius: rem(0.62),
     overflow: 'hidden',
-    backgroundColor: colour.surface2,
-    borderWidth: 1,
+    backgroundColor: 'transparent',
+    borderWidth: focusFrame.border,
+    padding: focusFrame.gap,
     borderColor: 'transparent',
   },
-  // `.episode-still-link:focus-visible { outline: 1px solid var(--focus); transform: scale(1.018) }`
   stillFocused: {
     borderColor: colour.focus,
-    transform: [{ scale: 1.018 }],
   },
   image: {
     width: '100%',
     height: '100%',
+    borderRadius: rem(0.45),
+    backgroundColor: colour.surface2,
   },
   placeholder: {
     width: '100%',
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: rem(0.45),
+    backgroundColor: colour.surface2,
   },
   placeholderGlyph: {
     fontSize: rem(4),

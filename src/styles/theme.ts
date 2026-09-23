@@ -199,13 +199,32 @@ export const disabledOpacity = {
 } as const;
 
 /**
+ * The focus look every selectable media card wears: a border that is always
+ * there and only changes colour, standing off the artwork by a gap, and a
+ * card-level wash and scale.
+ *
+ * **One definition, because Tom asked for one look** (2026-09-23): episodes
+ * and search results are to be focused "the same as the movie selector". The
+ * border is thicker than base.css's 1px outline and the gap reproduces its
+ * `outline-offset` — see `MediaCard`'s `poster` for why a hairline touching
+ * the picture read as nothing at three metres. The scale and wash are
+ * `.media-card:focus-visible { transform: scale(1.04); background:
+ * var(--accent-focus-wash) }`.
+ */
+export const focusFrame = {
+  border: 3,
+  gap: px(2),
+  scale: 1.04,
+} as const;
+
+/**
  * How far a card's artwork stands inside the card's own box.
  *
  * The focus border plus its offset — see `MediaCard`'s `poster`. Declared here
  * because the gaps between cards have to account for it, and two files reading
  * the same three numbers by eye is how they stop agreeing.
  */
-export const CARD_FRAME = 3 + px(2);
+export const CARD_FRAME = focusFrame.border + focusFrame.gap;
 
 export const layout = {
   /** `.topbar { min-height: 62px }`. */

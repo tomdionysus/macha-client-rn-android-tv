@@ -4,7 +4,7 @@ import { Focusable } from './Focusable';
 import { LazyArtwork } from './LazyArtwork';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { useMacha } from '../app/MachaProvider';
-import { px, colour, font, layout, radius, rem, type } from '../styles/theme';
+import { colour, focusFrame, font, layout, px, radius, rem, type } from '../styles/theme';
 
 /**
  * A poster card, from `.media-card` / `.poster` / `.card-title` in base.css.
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   // `.media-card:focus-visible { transform: scale(1.04); background: var(--accent-focus-wash) }`
   cardFocused: {
     backgroundColor: colour.accentFocusWash,
-    transform: [{ scale: 1.04 }],
+    transform: [{ scale: focusFrame.scale }],
   },
   // `.poster { aspect-ratio: 2/3; border-radius: .55rem; background: var(--surface-2) }`
   poster: {
@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
      * changes, so nothing moves on focus: the scorer reads these rectangles,
      * and a card that grew when focused would shift its neighbours.
      */
-    borderWidth: 3,
-    padding: px(2),
+    borderWidth: focusFrame.border,
+    padding: focusFrame.gap,
     borderColor: 'transparent',
   },
   /** `.music-artwork { aspect-ratio: 1 }` — albums, artists and tracks. */
