@@ -1,25 +1,26 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import type { MediaSort, MediaSortKey } from '@machafoundation/core';
 import { Focusable } from './Focusable';
-import { colour, focusFrame, radius, rem, type } from '../styles/theme';
+import { colour, focusFrame, rem, type } from '../styles/theme';
 
 /**
- * "Sort by", as a row of choices rather than a drop-down.
+ * The sort choice, as one control that reads "Sort By Title" and moves to the
+ * next choice on each press.
  *
- * The web client's `.sort-control` is a `<select>` (`SearchScreen.tsx`,
- * macha-client). A select has no D-pad form: a drop-down here needs its own
- * focus scope and its own Back, and Back on a top-level screen leaves the app,
- * so a slip closes Macha instead of the menu. Four choices fit in the row, and
- * each is one press away, so they are drawn as chips — the shape the player's
- * options already use.
+ * **Tom's vocabulary** (2026-09-24, relayed by core): no separate "Sort by"
+ * heading; each option reads "Sort By <label>", composed by core as
+ * `MediaSort.choiceLabel`, from core's lists (`SEARCH_SORTS`,
+ * `LIBRARY_SORTS`) — the same choices on all four clients.
  *
- * **What the choices are is core's** (`SEARCH_SORTS`, `orderMedia`); this only
- * draws them.
+ * The web client's control is a `<select>`, which shows exactly one of these
+ * labels until it is opened. A drop-down has no D-pad form here — it needs its
+ * own focus scope and its own Back, and Back on a top-level screen leaves the
+ * app — so pressing the control steps to the next choice instead, wrapping at
+ * the end. It is the select's closed face, and four choices are never more
+ * than three presses away.
  *
- * Focus is the thick border every media card wears (`focusFrame`), with the
- * border always present so nothing moves. The player's option chips mark focus
- * with a one-pixel border and were measured unreadable on the set on
- * 2026-09-23 — this does not repeat that.
+ * Focus is the media cards' thick border (`focusFrame`), always present so
+ * nothing moves when it lands.
  */
 export function SortControl({
   sorts,
@@ -29,67 +30,50 @@ export function SortControl({
   sorts: readonly MediaSort[];
   value: MediaSortKey;
   onChange: (key: MediaSortKey) => void;
-}): React.JSX.Element {
+}): React.JSX.Element | null {
+  if (sorts.length === 0) return null;
+  const index = Math.max(0, sorts.findIndex((sort) => sort.key === value));
+  const current = sorts[index]!;
   return (
-    <View style={styles.control}>
-      {/* `.sort-control { color: var(--text-faint) }` */}
-      <Text style={styles.label}>Sort by</Text>
-      {sorts.map((sort) => {
-        const selected = sort.key === value;
-        return (
-          <Focusable
-            key={sort.key}
-            ring={false}
-            onSelect={() => onChange(sort.key)}
-            style={[styles.chip, selected && styles.chipSelected]}
-            focusedStyle={styles.chipFocused}
-          >
-            {({ focused }) => (
-              <Text style={[styles.chipLabel, (selected || focused) && styles.chipLabelActive]}>
-                {sort.label}
-              </Text>
-            )}
-          </Focusable>
-        );
-      })}
-    </View>
+    <Focusable
+      ring={false}
+      onSelect={() => onChange(sorts[(index + 1) % sorts.length]!.key)}
+      style={styles.control}
+      focusedStyle={styles.controlFocused}
+    >
+      {({ focused }) => (
+        <Text style={[styles.label, focused && styles.labelFocused]} numberOfLines={1}>
+          {current.choiceLabel}
+        </Text>
+      )}
+    </Focusable>
   );
 }
 
 const styles = StyleSheet.create({
-  // `.sort-control { display: flex; align-items: center; gap: .4rem }`
+  /**
+   * `.search-bar .sort-control select { padding: 1rem 1.2rem; border-radius:
+   * .65rem; font-size: 1.05rem }` over `.sort-control select { background:
+   * #19191c; color: #d7d7da }`, with `focusFrame.border` in place of its 1px
+   * so focus can be seen from the sofa.
+   */
   control: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: rem(0.4),
-  },
-  // `.search-bar .sort-control { font-size: .95rem }`, text-faint.
-  label: {
-    color: colour.textFaint,
-    fontSize: type.small,
-    marginRight: rem(0.3),
-  },
-  // `.player-option-group button` for the pill, with `focusFrame.border` in
-  // place of its 1px so focus can be seen from the sofa.
-  chip: {
-    paddingHorizontal: rem(0.9),
-    paddingVertical: rem(0.55),
-    borderRadius: radius.pill,
+    paddingHorizontal: rem(1.2),
+    paddingVertical: rem(0.8),
+    borderRadius: rem(0.65),
     borderWidth: focusFrame.border,
     borderColor: colour.inputBorder,
-    backgroundColor: colour.optionSurface,
+    backgroundColor: colour.inputBackground,
   },
-  chipSelected: {
+  controlFocused: {
+    borderColor: colour.focus,
     backgroundColor: colour.accentSurfaceStrong,
   },
-  chipFocused: {
-    borderColor: colour.focus,
-  },
-  chipLabel: {
+  label: {
     color: colour.optionText,
-    fontSize: type.small,
+    fontSize: type.body,
   },
-  chipLabelActive: {
+  labelFocused: {
     color: colour.heading,
   },
 });

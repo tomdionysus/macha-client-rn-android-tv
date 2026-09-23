@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   DEFAULT_SEARCH_SORT,
+  isSearchable,
   orderMedia,
   SEARCH_SORTS,
   type MediaApi,
@@ -54,7 +55,9 @@ export function SearchScreen({
 
   useEffect(() => {
     const normalised = query.trim();
-    if (normalised.length < 2) {
+    // Core's rule, not a local minimum (Tom, 2026-09-24): "the", "an" and "a"
+    // do not count towards it, because titles are not ordered by them.
+    if (!isSearchable(normalised)) {
       setResults([]);
       setError(undefined);
       setSearching(false);
@@ -130,7 +133,7 @@ export function SearchScreen({
 
         {error ? <ErrorMessage error={error} /> : null}
 
-        {query.trim().length < 2 ? (
+        {!isSearchable(query) ? (
           <Text style={styles.hint}>Type two letters or more to search.</Text>
         ) : searching && results.length === 0 ? (
           <Loading />

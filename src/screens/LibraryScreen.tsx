@@ -1,10 +1,18 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { sortMediaByIndexedTitle, type MediaApi, type MediaSummary } from '@machafoundation/core';
+import {
+  DEFAULT_LIBRARY_SORT,
+  LIBRARY_SORTS,
+  orderMedia,
+  type MediaApi,
+  type MediaSortKey,
+  type MediaSummary,
+} from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaCard } from '../components/MediaCard';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
+import { SortControl } from '../components/SortControl';
 import { useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { scrollTarget } from '../hooks/focusScroll';
 import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
@@ -17,8 +25,15 @@ import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme
  * `auto-fill` has no flex equivalent. The column count is derived from the same
  * inputs the CSS uses, so the two lay out identically at a given width.
  *
- * Sorting is core's `sortMediaByIndexedTitle`, not a local comparator — it is
- * the one that knows about leading articles and numeric titles.
+ * Ordering is core's (`LIBRARY_SORTS`, `orderMedia`), offered as a sort
+ * control because Tom ruled every media list has one (2026-09-24). Title, the
+ * default, is `sortMediaByIndexedTitle` — the comparator that knows about
+ * leading articles and numeric titles — so the default is what this screen
+ * always showed.
+ *
+ * **The alphabet index only in title order.** Under Year or Recently added a
+ * letter names no run of the grid, and jumping to it would land somewhere
+ * arbitrary.
  */
 export function LibraryScreen({
   api,
@@ -33,7 +48,9 @@ export function LibraryScreen({
     () => (kind === 'movies' ? api.movies() : api.shows()),
     [api, kind],
   );
-  const items = useMemo(() => sortMediaByIndexedTitle(result.value ?? []), [result.value]);
+  const [sort, setSort] = useState<MediaSortKey>(DEFAULT_LIBRARY_SORT);
+  const items = useMemo(() => orderMedia(result.value ?? [], sort, LIBRARY_SORTS), [result.value, sort]);
+  const indexed = sort === 'title';
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);
   const scrollY = useRef(0);
@@ -102,7 +119,11 @@ export function LibraryScreen({
       }}
     >
       <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
-        <PageTitle>{title}</PageTitle>
+        {/* `.media-page-title-row { display: flex; align-items: center; justify-content: space-between }` */}
+        <View style={styles.titleRow}>
+          <PageTitle>{title}</PageTitle>
+          <SortControl sorts={LIBRARY_SORTS} value={sort} onChange={setSort} />
+        </View>
         {result.error ? <RefreshError error={result.error} /> : null}
         <View
           style={styles.grid}
@@ -123,7 +144,7 @@ export function LibraryScreen({
           ))}
         </View>
       </ScrollView>
-      <AlphabetIndex availableKeys={alphabet.availableKeys} onSelect={alphabet.jumpTo} />
+      {indexed ? <AlphabetIndex availableKeys={alphabet.availableKeys} onSelect={alphabet.jumpTo} /> : null}
     </View>
   );
 }
@@ -135,6 +156,13 @@ const styles = StyleSheet.create({
   page: {
     paddingTop: rem(1),
     paddingBottom: rem(4),
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: rem(1),
+    paddingRight: pageGutter + alphabetStripWidth,
   },
   // `.media-grid { gap: 1.4rem 1rem }` — row gap then column gap.
   grid: {
