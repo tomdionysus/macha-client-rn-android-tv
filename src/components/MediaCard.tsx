@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@machafoundation/core';
+import { cardLines } from './cardLines';
 import { Focusable } from './Focusable';
 import { LazyArtwork } from './LazyArtwork';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
@@ -22,6 +23,7 @@ export function MediaCard({
   onFocusChange,
   onExtent,
   addressable = false,
+  squareInPosterHeight = false,
 }: {
   media: MediaSummary;
   onSelect?: () => void;
@@ -35,6 +37,13 @@ export function MediaCard({
    * registry would keep only one of them.
    */
   addressable?: boolean;
+  /**
+   * Centre square music art in the height of a 2:3 poster, so a grid mixing
+   * the two starts every title on the same line. Search does this
+   * (`.search-results .music-artwork { margin-top: 25%; margin-bottom: 25% }`)
+   * and the music rows, which are all square, do not.
+   */
+  squareInPosterHeight?: boolean;
   /** 0–1, drawn as `.progress-track` / `.progress-value` across the poster foot. */
   progress?: number;
   onFocusChange?: (focused: boolean) => void;
@@ -45,6 +54,7 @@ export function MediaCard({
   const mediaApi = services.mediaApi;
   const artwork = media.artwork?.poster ?? media.artwork?.thumbnail;
   const isSquare = media.kind === 'album' || media.kind === 'artist' || media.kind === 'track';
+  const lines = cardLines(media);
 
   return (
     <Focusable
@@ -59,7 +69,14 @@ export function MediaCard({
     >
       {({ focused }) => (
         <>
-          <View style={[styles.poster, isSquare && styles.posterSquare, focused && styles.posterFocused]}>
+          <View
+            style={[
+              styles.poster,
+              isSquare && styles.posterSquare,
+              isSquare && squareInPosterHeight && styles.posterSquareCentred,
+              focused && styles.posterFocused,
+            ]}
+          >
             {artwork ? (
               // Not `<Image source={{ uri: artwork.url }} />`: the server
               // re-signs that URL on every catalogue fetch, so handing it
@@ -82,11 +99,11 @@ export function MediaCard({
           <Text style={styles.title} numberOfLines={1}>
             {media.title}
           </Text>
-          {media.subtitle || media.year ? (
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {media.subtitle ?? String(media.year)}
+          {lines.map((line) => (
+            <Text key={line} style={styles.subtitle} numberOfLines={1}>
+              {line}
             </Text>
-          ) : null}
+          ))}
         </>
       )}
     </Focusable>
@@ -143,6 +160,11 @@ const styles = StyleSheet.create({
   /** `.music-artwork { aspect-ratio: 1 }` — albums, artists and tracks. */
   posterSquare: {
     aspectRatio: 1,
+  },
+  // A percentage margin is taken from the width, as in CSS: 25% above and
+  // below a square makes up a 2:3 poster's height.
+  posterSquareCentred: {
+    marginVertical: '25%',
   },
   posterFocused: {
     borderColor: colour.focus,

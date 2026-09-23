@@ -122,6 +122,8 @@ export const colour = {
   optionSurface: '#09090ab8',
   /** `.player-option-group button { color: #bcbcc2 }`. */
   optionText: '#bcbcc2',
+  /** `.search-type-pill { color: #9a9aa2 }` — a type toggle that is off. */
+  toggleOff: '#9a9aa2',
   scrubberTrack: '#e7e7ea',
   scrubberBuffered: '#d7a3af',
   scrubberPlayed: '#620014',
@@ -225,6 +227,21 @@ export const focusFrame = {
  * the same three numbers by eye is how they stop agreeing.
  */
 export const CARD_FRAME = focusFrame.border + focusFrame.gap;
+
+/**
+ * One height and one shape for every control in a row of them — Search's
+ * field, sort, type toggles and refresh.
+ *
+ * `.search-bar { --search-control-height: 3.5rem }` with `.search-bar > *
+ * { height: var(--search-control-height) }`, and `.search-input`,
+ * `.search-type-pill` and the refresh button all at `border-radius: .65rem`.
+ * The web client's own note: one height for the row so the refresh button can
+ * be square to it.
+ */
+export const controlRow = {
+  height: rem(3.5),
+  radius: rem(0.65),
+} as const;
 
 export const layout = {
   /** `.topbar { min-height: 62px }`. */

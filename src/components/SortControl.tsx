@@ -1,7 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
 import type { MediaSort, MediaSortKey } from '@machafoundation/core';
 import { Focusable } from './Focusable';
-import { colour, focusFrame, rem, type } from '../styles/theme';
+import { colour, controlRow, focusFrame, rem, type } from '../styles/theme';
 
 /**
  * The sort choice, as one control that reads "Sort By Title" and moves to the
@@ -26,7 +26,10 @@ export function SortControl({
   sorts,
   value,
   onChange,
+  height,
 }: {
+  /** The row's height, when it sits in a row of equal controls (Search). */
+  height?: number;
   sorts: readonly MediaSort[];
   value: MediaSortKey;
   onChange: (key: MediaSortKey) => void;
@@ -38,7 +41,7 @@ export function SortControl({
     <Focusable
       ring={false}
       onSelect={() => onChange(sorts[(index + 1) % sorts.length]!.key)}
-      style={styles.control}
+      style={[styles.control, height !== undefined && { height, paddingVertical: 0 }]}
       focusedStyle={styles.controlFocused}
     >
       {({ focused }) => (
@@ -60,7 +63,8 @@ const styles = StyleSheet.create({
   control: {
     paddingHorizontal: rem(1.2),
     paddingVertical: rem(0.8),
-    borderRadius: rem(0.65),
+    borderRadius: controlRow.radius,
+    justifyContent: 'center',
     borderWidth: focusFrame.border,
     borderColor: colour.inputBorder,
     backgroundColor: colour.inputBackground,

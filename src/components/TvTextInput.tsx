@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, StyleSheet, Text, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { Focusable } from './Focusable';
 import { tvFocus } from '../hooks/tvFocus';
 import { colour, font, radius, rem, type } from '../styles/theme';
@@ -33,6 +33,10 @@ export function TvTextInput({
   focusId,
   scope,
   autoCapitalize = 'none',
+  boxStyle,
+  boxFocusedStyle,
+  inputStyle,
+  fieldStyle,
 }: {
   label?: string;
   value: string;
@@ -44,6 +48,16 @@ export function TvTextInput({
   focusId?: string;
   scope?: string;
   autoCapitalize?: 'none' | 'sentences';
+  /**
+   * The field's box, for a screen whose row sets one height and shape for
+   * every control in it — Search's `.search-bar`. Omitted everywhere else, so
+   * Login and Settings keep this component's own look.
+   */
+  boxStyle?: StyleProp<ViewStyle>;
+  boxFocusedStyle?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
+  /** The outer wrapper, e.g. `flex: 1` to take a row's remaining width. */
+  fieldStyle?: StyleProp<ViewStyle>;
 }): React.JSX.Element {
   const input = useRef<TextInput | null>(null);
   /**
@@ -101,7 +115,7 @@ export function TvTextInput({
   useEffect(() => release, [release]);
 
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, fieldStyle]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <Focusable
         ring={false}
@@ -111,8 +125,8 @@ export function TvTextInput({
         // D-pad centre hands over to the keyboard. Until then this is an
         // ordinary focusable the scorer can move through like any other.
         onSelect={() => input.current?.focus()}
-        style={styles.shell}
-        focusedStyle={styles.shellFocused}
+        style={[styles.shell, boxStyle]}
+        focusedStyle={[styles.shellFocused, boxFocusedStyle]}
       >
         {() => (
           <TextInput
@@ -124,7 +138,7 @@ export function TvTextInput({
             secureTextEntry={secure}
             autoCapitalize={autoCapitalize}
             autoCorrect={false}
-            style={styles.input}
+            style={[styles.input, inputStyle]}
             // `onFocus` rather than the press handler: the IME is also raised
             // by the platform itself in ways this component never sees, and
             // suspending anywhere else would miss those.

@@ -63,3 +63,23 @@ export function SearchIcon({ size, colour: stroke = colour.textDim }: NavIconPro
     </Svg>
   );
 }
+
+/**
+ * `ManageIcons`'s `RefreshIcon`, same path, same 1.8 stroke. Search's control
+ * row ends in it (`.search-bar-refresh`).
+ */
+export function RefreshIcon({ size, colour: stroke = colour.textDim }: NavIconProps): React.JSX.Element {
+  const dimension = size ?? px(18);
+  return (
+    <Svg width={dimension} height={dimension} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M19 7v5h-5M5 17v-5h5M18.2 10A7 7 0 0 0 6.8 6.8L5 9m14 6-1.8 2.2A7 7 0 0 1 5.8 14"
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

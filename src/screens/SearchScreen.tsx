@@ -16,9 +16,13 @@ import { MediaCard } from '../components/MediaCard';
 import { TvTextInput } from '../components/TvTextInput';
 import { SortControl } from '../components/SortControl';
 import { CategoryToggles } from '../components/CategoryToggles';
+import { Focusable } from '../components/Focusable';
+import { RefreshIcon } from '../components/NavIcons';
+import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
+import { useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { ErrorMessage, Loading, PageTitle } from '../components/Status';
 import { scrollTarget } from '../hooks/focusScroll';
-import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
+import { CARD_FRAME, colour, controlRow, focusFrame, layout, pageGutter, px, rem, screenSize } from '../styles/theme';
 
 /**
  * Search, from the web client's screen of the same name.
@@ -53,6 +57,12 @@ export function SearchScreen({
   // Every hit arrives already named by core's search: an episode with its
   // series, a track as "Artist - Album (year)".
   const ordered = useMemo(() => orderMedia(results, sort, SEARCH_SORTS), [results, sort]);
+  // Asks the same question again; the row's last control (`.search-bar-refresh`).
+  const [refreshToken, setRefreshToken] = useState(0);
+  // The A-Z index, as on Movies and TV Shows, and like theirs only in title
+  // order, where a letter marks a run of the grid.
+  const indexed = sort === 'title';
+  const alphabet = useAlphabetIndex(indexed ? ordered : []);
 
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);
@@ -90,7 +100,7 @@ export function SearchScreen({
       active = false;
       clearTimeout(timer);
     };
-  }, [api, query, categories]);
+  }, [api, query, categories, refreshToken]);
 
   const columns = Math.max(
     1,
@@ -122,41 +132,51 @@ export function SearchScreen({
         <PageTitle>Search</PageTitle>
 
         {/*
-          * `.search-bar { display: flex; align-items: center; gap: 1rem; width: 100% }`
-          * with `.search-input { flex: 1 }` — the field takes the row, and the
-          * sort sits at its end (Tom, 2026-09-23).
+          * `.search-bar { --search-control-height: 3.5rem; display: flex;
+          * gap: 1rem; width: 100% }`: field, sort, type toggles, refresh, in
+          * that order, every one the same height and shape (`controlRow`).
+          * The field takes whatever width the others leave.
           */}
         <View style={styles.bar}>
-          <View style={styles.field}>
-            <TvTextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search your library"
-              defaultFocus
-            />
-          </View>
-          <SortControl sorts={SEARCH_SORTS} value={sort} onChange={setSort} />
-        </View>
-        {/* Movies, TV Shows, Music — any combination (Tom, 2026-09-24, via core). */}
-        <View style={styles.categories}>
-          <CategoryToggles categories={SEARCH_CATEGORIES} selected={categories} onChange={setCategories} />
+          <TvTextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search your library"
+            defaultFocus
+            fieldStyle={styles.field}
+            boxStyle={styles.fieldBox}
+            boxFocusedStyle={styles.fieldBoxFocused}
+            inputStyle={styles.fieldInput}
+          />
+          <SortControl sorts={SEARCH_SORTS} value={sort} onChange={setSort} height={controlRow.height} />
+          <CategoryToggles
+            categories={SEARCH_CATEGORIES}
+            selected={categories}
+            onChange={setCategories}
+            height={controlRow.height}
+          />
+          <Focusable
+            ring={false}
+            onSelect={() => setRefreshToken((value) => value + 1)}
+            style={styles.refresh}
+            focusedStyle={styles.refreshFocused}
+          >
+            {({ focused }) => <RefreshIcon size={px(22)} colour={focused ? colour.heading : colour.textDim} />}
+          </Focusable>
         </View>
 
         {error ? <ErrorMessage error={error} /> : null}
 
-        {!isSearchable(query) ? (
-          <Text style={styles.hint}>Type two letters or more to search.</Text>
-        ) : searching && results.length === 0 ? (
+        {query.trim().length === 0 ? null : searching && results.length === 0 ? (
           <Loading />
-        ) : categories.length === 0 ? (
-          // Core answers no categories with nothing and asks nobody, so
-          // "nothing matched" would be untrue: nothing was looked for.
-          <Text style={styles.hint}>Choose Movies, TV Shows or Music to search.</Text>
-        ) : results.length === 0 ? (
-          <Text style={styles.hint}>Nothing matched “{query.trim()}”.</Text>
+        ) : !isSearchable(query) || categories.length === 0 || results.length === 0 ? (
+          // One line for every way a query can come back empty — no match,
+          // every toggle off, or only words titles are not ordered by — and
+          // nothing at all while the field is empty (the web's `.search-empty`).
+          <Text style={styles.empty}>Nothing found. Try different search terms or filters.</Text>
         ) : (
           <View
-            style={styles.grid}
+            style={[styles.grid, indexed && styles.gridIndexed]}
             onLayout={(event) => {
               gridY.current = event.nativeEvent.layout.y;
             }}
@@ -165,6 +185,8 @@ export function SearchScreen({
               <MediaCard
                 key={item.id}
                 media={item}
+                addressable
+                squareInPosterHeight
                 onSelect={() => onOpen(item)}
                 onExtent={(box) => cards.current.set(index, { y: box.y, height: box.height })}
                 onFocusChange={(focused) => focused && revealCard(index)}
@@ -173,6 +195,9 @@ export function SearchScreen({
           </View>
         )}
       </ScrollView>
+      {indexed && ordered.length > 0 ? (
+        <AlphabetIndex availableKeys={alphabet.availableKeys} onSelect={alphabet.jumpTo} />
+      ) : null}
     </View>
   );
 }
@@ -199,12 +224,9 @@ const styles = StyleSheet.create({
   },
   bar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
+    height: controlRow.height,
     gap: rem(1),
-    paddingHorizontal: pageGutter,
-    marginBottom: rem(0.9),
-  },
-  categories: {
     paddingHorizontal: pageGutter,
     marginBottom: rem(1.4),
   },
@@ -212,11 +234,50 @@ const styles = StyleSheet.create({
   field: {
     flex: 1,
     minWidth: 0,
+    marginBottom: 0,
   },
-  hint: {
-    paddingHorizontal: pageGutter,
-    color: '#77777f',
-    fontSize: rem(1),
+  /**
+   * `.search-input { background: #19191c; border: 1px solid #3a3a40;
+   * border-radius: .65rem; font-size: 1.15rem }` in the row's height, with
+   * `focusFrame.border` for the 1px so focus reads as it does on every card.
+   */
+  fieldBox: {
+    height: controlRow.height,
+    justifyContent: 'center',
+    borderRadius: controlRow.radius,
+    backgroundColor: colour.inputBackground,
+    borderWidth: focusFrame.border,
+    borderColor: colour.inputBorder,
+  },
+  fieldBoxFocused: {
+    borderColor: colour.focus,
+  },
+  fieldInput: {
+    paddingVertical: 0,
+    paddingHorizontal: rem(1.2),
+    fontSize: rem(1.15),
+    minWidth: 0,
+  },
+  // `.search-bar-refresh { width/height: var(--search-control-height); border-radius: .65rem }`
+  refresh: {
+    width: controlRow.height,
+    height: controlRow.height,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: controlRow.radius,
+    backgroundColor: colour.inputBackground,
+    borderWidth: focusFrame.border,
+    borderColor: colour.inputBorder,
+  },
+  refreshFocused: {
+    borderColor: colour.focus,
+  },
+  // `.search-empty { place-items: center; color: var(--text-dim); font-size: 1.1rem }`
+  empty: {
+    marginTop: rem(4),
+    textAlign: 'center',
+    color: colour.textDim,
+    fontSize: rem(1.1),
   },
   // `.media-grid { gap: 1.4rem 1rem }` — row gap then column gap.
   grid: {
@@ -224,8 +285,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     // `.media-grid { gap: 1.4rem 1rem }`, less the focus frame each card holds
     // inside its own box. See `layout.rowGap`.
-    rowGap: Math.max(rem(0.5), rem(1.4) - CARD_FRAME * 2),
+    // `.search-results { row-gap: 1rem }` — tighter than the libraries' 1.4.
+    rowGap: Math.max(rem(0.4), rem(1) - CARD_FRAME * 2),
     columnGap: layout.rowGap,
     paddingHorizontal: pageGutter,
+    // Cards align to the top of their row, so one with a longer caption
+    // cannot push the others' titles down.
+    alignItems: 'flex-start',
+  },
+  // The strip is pinned over this edge when it is showing.
+  gridIndexed: {
+    paddingRight: pageGutter + alphabetStripWidth,
   },
 });
