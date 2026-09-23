@@ -80,8 +80,9 @@ the time of writing; `.115` has not been touched since 2026-09-21.
   2026-09-21; the setting is the viewer's, not this session's).
   **Confirmed still on `1b528dea9c6a24dbc5b9306e5a9c12ec` on 2026-09-23** by
   `md5sum` of the installed `base.apk`, which is the only thing that tells the
-  three `versionCode 600` builds apart. `lastUpdateTime` 2026-09-22 21:31:52,
-  signed in as `tom`.
+  three `versionCode 600` builds apart. `lastUpdateTime` 2026-09-22 21:31:52.
+  **Now signed in as `tvtest`** (since 18:34, for the P-1 reaps); it was `tom`
+  before, and only Tom can put that back.
 - **`10.34.1.115`** — Android 11, 1080p, `DOLBY VISION: none`. Installed
   2026-09-21, signed out, never smoke-tested.
 
@@ -95,7 +96,11 @@ the time of writing; `.115` has not been touched since 2026-09-21.
    written asks whether *level and sync snap back*, which is a judgement only
    somebody in front of the set can make. It needs **a title that actually has
    a stereo track, and Tom listening.** See §1.11.
-3. **P-1's five reaps** — unchanged, and still the thing this repo exists for.
+3. **P-1's five reaps** — **two run on `.133`, 2026-09-23 18:37 and 18:46.**
+   Neither froze; both failed over to a *remote* node rather than
+   regenerating on the healthy local one. Detail at the head of P-1. Three
+   remain, and the next one needs the classification line, which this build's
+   eight-line trail cannot hold (see there).
 
 **Waiting on other sessions:** core will name the version that carries the
 resume-point rule, at which point `src/player/progressPersistence.ts` and its
@@ -120,19 +125,16 @@ test are **deleted** and the hook keeps only the timer and the subscription
 
 ### The single next action
 
-**P-1's reap is the next thing, and it is the only one of the three left that
-this session can start.** The resume-point kill test is done and passed
-(§1.11); the stereo A/B is blocked on a title with a 2.0 track and on somebody
-listening, neither of which `adb` supplies. That leaves the reap, which is
-where §0 said the value was all along — *"One reap, with the set on, decides
-whether it is closed."*
+**Two reaps ran, with Tom's go-ahead, and P-1 did not freeze** — but both
+recoveries left the healthy local node for a remote one, and the line that
+would say why is lost to an eight-line trail (P-1, head of section). So the
+next action is **a client change before the next reap**: make the trail hold a
+whole recovery, or pin warn-level lines, so the classification is on screen
+when the picture comes back. Then reap again.
 
-**It was not started, deliberately.** It wants the screensaver disabled on
-`.133` (the dream takes the foreground and kills the session before the node's
-reaper fires — `screensaver_enabled` reads `1` and `screen_off_timeout` is
-600 000 ms), it holds a session open on a cluster that came back from an
-outage hours earlier, and the set belongs to somebody who may be watching it.
-**Ask Tom before the first reap.**
+**`.133` is left signed in as `tvtest`**, at Tom's instruction for the reaps.
+`tom` has to be signed back in at the set by Tom — this session does not hold
+that password. Screensaver and Diagnostics are back to what they were.
 
 Note the cluster is **three reachable nodes**, `10.44.1.51` being the one
 refusing inbound, which is a different candidate list from anything the
@@ -303,6 +305,86 @@ Both are `leanback_only`, `type.television`, no touchscreen. The APK's
   "never" or "nowhere else".
 
 ## P-1. The regenerate path froze the viewer once — bound landed, freeze not reproduced, **not closed**
+
+### Reaped twice on `.133`, 2026-09-23 — no freeze, ~4 s visible, but it failed over instead of regenerating
+
+**Measured.** Build md5 `1b528dea…` — which **does carry everything this
+section waits for**, whatever "Not installed" below says: the bundle holds
+`failed-session-close-timeout`, `standby-preparation-refused`,
+`client_recovery_deadline`, `session-reaped-regenerating` and
+`generation-regenerate` (`verify-on-device.sh bundle`, all present in UTF-8;
+the local APK is byte-identical to the installed one). Signed in as `tvtest`,
+so the reap could use the account's own token. Diagnostics on for the runs,
+off again afterwards; screensaver disabled for the runs, restored to
+`1` / `600000` afterwards.
+
+| | Reap 1 | Reap 2 |
+| --- | --- | --- |
+| Session reaped | `0ccefac8…` on `10.35.1.50` (local, node `855716bd…`) | `719d5cdb…` on `macnessa.macha.network` |
+| Client state at DELETE | paused at 0:52 | playing at ~7:40 |
+| `DELETE` | 18:37:21, `204` | 18:46:10.843, `204` |
+| Buffer stops growing | 18:39:07, ~6 s after unpause, at 117.461 s | **18:48:39 — 2 min 28 s after the DELETE**, at 683.989 s |
+| Player notices | 18:40:06.230, ExoPlayer `state=7` at 117.363 s | 18:49:37.181, `state=7` at 683.875 s |
+| Playing again | 18:40:10.546 | 18:49:41.229 |
+| New session | `macnessa.macha.network` (node `377ce5b1…`, `78.149.248.154`) | `ramaroja.macha.network` (`85.87.142.154`, a Spanish ISP) |
+| Mode after | `direct`, unchanged | `direct`, unchanged |
+
+**The viewer saw about four seconds, twice.** From the hardware composer's
+frame posts to our surface: a 0.90 s gap then a 3.05 s gap, 18:40:06.4 →
+18:40:10.35; reap 2's state timeline is the same shape to within 0.1 s. No
+freeze, no failure screen, and the resume position is exact both times
+(`source-presented positionMs` equals the buffer end). **The P-1 freeze did not
+reproduce.**
+
+**What the trail shows** (reap 1; reap 2 is line-for-line the same):
+
+    2433.8s playback.api session-create
+    2433.9s playback.api http-error-response   DELETE …/0ccefac8…  404  (13.3 ms)
+    2433.9s playback.cluster failed-session-closed  {"attempts":1}
+    2434.0s playback.api session-created       macnessa.macha.network::719d5cdb…
+    2434.0s playback.coordinator source-failover-ready  old 10.35.1.50 → new macnessa
+    2434.0s playback.coordinator source-presented  positionMs 117362
+
+`failed-session-closed` appearing answers this section's kept-honest question
+below: **the close settles**, in one attempt, once the node answers.
+
+**Four things this changes or adds, in order of weight:**
+
+1. **It took the failover path, not regenerate, and left a healthy local node
+   for a remote one — twice.** `10.35.1.50` answered its own `status` at
+   14 ms throughout; the first recovery went over the internet to a different
+   node, and the second to a third node in another country. That is §1.0's
+   2026-09-20 finding again — *"left a healthy local node for a cross-site
+   one"* — except that this time the mode stayed `direct`, so the cost was
+   bandwidth and latency rather than a transcode. **Core then noticed on its
+   own**: `3055.8s cluster.health preemptive-endpoint-swap` from ramaroja
+   (272 ms) to `10.35.1.50` (14.3 ms), 51 s after the second failover — which
+   moves preference, not the playing session.
+2. **Why it failed over is not established, and this build cannot establish
+   it.** The trigger here was ExoPlayer erroring on a stream fetch at the end
+   of its buffer, not the session `GET` that returned `404` on 2026-09-20 — a
+   different entry into core, and plausibly a different classification. The
+   line that would say so sits before `session-create`, and **one recovery
+   emits at least nine trail lines while the overlay holds eight**, so it is
+   always scrolled off by the time recovery completes. The release build does
+   not send the trail to logcat either. **The next reap needs a longer window
+   or the classification line pinned** — a client change, and a small one.
+3. **Detection waits for the buffer, not for the failure.** The fetch against
+   the dead session failed at 18:39:07 and nothing reacted for 59 s, until the
+   player ran dry. For the viewer that is invisible and arguably ideal; for
+   failover it is 59 s in which a standby could have been prepared and was
+   not.
+4. **A deleted session on `macnessa` kept serving for two and a half
+   minutes.** The buffer grew for 2 min 28 s after its `DELETE` returned `204`
+   — the stream already open was not cut. Reap 1 against `10.35.1.50` stopped
+   within ~6 s of the next request. Whether that is by design is the server
+   session's to say; it matters because a reap that does not stop the stream
+   is not the event P-1 is about.
+
+**Not verified, kept honest:** that "failover" here is a misclassification
+rather than correct behaviour for a stream-fetch error; and whether a
+`not-found` from the session `GET`, the 2026-09-20 entry, still regenerates and
+still hangs. Nothing today touched that path.
 
 **Measured 2026-09-20, 22:58, on the TCL, with core's walk fix (`10a1d93`) in
 the build.** A session deleted under a paused client was, for the first time,
@@ -739,6 +821,42 @@ first.
 The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
+
+### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **none fixed**
+
+All measured on the set, all by D-pad over `adb`. None is P-1; all are this
+client's.
+
+- **Continue Watching is not per-account.** Signed in as `tvtest`, the rail
+  showed `tom`'s three entries unchanged. Core's `signOut` clears only
+  `SESSION_CACHE_KEY` (`macha-ts/src/api/SessionManager.ts`, read at
+  `a3b40ca`), so the progress store outlives the account. On a shared
+  television one viewer sees another's viewing. Bears on
+  the storage-keys standardisation, and the fix may be core's.
+- **And resuming one of those entries starts from zero.** Selecting `tom`'s
+  Half-Blood Prince under `tvtest` logged `requestedPositionMs: 0`,
+  `seekMs: 0` — the rail offers a resume it then does not perform. Whether the
+  position is being dropped or deliberately withheld across accounts is not
+  established; either way the rail and the player disagree.
+- **Signed out, Settings reports a `401` as "catalogue unavailable".** The
+  header read "Server online; catalogue unavailable" with **PLAYBACK:
+  Unavailable**, and the small print underneath gave the real reason, "a
+  valid session bearer token is required". That is §1.9 turned round: an
+  authentication state worded as a service outage.
+- **The sign-out dialog opens on Cancel, and the unfocused Sign out looks
+  focused.** Cancel is the focused button (a filled background); Sign out
+  carries a red outline as its destructive style, and a red outline is what
+  focus looks like everywhere else in this client. It cost one confirm press
+  that landed on Cancel. At ten feet the two are easy to confuse.
+- **The sign-in wall: DOWN from the password lands on Server settings, not
+  Sign in,** and going there **discards the typed username and password**. At
+  one point neither button showed any visible focus.
+- **The on-screen trail did not repaint in captures while the chrome was
+  hidden, during reap 2.** Forty-one captures across the recovery all showed
+  reap 1's lines; revealing the chrome showed reap 2's, timestamped at the
+  recovery. Reap 1's lines *did* appear with the chrome hidden. Observed
+  twice-inconsistent and not explained — so do not trust a capture of the
+  trail without the chrome up.
 
 ### 1.11 The resume-point kill test — run 2026-09-23, **passed**, and the stored position matched the model to the second
 
