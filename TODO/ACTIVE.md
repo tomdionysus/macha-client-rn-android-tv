@@ -416,6 +416,15 @@ below: **the close settles**, in one attempt, once the node answers.
    here. **Consequence: core's liveness fix could not be exercised on direct
    play, because the reap never reached the player.** It stays unverified on
    the set.
+   **Neither side logs enough to settle it.** The server session (same
+   night): its journal has no line per direct range request at any level, and
+   the delete logs nothing either, so the window is silent. From the code,
+   every request to `/direct` looks the session up first and would `404`, so
+   *their inference* is that no new request was made and the seek was served
+   from an already-open body. The set's logcat is equally silent: 5 286 lines
+   in the 11 s around the seek, none from OkHttp, ExoPlayer or media3.
+   `expo-video` logs no requests. To test a reap, use HLS or a transcode,
+   where each segment is its own request.
 
 **Not verified, kept honest:** that "failover" here is a misclassification
 rather than correct behaviour for a stream-fetch error; and whether a
