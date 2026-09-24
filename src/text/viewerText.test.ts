@@ -111,6 +111,15 @@ describe('trackFacts', () => {
 });
 
 describe('playbackNoticeText', () => {
+  it("words core de86392's refusal of a choice this file does not have", () => {
+    expect(playbackNoticeText({ code: 'update-failed', refusal: { status: 400, code: 'choice_not_available', choice: 'audio' } } as never)).toBe(
+      "That track isn't in this file, so nothing was changed.",
+    );
+    expect(playbackNoticeText({ code: 'update-failed', refusal: { status: 409, code: 'something_else' } } as never)).toBe(
+      'That change could not be applied.',
+    );
+  });
+
   it('words core e840d72 decode fallback beside the copy refusal it mirrors', () => {
     expect(playbackNoticeText({ code: 'decode-fallback', error: new Error('MediaCodecVideoRenderer error') })).toBe(
       'This television could not decode the original streams, so they are being converted.',

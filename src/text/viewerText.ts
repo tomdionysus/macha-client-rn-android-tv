@@ -141,6 +141,12 @@ export function playbackNoticeText(notice: PlaybackNotice): string {
     case 'subtitles-loading':
       return 'Loading subtitles…';
     case 'update-failed':
+      // Core `de86392` carries the node's refusal as data. Server 0.58.0
+      // refuses a track the file does not have instead of falling back, and
+      // that one a viewer can act on; anything else keeps the plain sentence.
+      if (notice.refusal?.code === 'choice_not_available') {
+        return "That track isn't in this file, so nothing was changed.";
+      }
       return 'That change could not be applied.';
     default:
       return '';
