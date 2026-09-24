@@ -460,9 +460,12 @@ function Shell(): React.JSX.Element {
       onResume={(media) => play(media, continueWatching.positionFor(media.id))}
     />
   ) : route.name === 'movies' ? (
-    <LibraryScreen api={services.mediaApi} kind="movies" onOpen={open} />
+    // Keyed by kind: both lists are one component, and without a key React
+    // keeps it mounted between them, so a sort chosen on Movies carried over
+    // to TV Shows (measured on `.133`, 2026-09-24). Each list starts at Title.
+    <LibraryScreen key="movies" api={services.mediaApi} kind="movies" onOpen={open} />
   ) : route.name === 'shows' ? (
-    <LibraryScreen api={services.mediaApi} kind="shows" onOpen={open} />
+    <LibraryScreen key="shows" api={services.mediaApi} kind="shows" onOpen={open} />
   ) : route.name === 'music' ? (
     <MusicScreen api={services.mediaApi} onOpen={open} />
   ) : route.name === 'search' ? (
