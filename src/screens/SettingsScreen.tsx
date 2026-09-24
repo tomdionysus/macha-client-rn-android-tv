@@ -11,6 +11,7 @@ import {
   setBootstrapEndpoints,
 } from '../state/client';
 import { Focusable } from '../components/Focusable';
+import { Button } from '../components/Button';
 import { TvTextInput } from '../components/TvTextInput';
 import { failureTrailEnabled, setFailureTrailEnabled } from '../diagnostics/failureTrailSetting';
 import { PageTitle } from '../components/Status';
@@ -182,14 +183,12 @@ export function SettingsScreen(): React.JSX.Element {
             onSubmit={saveEndpoints}
             placeholder="http://macha-node:7438"
           />
-          <Focusable
+          <Button
+            label="Save endpoints"
             onSelect={saveEndpoints}
             onFocusChange={(focused) => focused && revealRow('connection')}
-            style={styles.button}
-            focusedStyle={styles.buttonFocused}
-          >
-            <Text style={styles.buttonLabel}>Save endpoints</Text>
-          </Focusable>
+            style={styles.buttonPlacement}
+          />
           {endpointNotice ? <Text style={styles.notice}>{endpointNotice}</Text> : null}
           {getDiscoveredEndpoints().length > 0 ? (
             <>
@@ -449,22 +448,10 @@ const styles = StyleSheet.create({
     color: colour.textDim,
     fontSize: type.small,
   },
-  /** `.primary-button`. */
-  button: {
+  /** `.settings button { margin: .7rem 0 }`, left-aligned under its field. */
+  buttonPlacement: {
     alignSelf: 'flex-start',
     marginTop: rem(0.8),
-    paddingVertical: rem(0.5),
-    paddingHorizontal: rem(1),
-    borderRadius: radius.control,
-    backgroundColor: colour.accentSurface,
-  },
-  buttonFocused: {
-    backgroundColor: colour.accentSurfaceStrong,
-  },
-  buttonLabel: {
-    color: colour.text,
-    fontSize: type.body,
-    fontWeight: font.weightMedium,
   },
   // `.player-option-group { grid-template-columns: 6.5rem 1fr }`
   row: {

@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { Focusable } from '../components/Focusable';
+import { Button } from '../components/Button';
 import { tvFocus } from '../hooks/tvFocus';
-import { colour, font, radius, rem, type } from '../styles/theme';
+import { colour, font, rem, type } from '../styles/theme';
 
 export const OFFLINE_SCOPE = 'offline';
 
@@ -39,16 +39,7 @@ export function OfflineScreen({
         wrong with the set — it will reconnect on its own.
       </Text>
       {onOpenSettings ? (
-        <Focusable
-          ring={false}
-          scope={OFFLINE_SCOPE}
-          defaultFocus
-          onSelect={onOpenSettings}
-          style={styles.action}
-          focusedStyle={styles.actionFocused}
-        >
-          {() => <Text style={styles.actionLabel}>Server settings</Text>}
-        </Focusable>
+        <Button label="Server settings" onSelect={onOpenSettings} scope={OFFLINE_SCOPE} defaultFocus />
       ) : null}
     </View>
   );
@@ -80,18 +71,5 @@ const styles = StyleSheet.create({
     marginBottom: rem(1.4),
     textAlign: 'center',
     maxWidth: rem(30),
-  },
-  action: {
-    paddingHorizontal: rem(1),
-    paddingVertical: rem(0.55),
-    borderRadius: radius.control,
-    backgroundColor: colour.surface2,
-  },
-  actionFocused: {
-    backgroundColor: colour.accent,
-  },
-  actionLabel: {
-    color: colour.text,
-    fontSize: type.body,
   },
 });

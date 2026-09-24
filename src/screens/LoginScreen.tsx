@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { signInErrorText } from '../text/viewerText';
-import { Focusable } from '../components/Focusable';
+import { Button } from '../components/Button';
 import { TvTextInput } from '../components/TvTextInput';
 import { tvFocus } from '../hooks/tvFocus';
-import { colour, font, radius, rem, type } from '../styles/theme';
+import { colour, font, rem, type } from '../styles/theme';
 
 export const LOGIN_SCOPE = 'login';
 
@@ -140,36 +140,14 @@ export function LoginScreen({
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.actions}>
-          <Action label={busy ? 'Signing in…' : 'Sign in'} onSelect={submit} primary />
+          <Button label={busy ? 'Signing in…' : 'Sign in'} onSelect={submit} scope={LOGIN_SCOPE} />
           {guestAllowed && onBrowseAsGuest ? (
-            <Action label="Browse as guest" onSelect={onBrowseAsGuest} />
+            <Button label="Browse as guest" onSelect={onBrowseAsGuest} scope={LOGIN_SCOPE} />
           ) : null}
-          {onOpenSettings ? <Action label="Server settings" onSelect={onOpenSettings} /> : null}
+          {onOpenSettings ? <Button label="Server settings" onSelect={onOpenSettings} scope={LOGIN_SCOPE} /> : null}
         </View>
       </View>
     </View>
-  );
-}
-
-function Action({
-  label,
-  onSelect,
-  primary,
-}: {
-  label: string;
-  onSelect: () => void;
-  primary?: boolean;
-}): React.JSX.Element {
-  return (
-    <Focusable
-      ring={false}
-      scope={LOGIN_SCOPE}
-      onSelect={onSelect}
-      style={[styles.action, primary && styles.actionPrimary]}
-      focusedStyle={styles.actionFocused}
-    >
-      {() => <Text style={styles.actionLabel}>{label}</Text>}
-    </Focusable>
   );
 }
 
@@ -211,21 +189,5 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: rem(0.6),
     marginTop: rem(0.4),
-  },
-  action: {
-    paddingHorizontal: rem(1),
-    paddingVertical: rem(0.55),
-    borderRadius: radius.control,
-    backgroundColor: colour.surface2,
-  },
-  actionPrimary: {
-    backgroundColor: colour.accent,
-  },
-  actionFocused: {
-    backgroundColor: colour.surface3,
-  },
-  actionLabel: {
-    color: colour.text,
-    fontSize: type.body,
   },
 });
