@@ -573,3 +573,58 @@ describe('the end of a row', () => {
     expect(pickTvCandidate(movies.rect, [home, arrival], 'left')?.id).toBe('nav-home');
   });
 });
+
+/**
+ * Tom, 2026-09-24: "the focus always jumps to Home on this page regardless of
+ * how it has been accessed". A screen's own default registers only after its
+ * content is fetched, so the fallback was always the first thing on screen —
+ * the top bar's Home. The fallback now prefers the nav item the viewer last
+ * used, remembered for the life of the app.
+ */
+describe('the fallback remembers the last nav item used', () => {
+  beforeEach(() => {
+    tvFocus.resumeAll();
+    tvFocus.select(undefined);
+    tvFocus.restoreWhenPresent(undefined);
+  });
+
+  it('falls back to the nav item the viewer last chose, not the first on screen', () => {
+    const home = tvFocus.register({ id: 'nav:home' });
+    const movies = tvFocus.register({ id: 'nav:movies' });
+    tvFocus.select('nav:movies');
+    tvFocus.select(undefined);
+
+    tvFocus.focusDefault();
+    expect(tvFocus.selected()).toBe('nav:movies');
+    home();
+    movies();
+  });
+
+  it('does not remember a nav item the fallback chose on its own', () => {
+    const home = tvFocus.register({ id: 'nav:home' });
+    const settings = tvFocus.register({ id: 'nav:settings' });
+    tvFocus.select('nav:settings');
+    const settingsGone = settings;
+    settingsGone();
+    tvFocus.focusDefault();
+    expect(tvFocus.selected()).toBe('nav:home');
+
+    const back = tvFocus.register({ id: 'nav:settings' });
+    tvFocus.select(undefined);
+    tvFocus.focusDefault();
+    expect(tvFocus.selected()).toBe('nav:settings');
+    home();
+    back();
+  });
+
+  it('still lets a screen default that registers later take over', () => {
+    const movies = tvFocus.register({ id: 'nav:movies' });
+    tvFocus.select('nav:movies');
+    tvFocus.select(undefined);
+    tvFocus.focusDefault();
+    const card = tvFocus.register({ id: 'season-1', defaultFocus: true });
+    expect(tvFocus.selected()).toBe('season-1');
+    movies();
+    card();
+  });
+});

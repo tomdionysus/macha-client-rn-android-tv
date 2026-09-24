@@ -12,6 +12,10 @@
  * and reports its measured rectangle.
  */
 
+
+/** Top-bar focus ids start with this, so the fallback can return to the last one used. */
+export const NAV_FOCUS_PREFIX = 'nav:';
+
 export type TvDirection = 'up' | 'down' | 'left' | 'right';
 export type TvCommand = TvDirection | 'activate' | 'back';
 
@@ -235,6 +239,19 @@ class TvFocusRegistry {
    */
   private lastMove: { from: string; to: string; direction: TvDirection } | undefined;
 
+  /**
+   * The top-bar item the viewer last chose, for the fallback to return to.
+   *
+   * Tom, 2026-09-24: focus "always jumps to Home" however a screen was
+   * reached, because a screen's own default registers only after its fetch
+   * and the fallback took the first thing on screen, which is Home. Only a
+   * selection the viewer caused sets this; the fallback's own choice does not,
+   * or Home would remember itself. In memory, for the life of the app.
+   * **Not in the web client**, like `provisional`; the scoring weights are
+   * untouched.
+   */
+  private lastNavId: string | undefined;
+
   register(focusable: Omit<Focusable, 'order'>): () => void {
     const existing = this.focusables.get(focusable.id);
     // Keep the original order across a re-registration, so a focusable that
@@ -395,6 +412,7 @@ class TvFocusRegistry {
   }
 
   select(id: string | undefined): void {
+    if (id?.startsWith(NAV_FOCUS_PREFIX)) this.lastNavId = id;
     this.provisional = false;
     this.lastMove = undefined;
     if (this.selectedId === id) return;
@@ -408,9 +426,14 @@ class TvFocusRegistry {
   focusDefault(): void {
     const elements = this.candidates();
     if (elements.length === 0) return;
-    const preferred = elements.find((entry) => entry.defaultFocus) ?? elements[0];
+    const preferred = elements.find((entry) => entry.defaultFocus)
+      ?? elements.find((entry) => entry.id === this.lastNavId)
+      ?? elements[0];
     if (!preferred) return;
+    // The fallback's own choice is not the viewer's: keep what they last chose.
+    const remembered = this.lastNavId;
     this.select(preferred.id);
+    this.lastNavId = remembered;
     this.provisional = !preferred.defaultFocus;
   }
 

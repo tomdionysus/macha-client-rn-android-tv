@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import { Focusable } from './Focusable';
+import { NAV_FOCUS_PREFIX } from '../hooks/tvFocus';
 import { SettingsIcon, UserIcon } from './NavIcons';
 import { px, colour, font, layout, pageGutter, radius, rem, type } from '../styles/theme';
 
@@ -57,7 +58,7 @@ export function TopBar({
         {items.map((item) => (
           <Focusable
             key={item.key}
-            ring={false}
+            focusId={`${NAV_FOCUS_PREFIX}${item.key}`}
             onSelect={() => onSelect(item.key)}
             style={[styles.navItem, active === item.key && styles.navItemActive]}
             focusedStyle={styles.navItemFocused}
@@ -83,7 +84,6 @@ export function TopBar({
           */}
         {username ? (
           <Focusable
-            ring={false}
             onSelect={() => onSignOut?.()}
             disabled={!onSignOut}
             style={styles.account}
@@ -103,7 +103,7 @@ export function TopBar({
           </Focusable>
         ) : null}
         <Focusable
-          ring={false}
+          focusId={`${NAV_FOCUS_PREFIX}settings`}
           onSelect={onOpenSettings}
           style={[styles.settings, settingsActive && styles.navItemActive]}
           focusedStyle={styles.navItemFocused}
@@ -166,10 +166,12 @@ const styles = StyleSheet.create({
   navItemActive: {
     backgroundColor: colour.accentSurface,
   },
-  // `.section-subnav a:focus-visible { background: var(--accent-focus-wash) }`
+  // Focus is the standard ring (`Focusable`'s 1px `--focus` border) over the
+  // stronger fill. Until 2026-09-24 the ring was switched off here, which left
+  // focus and the current page as two dark fills a shade apart: Home looked
+  // selected whatever actually held focus (Tom).
   navItemFocused: {
     backgroundColor: colour.accentSurfaceStrong,
-    borderColor: colour.focus,
   },
   navLabel: {
     color: colour.textDim,
