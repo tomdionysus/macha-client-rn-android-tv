@@ -13,8 +13,9 @@ import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/St
 import { MediaCard } from '../components/MediaCard';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
 import { SortControl } from '../components/SortControl';
-import { useAlphabetIndex } from '../hooks/useAlphabetIndex';
+import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { scrollTarget } from '../hooks/focusScroll';
+import { tvFocus } from '../hooks/tvFocus';
 import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
 
 /**
@@ -129,6 +130,10 @@ export function LibraryScreen({
           style={styles.grid}
           onLayout={(event) => {
             gridY.current = event.nativeEvent.layout.y;
+            // The grid can report its place after its cards report theirs;
+            // a restored card revealed before this would miss by the gap.
+            const focusedIndex = items.findIndex((entry) => tvFocus.selected() === mediaFocusId(entry.id));
+            if (focusedIndex >= 0 && cardExtents.current.has(focusedIndex)) revealCard(focusedIndex);
           }}
         >
           {items.map((item, index) => (
@@ -138,7 +143,14 @@ export function LibraryScreen({
               addressable
               onSelect={() => onOpen(item)}
               defaultFocus={index === 0}
-              onExtent={(box) => cardExtents.current.set(index, { y: box.y, height: box.height })}
+              onExtent={(box) => {
+                cardExtents.current.set(index, { y: box.y, height: box.height });
+                // Focus restored by Back lands on a card before it has laid
+                // out, when there was nothing to scroll to. Reveal it once its
+                // box is known, if it still holds focus (Firefly half below
+                // the fold on `.133`, 2026-09-23).
+                if (tvFocus.selected() === mediaFocusId(item.id)) revealCard(index);
+              }}
               onFocusChange={(focused) => focused && revealCard(index)}
             />
           ))}
