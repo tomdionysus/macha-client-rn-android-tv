@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { SearchCategory, SearchCategoryKey } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { colour, controlRow, focusFrame, rem, type } from '../styles/theme';
+import { categoryLabel } from '../text/viewerText';
 
 /**
  * Which kinds of media a search covers: Movies, TV Shows, Music, each on or
@@ -49,7 +50,7 @@ export function CategoryToggles({
             focusedStyle={styles.pillFocused}
           >
             {({ focused }) => (
-              <Text style={[styles.label, (on || focused) && styles.labelActive]}>{category.label}</Text>
+              <Text style={[styles.label, (on || focused) && styles.labelActive]}>{categoryLabel(category.key)}</Text>
             )}
           </Focusable>
         );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { errorMessage } from '@machafoundation/core';
+import { signInErrorText } from '../text/viewerText';
 import { Focusable } from '../components/Focusable';
 import { TvTextInput } from '../components/TvTextInput';
 import { tvFocus } from '../hooks/tvFocus';
@@ -99,10 +99,8 @@ export function LoginScreen({
       setPassword('');
       onSignedIn();
     } catch (cause) {
-      // Deliberately shown as the server worded it. The server answers an
-      // unknown user and a wrong password identically and in the same time, and
-      // rewording it here would risk reintroducing the difference.
-      setError(errorMessage(cause));
+      // The server's own words where it gave them — see `signInErrorText`.
+      setError(signInErrorText(cause));
       setPassword('');
     } finally {
       setBusy(false);

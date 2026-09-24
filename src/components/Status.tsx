@@ -1,5 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { colour, font, pageGutter, rem, type } from '../styles/theme';
+import { errorText } from '../text/viewerText';
 
 /** `.status { padding: 5rem 0; font-size: 1.2rem; color: var(--text-dim) }` */
 export function Loading({ label = 'Loading…' }: { label?: string }): React.JSX.Element {
@@ -15,7 +16,7 @@ export function Loading({ label = 'Loading…' }: { label?: string }): React.JSX
 export function ErrorMessage({ error }: { error: Error }): React.JSX.Element {
   return (
     <View style={styles.status}>
-      <Text style={[styles.statusText, styles.error]}>{error.message}</Text>
+      <Text style={[styles.statusText, styles.error]}>{errorText(error)}</Text>
     </View>
   );
 }
@@ -27,7 +28,7 @@ export function ErrorMessage({ error }: { error: Error }): React.JSX.Element {
  * failure is reported above them rather than replacing them.
  */
 export function RefreshError({ error }: { error: Error }): React.JSX.Element {
-  return <Text style={styles.refreshError}>Refresh failed: {error.message}</Text>;
+  return <Text style={styles.refreshError}>Refresh failed: {errorText(error)}</Text>;
 }
 
 /** `h1 { font-size: clamp(2rem,4vw,4rem); margin: 1.4rem 0 1.2rem }` */

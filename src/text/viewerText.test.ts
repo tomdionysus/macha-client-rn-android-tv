@@ -1,0 +1,104 @@
+import { describe, expect, it } from 'vitest';
+import type { PlaybackStatusDescription } from '@machafoundation/core';
+import {
+  alphabetKeyLabel,
+  errorText,
+  categoryLabel,
+  episodeLabel,
+  formatPlaybackTime,
+  playbackNoticeText,
+  sortChoiceLabel,
+  streamLines,
+  trackNumberLabel,
+  trackSearchLine,
+} from './viewerText';
+
+/**
+ * The wording core composed until 2026-09-24, carried over unchanged; each
+ * case is what a viewer saw before the cut and must still see after it.
+ */
+describe('viewer text', () => {
+  it('words the sort choices and categories as Tom named them', () => {
+    expect(sortChoiceLabel('title')).toBe('Sort By Title');
+    expect(sortChoiceLabel('recent')).toBe('Sort By Recently added');
+    expect(categoryLabel('shows')).toBe('TV Shows');
+  });
+
+  it('names episodes and tracks', () => {
+    expect(episodeLabel({ seasonNumber: 3, episodeNumber: 2 })).toBe('Season 3 Episode 2');
+    expect(episodeLabel({ episodeNumber: 4 })).toBe('Episode 4');
+    expect(trackNumberLabel({ trackNumber: 9 })).toBe('Track 9');
+    expect(trackNumberLabel({ discNumber: 2, trackNumber: 3 })).toBe('Disc 2 · Track 3');
+    expect(trackSearchLine({ album: { id: 'a', title: 'Ænima' }, artist: { id: 'b', title: 'Tool' } })).toBe('Tool - Ænima');
+  });
+
+  it('formats the player clock', () => {
+    expect(formatPlaybackTime(0)).toBe('0:00');
+    expect(formatPlaybackTime(245_000)).toBe('4:05');
+    expect(formatPlaybackTime(3_723_000)).toBe('1:02:03');
+  });
+
+  it('words every notice code core sends', () => {
+    for (const code of ['copy-refused', 'cannot-seek', 'not-ready', 'instruction-failed', 'subtitles-loading', 'update-failed'] as const) {
+      expect(playbackNoticeText({ code }), code).not.toBe('');
+    }
+  });
+
+  it("shows the alphabet strip's catch-all as #", () => {
+    expect(alphabetKeyLabel('other')).toBe('#');
+    expect(alphabetKeyLabel('A')).toBe('A');
+  });
+});
+
+describe('errorText', () => {
+  it('words a failed walk by whether any node answered', async () => {
+    const { MachaClusterRouteError } = await import('@machafoundation/core');
+    expect(errorText(new MachaClusterRouteError(['a'], true, new Error('x')))).toBe("Can't reach the Macha server.");
+    expect(errorText(new MachaClusterRouteError(['a'], false, new Error('x')))).toMatch(/couldn't answer/);
+  });
+
+  it('words a status found anywhere down the chain, never the message', () => {
+    const lapsed = new Error('Macha request failed: a valid session bearer token is required', {
+      cause: Object.assign(new Error('401'), { status: 401 }),
+    });
+    expect(errorText(lapsed)).toBe('Your session has ended. Sign in again.');
+    expect(errorText(new Error('All configured Macha API endpoints failed.'))).toBe('Something went wrong.');
+  });
+});
+
+/**
+ * Against lines read off `.133`'s screen on 2026-09-23/24, before core's cut:
+ * Bushwhacked, direct; Arrival, video copied and DTS transcoded.
+ */
+describe('streamLines', () => {
+  it('reads a direct play exactly as the set showed it', () => {
+    const lines = streamLines({
+      container: 'matroska',
+      delivery: 'direct',
+      video: { transform: 'copy', source: { type: 'video', index: 0, codec: 'hevc', width: 1920, height: 1080 }, sourceBitrate: 5_600_000 },
+      audio: { transform: 'copy', source: { type: 'audio', index: 1, codec: 'aac', language: 'eng', channels: 6, sampleRate: 48_000 } },
+    } as unknown as PlaybackStatusDescription);
+    expect(lines).toEqual({
+      container: 'MATROSKA',
+      video: 'DIRECT · HEVC · 1920×1080 · 5.6 Mb/s',
+      audio: 'DIRECT · ENG · AAC · 5.1 · 48 kHz',
+    });
+  });
+
+  it('reads a copied video with transcoded audio exactly as the set showed it', () => {
+    const lines = streamLines({
+      container: 'fmp4',
+      video: { transform: 'copy', source: { type: 'video', index: 0, codec: 'h264', width: 1920, height: 804 }, sourceBitrate: 3_600_000 },
+      audio: {
+        transform: 'transcode',
+        source: { type: 'audio', index: 1, codec: 'dts', language: 'eng', channels: 6, sampleRate: 48_000, bitrate: 768_000 },
+        output: { sourceStream: 1, transform: 'transcode', codec: 'aac', channels: 6, sampleRate: 48_000, bitrate: 384_000 },
+      },
+    } as unknown as PlaybackStatusDescription);
+    expect(lines).toEqual({
+      container: 'FMP4',
+      video: 'VIDEO COPY · H264 · 1920×804 · 3.6 Mb/s',
+      audio: 'AUDIO TRANSCODE · SOURCE · ENG · DTS · 5.1 · 48 kHz · 768 kb/s → AAC · 5.1 · 48 kHz · 384 kb/s',
+    });
+  });
+});

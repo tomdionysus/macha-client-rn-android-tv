@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
 import {
-  errorMessage,
   progressFor,
   sessionManager,
   type Episode,
@@ -18,6 +17,7 @@ import { useTvNavigation } from './hooks/useTvNavigation';
 import { tvFocus } from './hooks/tvFocus';
 import { isMediaFocusId, mediaFocusId } from './hooks/useAlphabetIndex';
 import { libraryTrail, type KnownAncestry } from './app/libraryTrail';
+import { SIGN_OUT_REVOKE_FAILED } from './text/viewerText';
 import { useEpisodeNeighbours } from './app/useEpisodeNeighbours';
 import { orphanedSessions } from './state/liveSessions';
 import { playbackLog } from './diagnostics/playbackLog';
@@ -282,8 +282,8 @@ function Shell(): React.JSX.Element {
     try {
       await runtime.stop();
       await sessionManager.signOut();
-    } catch (cause) {
-      setSignOutError(errorMessage(cause));
+    } catch {
+      setSignOutError(SIGN_OUT_REVOKE_FAILED);
     } finally {
       setSigningOut(false);
       // Regardless of the revoke: local state is cleared either way, so this

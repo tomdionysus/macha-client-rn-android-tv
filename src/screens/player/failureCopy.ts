@@ -1,12 +1,14 @@
-import { isAccountSessionLimit, playbackFailureCode } from '@machafoundation/core';
+import { isAccountSessionLimit, playbackFailureCode, playbackFailureDetail } from '@machafoundation/core';
+import { errorText } from '../../text/viewerText';
 
 /**
  * What the failure overlay says, and the one failure it says something
  * different for.
  *
  * **The account's own session cap is the only failure a viewer can act on
- * from a sofa.** Every other terminal failure names a node or a title, and
- * the honest thing to show is the message core assembled. A cap refusal names
+ * from a sofa.** Every other terminal failure is worded by `errorText` from
+ * its class, status and code — never its message, which since core's cut is
+ * log text (Tom, 2026-09-24: core writes no viewer text). A cap refusal names
  * *another screen on the same account*, and "Playback failed:
  * account_session_limit" tells a viewer with a remote and no address bar
  * nothing they can do about it. The sentence below does: the other screen is
@@ -31,11 +33,10 @@ export interface FailureCopy {
   /** The line the viewer reads. */
   headline: string;
   /**
-   * Core's own message, kept beneath the headline when the headline replaced
-   * it. A cap-refused failover's message names the failure that *started*
-   * the recovery, with the cap at the tail: the cap explains why recovery
-   * could not finish, not what went wrong (core, 2026-09-21), so the sentence
-   * leads and the message stays — small print, not the line.
+   * The server's own sentence about the failure, when it gave one — small
+   * print beneath the headline, never the headline. Read through core's
+   * `playbackFailureDetail`, which carries the server's words and nothing
+   * core composed.
    */
   detail?: string;
   /** The server's machine code, for the trail and the small print — never the headline. */
@@ -48,8 +49,8 @@ export function failureCopy(
 ): FailureCopy {
   const cap = isCap(error);
   return {
-    headline: cap ? ACCOUNT_SESSION_LIMIT_COPY : error.message,
-    detail: cap && error.message.trim() ? error.message : undefined,
+    headline: cap ? ACCOUNT_SESSION_LIMIT_COPY : errorText(error),
+    detail: playbackFailureDetail(error),
     code: playbackFailureCode(error),
   };
 }

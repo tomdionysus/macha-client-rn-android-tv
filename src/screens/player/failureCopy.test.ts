@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { ACCOUNT_SESSION_LIMIT_COPY, failureCopy } from './failureCopy';
+import { errorText } from '../../text/viewerText';
 
 describe('failureCopy', () => {
-  it('shows the message core assembled for an ordinary failure', () => {
+  it('words an ordinary failure itself, never with the message', () => {
+    // Since core's cut (Tom, 2026-09-24) a message is log text; this one must
+    // not reach the screen.
     const error = new Error('No media delivered within 19000ms');
+    const copy = failureCopy(error, () => false);
 
-    expect(failureCopy(error, () => false)).toEqual({
-      headline: 'No media delivered within 19000ms',
-      code: undefined,
-    });
+    expect(copy.headline).not.toContain('19000ms');
+    expect(copy.headline).toBe(errorText(error));
+    expect(copy.detail).toBeUndefined();
   });
 
   it('replaces the headline with the sentence a viewer can act on when core says it is the cap', () => {
@@ -19,14 +22,12 @@ describe('failureCopy', () => {
     expect(failureCopy(error, () => true).headline).toBe(ACCOUNT_SESSION_LIMIT_COPY);
   });
 
-  it('keeps the message that started the recovery beneath the cap sentence', () => {
-    // A cap-refused failover leads with the failure that began it; the cap is
-    // why recovery could not finish. The viewer's line is the sentence; what
-    // went wrong is not thrown away.
-    const error = new Error('Source error Response code: 404');
+  it("keeps the server's own sentence as small print, and never core's message", () => {
+    // `detail` on an error is the server's words; the message is log text.
+    const server = Object.assign(new Error('log text only'), { detail: 'Too many streams on this account.' });
 
-    expect(failureCopy(error, () => true).detail).toBe('Source error Response code: 404');
-    expect(failureCopy(error, () => false).detail).toBeUndefined();
+    expect(failureCopy(server, () => true).detail).toBe('Too many streams on this account.');
+    expect(failureCopy(new Error('Source error Response code: 404'), () => true).detail).toBeUndefined();
   });
 
   it('surfaces the server code from down the cause chain without parsing the message', () => {
@@ -35,10 +36,9 @@ describe('failureCopy', () => {
     const refusal = Object.assign(new Error('node refused'), { code: 'bad_playback_request' });
     const wrapped = new Error('Playback failed', { cause: new Error('endpoint failed', { cause: refusal }) });
 
-    expect(failureCopy(wrapped, () => false)).toEqual({
-      headline: 'Playback failed',
-      code: 'bad_playback_request',
-    });
+    const copy = failureCopy(wrapped, () => false);
+    expect(copy.code).toBe('bad_playback_request');
+    expect(copy.headline).toBe(errorText(wrapped));
   });
 
   it('finds the cap code when a refused failover is the tail of the chain', () => {
@@ -55,9 +55,11 @@ describe('failureCopy', () => {
     expect(failureCopy(originating, () => false).code).toBe('cap-code-under-test');
   });
 
-  it('never lets the code become the headline', () => {
+  it('never lets the code or the message become the headline', () => {
     const refusal = Object.assign(new Error('refused'), { code: 'some_code' });
+    const headline = failureCopy(refusal, () => false).headline;
 
-    expect(failureCopy(refusal, () => false).headline).toBe('refused');
+    expect(headline).not.toBe('some_code');
+    expect(headline).not.toBe('refused');
   });
 });

@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ALPHABET_INDEX, type AlphabetIndexKey } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { colour, font, radius, rem, type } from '../styles/theme';
+import { alphabetKeyLabel } from '../text/viewerText';
 
 /**
  * Jump-to-letter, from `.alphabet-index` in base.css.
@@ -53,7 +54,7 @@ export function AlphabetIndex({
                   focused && styles.labelFocused,
                 ]}
               >
-                {key}
+                {alphabetKeyLabel(key)}
               </Text>
             )}
           </Focusable>

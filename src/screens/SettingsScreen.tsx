@@ -17,6 +17,7 @@ import { PageTitle } from '../components/Status';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
 import { version as clientVersion } from '../../package.json';
+import { errorText } from '../text/viewerText';
 
 /**
  * Settings, laid out as the web client's is.
@@ -140,7 +141,7 @@ export function SettingsScreen(): React.JSX.Element {
                     : 'Unavailable',
               ],
             ]}
-            error={server.error?.message ?? server.value?.message ?? undefined}
+            error={server.error ? errorText(server.error) : (server.value?.message ?? undefined)}
           />
           <StatusCard
             label="Catalogue"
@@ -163,7 +164,7 @@ export function SettingsScreen(): React.JSX.Element {
               ],
               ['Generation', catalogue.value ? String(catalogue.value.metadata_generation) : '—'],
             ]}
-            error={catalogue.error?.message ?? catalogue.value?.error ?? undefined}
+            error={catalogue.error ? errorText(catalogue.error) : (catalogue.value?.error ?? undefined)}
           />
           <StatusCard label="Client" state="Android TV" rows={[['Version', clientVersion]]} />
         </View>
@@ -244,7 +245,7 @@ export function SettingsScreen(): React.JSX.Element {
         */}
         <View style={styles.section} onLayout={measureRow('decoding')}>
           <Text style={styles.heading}>Hardware decoding</Text>
-          {error ? <Text style={styles.error}>{error.message}</Text> : null}
+          {error ? <Text style={styles.error}>{errorText(error)}</Text> : null}
           {capabilities ? (
             <>
               <Capability name="Video" value={capabilities.videoCodecs.join(', ')} />

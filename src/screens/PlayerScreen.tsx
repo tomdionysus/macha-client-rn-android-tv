@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, Text, View } from 'react-native';
 import {
   describePlaybackSession,
-  formatPlaybackTime,
   type Episode,
   type MediaSummary,
   type PlaybackCoordinatorSnapshot,
@@ -34,6 +33,13 @@ import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
 import { px, colour, disabledOpacity, font, pageGutter, radius, rem, type } from '../styles/theme';
+import {
+  compactEpisodeLabel,
+  errorText,
+  formatPlaybackTime,
+  playbackNoticeText,
+  streamLines as streamLinesText,
+} from '../text/viewerText';
 import type { EpisodeNavigation } from '../app/useEpisodeNeighbours';
 
 /**
@@ -472,15 +478,17 @@ export function PlayerScreen({
     return () => clearInterval(timer);
   }, [diagnostics]);
 
-  const streamLines = useMemo(
-    () => [
-      [streamStatus?.container, streamStatus?.endpoint].filter(Boolean).join(' : '),
-      streamStatus?.video,
-      streamStatus?.audio,
-      streamStatus?.subtitle,
-    ].filter((line): line is string => Boolean(line)),
-    [streamStatus?.container, streamStatus?.endpoint, streamStatus?.video, streamStatus?.audio, streamStatus?.subtitle],
-  );
+  // Composed here since core's cut: the description is data, and its `video`
+  // and `audio` are objects that would throw inside a `<Text>`.
+  const streamLines = useMemo(() => {
+    const worded = streamLinesText(streamStatus);
+    return [
+      [worded.container, streamStatus?.endpoint].filter(Boolean).join(' : '),
+      worded.video,
+      worded.audio,
+      worded.subtitle,
+    ].filter((line): line is string => Boolean(line));
+  }, [streamStatus]);
 
   const playedPercent = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
   const bufferedPercent = duration > 0 ? Math.min(100, (buffered / duration) * 100) : 0;
@@ -505,7 +513,7 @@ export function PlayerScreen({
       {playback?.fatalError ? (
         <View style={styles.fatalError}>
           <Text style={styles.fatalTitle}>Playback failed</Text>
-          <Text style={styles.fatalMessage}>{fatal?.headline ?? playback.fatalError.message}</Text>
+          <Text style={styles.fatalMessage}>{fatal?.headline ?? errorText(playback.fatalError)}</Text>
           {fatal?.detail ? <Text style={styles.fatalCode}>{fatal.detail}</Text> : null}
           {fatal?.code ? <Text style={styles.fatalCode}>{fatal.code}</Text> : null}
           {trail.map((entry) => (
@@ -565,15 +573,15 @@ export function PlayerScreen({
               <Text style={styles.title} numberOfLines={1}>
                 {media.title}
               </Text>
-              {media.subtitle ? (
+              {media.kind === 'episode' && compactEpisodeLabel(media) ? (
                 <Text style={styles.subtitle} numberOfLines={1}>
-                  {media.subtitle}
+                  {compactEpisodeLabel(media)}
                 </Text>
               ) : null}
             </View>
             <View style={styles.streamStatus}>
               {playback?.notice ? (
-                <Text style={styles.streamLine}>{playback.notice}</Text>
+                <Text style={styles.streamLine}>{playbackNoticeText(playback.notice)}</Text>
               ) : playback?.preparingSource ? (
                 // The one moment the client is moving between nodes, and
                 // "which node" is the only question worth asking about it. The

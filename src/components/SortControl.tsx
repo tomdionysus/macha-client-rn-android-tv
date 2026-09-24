@@ -2,6 +2,7 @@ import { StyleSheet, Text } from 'react-native';
 import type { MediaSort, MediaSortKey } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { colour, controlRow, focusFrame, rem, type } from '../styles/theme';
+import { sortChoiceLabel } from '../text/viewerText';
 
 /**
  * The sort choice, as one control that reads "Sort By Title" and moves to the
@@ -46,7 +47,7 @@ export function SortControl({
     >
       {({ focused }) => (
         <Text style={[styles.label, focused && styles.labelFocused]} numberOfLines={1}>
-          {current.choiceLabel}
+          {sortChoiceLabel(current.key)}
         </Text>
       )}
     </Focusable>

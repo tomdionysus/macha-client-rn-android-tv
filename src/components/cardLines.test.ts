@@ -2,24 +2,25 @@ import { describe, expect, it } from 'vitest';
 import type { MediaSummary } from '@machafoundation/core';
 import { cardLines } from './cardLines';
 
+const music = { album: { id: 'al', title: 'Homogenic', year: 1997 }, artist: { id: 'ar', title: 'Björk' } };
+
 describe('cardLines', () => {
   it('names an episode by its series, then "Season x Episode y", never SxxEyy', () => {
     const episode: MediaSummary = {
-      id: 'e', kind: 'episode', title: 'Our Mrs. Reynolds', mediaIds: [], subtitle: 'S01E03',
-      seasonNumber: 1, episodeNumber: 3,
+      id: 'e', kind: 'episode', title: 'Our Mrs. Reynolds', mediaIds: [], seasonNumber: 1, episodeNumber: 3,
       playbackContext: { series: { id: 's', title: 'Firefly' }, season: { id: 'x', title: 'Season 1', seasonNumber: 1 } },
     };
     expect(cardLines(episode)).toEqual(['Firefly', 'Season 1 Episode 3']);
   });
 
-  it('gives a search track its line, then its own position', () => {
-    const track = { id: 't', kind: 'track', title: 'Jóga', mediaIds: [], subtitle: 'Björk - Homogenic (1997)', trackNumber: 3 } as MediaSummary;
+  it('gives a search track "Artist - Album (year)", then its own position', () => {
+    const track = { id: 't', kind: 'track', title: 'Jóga', mediaIds: [], trackNumber: 3, musicContext: music } as MediaSummary;
     expect(cardLines(track)).toEqual(['Björk - Homogenic (1997)', 'Track 3']);
   });
 
-  it('does not repeat "Track 9" where core already made it the subtitle', () => {
-    const track = { id: 't', kind: 'track', title: 'Jóga', mediaIds: [], subtitle: 'Track 9', trackNumber: 9 } as MediaSummary;
-    expect(cardLines(track)).toEqual(['Track 9']);
+  it("puts an album's artist beneath it", () => {
+    const album = { id: 'al', kind: 'album', title: 'Homogenic', mediaIds: [], musicContext: music } as MediaSummary;
+    expect(cardLines(album)).toEqual(['Björk']);
   });
 
   it('gives a film its year', () => {
