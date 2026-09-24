@@ -69,11 +69,16 @@ export function MediaCard({
     >
       {({ focused }) => (
         <>
+          {/*
+            * In a grid that mixes shapes, square art sits centred in a box
+            * with a poster's 2:3 shape, so its title starts on the same line
+            * as the posters' beside it. A plain wrapper otherwise.
+            */}
+          <View style={isSquare && squareInPosterHeight ? styles.posterSlot : null}>
           <View
             style={[
               styles.poster,
               isSquare && styles.posterSquare,
-              isSquare && squareInPosterHeight && styles.posterSquareCentred,
               focused && styles.posterFocused,
             ]}
           >
@@ -95,6 +100,7 @@ export function MediaCard({
                 <View style={[styles.progressValue, { width: `${Math.min(100, progress * 100)}%` }]} />
               </View>
             )}
+          </View>
           </View>
           <Text style={styles.title} numberOfLines={1}>
             {media.title}
@@ -161,10 +167,18 @@ const styles = StyleSheet.create({
   posterSquare: {
     aspectRatio: 1,
   },
-  // A percentage margin is taken from the width, as in CSS: 25% above and
-  // below a square makes up a 2:3 poster's height.
-  posterSquareCentred: {
-    marginVertical: '25%',
+  /**
+   * `.search-results .music-artwork { margin-top: 25%; margin-bottom: 25% }` —
+   * the web centres a square in a poster's height with percentage margins.
+   * Measured on `.133`, 2026-09-24, those do not resolve here as they do in
+   * CSS: the art came out at about half size and its title started higher
+   * than the posters'. A box of the poster's own shape, centring the square,
+   * gives the same result without depending on how margins resolve.
+   */
+  posterSlot: {
+    width: '100%',
+    aspectRatio: 2 / 3,
+    justifyContent: 'center',
   },
   posterFocused: {
     borderColor: colour.focus,
