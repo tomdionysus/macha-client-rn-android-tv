@@ -8,6 +8,8 @@ import {
   formatPlaybackTime,
   playbackNoticeText,
   serverStatusText,
+  catalogueStatusText,
+  isSignedOut,
   sortChoiceLabel,
   streamLines,
   trackFacts,
@@ -49,6 +51,47 @@ describe('viewer text', () => {
   it("shows the alphabet strip's catch-all as #", () => {
     expect(alphabetKeyLabel('other')).toBe('#');
     expect(alphabetKeyLabel('A')).toBe('A');
+  });
+});
+
+describe('catalogueStatusText', () => {
+  const status = (ready: boolean, error: string | null, error_code?: string | null) =>
+    ({ enabled: true, ready, error, error_code } as never);
+
+  it('says nothing while the catalogue is ready', () => {
+    expect(catalogueStatusText(status(true, null, null))).toBeUndefined();
+  });
+
+  it('words the server 0.56.0 code, never the sentence beside it', () => {
+    expect(catalogueStatusText(status(false, 'metadata store is converging', 'converging'))).toBe(
+      'The catalogue is still being brought up to date.',
+    );
+    expect(catalogueStatusText(status(false, 'catalogue unavailable: io', 'unavailable'))).toBe(
+      "The catalogue isn't available on this server right now.",
+    );
+  });
+
+  it('gives its own sentence for an older node that sends only English', () => {
+    expect(catalogueStatusText(status(false, 'something the server said'))).toBe(
+      "The catalogue isn't available on this server right now.",
+    );
+  });
+});
+
+/**
+ * §1.12, measured on `.133` 2026-09-23: signed out, Settings read "Server
+ * online; catalogue unavailable" and PLAYBACK: Unavailable, an authentication
+ * state worded as an outage.
+ */
+describe('isSignedOut', () => {
+  it('recognises a 401 or 403 anywhere down the chain', () => {
+    expect(isSignedOut(new Error('x', { cause: Object.assign(new Error('401'), { status: 401 }) }))).toBe(true);
+    expect(isSignedOut(Object.assign(new Error('403'), { status: 403 }))).toBe(true);
+  });
+
+  it('does not call an outage a sign-out', () => {
+    expect(isSignedOut(Object.assign(new Error('503'), { status: 503 }))).toBe(false);
+    expect(isSignedOut(undefined)).toBe(false);
   });
 });
 

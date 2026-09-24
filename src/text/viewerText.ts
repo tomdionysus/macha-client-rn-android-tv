@@ -14,6 +14,7 @@ import {
   type PlaybackStreamInfo,
   type SearchCategoryKey,
   type ServerStatus,
+  type CatalogueStatus,
 } from '@machafoundation/core';
 
 /**
@@ -207,6 +208,30 @@ export function serverStatusText(status: ServerStatus): string | undefined {
   if (http === 401 || http === 403) return 'Your session has ended. Sign in again.';
   if (http >= 500) return "The Macha server couldn't answer right now. Try again shortly.";
   return 'Playback is not available on this Macha server.';
+}
+
+/**
+ * The note under Settings > Catalogue, or nothing while it is ready.
+ *
+ * Worded from server 0.56.0's `error_code` (`converging`, `unavailable`),
+ * never from `error`, which is the server's English. An older node sends only
+ * the English; it gets this client's own sentence instead.
+ */
+export function catalogueStatusText(status: CatalogueStatus): string | undefined {
+  if (status.ready) return undefined;
+  if (status.error_code === 'converging') return 'The catalogue is still being brought up to date.';
+  if (status.error_code || status.error) return "The catalogue isn't available on this server right now.";
+  return undefined;
+}
+
+/**
+ * Whether this failure means the viewer is signed out, not that anything is
+ * down. §1.12: signed out, Settings used to report a `401` as an outage.
+ */
+export function isSignedOut(error: unknown): boolean {
+  if (error instanceof SessionAuthError) return true;
+  const status = playbackFailureStatus(error);
+  return status === 401 || status === 403;
 }
 
 /**

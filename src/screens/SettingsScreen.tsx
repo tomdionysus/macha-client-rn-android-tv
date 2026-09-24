@@ -18,7 +18,7 @@ import { PageTitle } from '../components/Status';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
 import { version as clientVersion } from '../../package.json';
-import { errorText, serverStatusText } from '../text/viewerText';
+import { catalogueStatusText, errorText, isSignedOut, serverStatusText } from '../text/viewerText';
 
 /**
  * Settings, laid out as the web client's is.
@@ -83,7 +83,16 @@ export function SettingsScreen(): React.JSX.Element {
    * Reproduced rather than reinvented, because "Ready" has to mean the same
    * thing on both clients — a viewer comparing them is entitled to that much.
    */
-  const overallState = server.error
+  // Signed out is not an outage (§1.12): it outranks the rest of the ladder,
+  // which would otherwise report a 401 as "catalogue unavailable".
+  const signedOut =
+    isSignedOut(server.error) ||
+    isSignedOut(catalogue.error) ||
+    server.value?.httpStatus === 401 ||
+    server.value?.httpStatus === 403;
+  const overallState = signedOut
+    ? "Signed out: sign in to see this server's state"
+    : server.error
     ? 'Server unavailable'
     : catalogue.error
       ? 'Server online; catalogue unavailable'
@@ -135,7 +144,9 @@ export function SettingsScreen(): React.JSX.Element {
               ['Version', server.value?.version ?? (server.loading ? 'Checking…' : 'Not reported')],
               [
                 'Playback',
-                server.error
+                signedOut
+                  ? 'Sign in required'
+                  : server.error
                   ? 'Unavailable'
                   : server.value?.playbackAvailable
                     ? 'Available'
@@ -147,7 +158,9 @@ export function SettingsScreen(): React.JSX.Element {
           <StatusCard
             label="Catalogue"
             state={
-              catalogue.error
+              signedOut
+                ? 'Sign in required'
+                : catalogue.error
                 ? 'Unavailable'
                 : catalogue.value?.ready
                   ? 'Ready'
@@ -165,7 +178,7 @@ export function SettingsScreen(): React.JSX.Element {
               ],
               ['Generation', catalogue.value ? String(catalogue.value.metadata_generation) : '—'],
             ]}
-            error={catalogue.error ? errorText(catalogue.error) : (catalogue.value?.error ?? undefined)}
+            error={catalogue.error ? errorText(catalogue.error) : (catalogue.value ? catalogueStatusText(catalogue.value) : undefined)}
           />
           <StatusCard label="Client" state="Android TV" rows={[['Version', clientVersion]]} />
         </View>
