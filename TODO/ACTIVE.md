@@ -20,7 +20,15 @@ things they got wrong. Read that first; this section is only what is open.
   resolved the npm tarball, typecheck clean, 297 tests, export OK. The APK
   (md5 `5695b83a8d3d5406d8675c319fe496a6`, `versionCode 700`, `armeabi-v7a`,
   leanback) direct-played *The Train Job* on `.133`.
-- **`develop` links `file:../macha-ts` again** for development, as after 0.6.0.
+- **0.7.0 cannot play against server 0.57.1 (measured 2026-09-25).** Server
+  0.57.1 (live on fi-1 and gbni-1) chooses no file and refuses a create
+  without `media_id`; core 0.19.0 sends `item_id` only. Replayed on fi-1:
+  `HTTP 400 {"error":{"code":"item_id_not_accepted",…}}`. The fix is core
+  `0bce895` published, then a TV **0.7.1** onto it. **Tom's call.**
+- **`develop` links `file:../macha-ts` again** for development, as after 0.6.0, now at core `0bce895`
+  (speaks 0.57.1); typecheck, 310 tests and export pass against it. The
+  player's Source group is dead under it (core maps `media_ids` to `[]`) until
+  versions replace it.
 - `.gitignore` (`*.local.md`) and `basemind.toml` are still uncommitted, as
   they were before this session: tooling, nobody's decision yet.
 
