@@ -477,3 +477,52 @@ describe('a wide element beside smaller ones', () => {
     expect(pickTvCandidate(field.rect, [sort, ...cards], 'down')?.id).toMatch(/^card-/);
   });
 });
+
+/**
+ * Tom, 2026-09-24: going down from a row and straight back up should land on
+ * the control the viewer left, not on whatever happens to be nearest.
+ */
+describe('reversing a move', () => {
+  beforeEach(() => {
+    tvFocus.resumeAll();
+    tvFocus.select(undefined);
+    tvFocus.restoreWhenPresent(undefined);
+  });
+
+  function place(id: string, r: FocusRect): () => void {
+    const stop = tvFocus.register({ id });
+    tvFocus.measure(id, r);
+    return stop;
+  }
+
+  // Search's row: the wide field, then the sort control; results below. The
+  // cards sit under the field's right end, so Up from them is — by geometry —
+  // the field.
+  const layout = (): (() => void)[] => [
+    place('field', rect(58, 172, 1264, 46)),
+    place('sort', rect(1340, 172, 152, 46)),
+    place('card-a', rect(872, 250, 200, 360)),
+    place('card-b', rect(1100, 250, 200, 360)),
+  ];
+
+  it('returns to the element it came from, where geometry would choose another', () => {
+    const stops = layout();
+    tvFocus.select('sort');
+    tvFocus.handle('down');
+    expect(tvFocus.selected()).toBe('card-b');
+    tvFocus.handle('up');
+    expect(tvFocus.selected()).toBe('sort');
+    stops.forEach((stop) => stop());
+  });
+
+  it('forgets once the viewer moves another way', () => {
+    const stops = layout();
+    tvFocus.select('sort');
+    tvFocus.handle('down');
+    tvFocus.handle('left');
+    expect(tvFocus.selected()).toBe('card-a');
+    tvFocus.handle('up');
+    expect(tvFocus.selected()).toBe('field');
+    stops.forEach((stop) => stop());
+  });
+});

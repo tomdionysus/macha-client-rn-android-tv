@@ -202,6 +202,18 @@ class TvFocusRegistry {
    */
   private provisional = false;
 
+  /**
+   * The last move the D-pad made, so the opposite press can undo it.
+   *
+   * Tom, 2026-09-24: going down from a row and straight back up should land
+   * on the control the viewer left, not on whatever geometry finds nearest
+   * from where they now are. Only the move just made is remembered, and any
+   * other selection — another direction, a restore, a default — forgets it,
+   * so the rule stays one a viewer can predict: *the opposite press undoes
+   * the last one*. **Not in the web client**; offered to it.
+   */
+  private lastMove: { from: string; to: string; direction: TvDirection } | undefined;
+
   register(focusable: Omit<Focusable, 'order'>): () => void {
     const existing = this.focusables.get(focusable.id);
     // Keep the original order across a re-registration, so a focusable that
@@ -363,6 +375,7 @@ class TvFocusRegistry {
 
   select(id: string | undefined): void {
     this.provisional = false;
+    this.lastMove = undefined;
     if (this.selectedId === id) return;
     const previous = this.selectedId ? this.focusables.get(this.selectedId) : undefined;
     this.selectedId = id;
@@ -499,6 +512,18 @@ class TvFocusRegistry {
       return true;
     }
 
+    // The opposite of the move just made goes back where it came from, if
+    // that element is still here and still in reach.
+    const undo = this.lastMove;
+    if (undo && undo.to === current.id && command === OPPOSITE[undo.direction]) {
+      const back = elements.find((entry) => entry.id === undo.from);
+      if (back) {
+        this.select(back.id);
+        this.lastMove = { from: current.id, to: back.id, direction: command };
+        return true;
+      }
+    }
+
     const rect = current.rect;
     let next: Focusable | undefined;
 
@@ -514,8 +539,11 @@ class TvFocusRegistry {
 
     if (!next) return false;
     this.select(next.id);
+    this.lastMove = { from: current.id, to: next.id, direction: command };
     return true;
   }
 }
+
+const OPPOSITE: Record<TvDirection, TvDirection> = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
 export const tvFocus = new TvFocusRegistry();
