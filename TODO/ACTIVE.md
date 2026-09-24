@@ -15,24 +15,27 @@ things they got wrong. Read that first; this section is only what is open.
 ### The tree
 
 - **`main` is `0.6.0`** (tagged), against core `^0.18.0` from the registry.
-- **`develop` is 42 commits ahead of origin, not pushed — the push is Tom's.**
-  It links `file:../macha-ts`, last checked at core `b5c0128` (dist hash
-  `71e9158332ca`); 288 tests pass against it.
-- **`develop` can no longer run against published core.** Core's viewer-text
-  cut (§1.16 in `COMPLETED.md`) removed APIs `0.18.0` has and added ones it
-  lacks. **Nothing on `develop` can reach `main` until core publishes** a
-  version carrying the cut, `progressWriteDue`, `episodeNeighbours`,
-  `SEARCH_SORTS` and the liveness check. Core has said it will announce it.
+- **`develop` is 49 commits ahead of origin, not pushed — the push is Tom's.**
+  It links `file:../macha-ts`, last checked at core `d8600cb`; typecheck, 297
+  tests and the export pass against it (2026-09-24).
+- **Release called by Tom 2026-09-24; blocked on core publishing.** The
+  registry's latest is `0.18.0` and `macha-ts` still says `0.18.0`, while
+  develop needs the viewer-text cut, `ServerStatus.code`/`detail`,
+  `seedEndpoints`, the decode fallback (`e840d72`), `progressWriteDue`,
+  `episodeNeighbours`, `SEARCH_SORTS` and the liveness check. Core has been
+  asked which version and when. Then: point `main`'s dependency at that
+  version, re-run the three checks against the *registry* copy, bump
+  `package.json` + `app.json` + `versionCode` in the release commit, tag
+  bare semver, annotated. The version number is Tom's.
 - `.gitignore` (`*.local.md`) and `basemind.toml` are still uncommitted, as
   they were before this session: tooling, nobody's decision yet.
 
 ### The set
 
-- **`10.35.1.133`** runs develop `e537528`, APK md5
-  `0a74b0a5d4ac1895bbe8111d2c35b890`, built against core `a5b08f0` (before
-  core's `seedEndpoints`). **Signed in as `tvtest`** (re-signed 2026-09-24;
+- **`10.35.1.133`** runs develop `cc5f553`, APK md5
+  `1bc8471a8bcf1107bb110c4479d63605`, built against core `ba82c52`. **Signed in as `tvtest`** (re-signed 2026-09-24;
   the earlier session did not survive the dead node). Left paused in the
-  *Classroom 216* player; `screen_off_timeout` put back to `600000`.
+  *Classroom 216* player (transcoding); `screen_off_timeout` put back to `600000`.
 - **Configured endpoints: `http://10.35.1.50:7438`, `http://10.44.1.50:7438`**,
   by Tom's instruction 2026-09-24. `10.35.1.50` came back during the
   sitting. Remembered: `https://macnessa.macha.network`. **`ramaroja` is
@@ -41,16 +44,18 @@ things they got wrong. Read that first; this section is only what is open.
   Settings > Server (no note while serving), the player's clock and stream
   lines, direct and transcode. Still unseen: Music albums, Sort By, notices,
   an error screen.
-- **Direct play of MPEG-4 Part 2 fails on this set.** *Classroom 216* (AVI,
-  `video/mp4v-es` 624x352): `OMX.realtek.video.decoder` raises `0x80001009`
-  with `format_supported=YES`, so Auto picks Direct and it sits at 0:00. The
-  source then moved between addresses of the same node, which cannot help a
-  decode error. Transcode plays it. Two open questions: whether `mpeg4` should
-  count as direct-playable here (a platform probe question, this repo's), and
-  whether a decoder error should move node at all (the coordinator's
-  classifier). Also: with Transcode chosen, the hint under Mode still says
-  "Chosen automatically: this device plays the file as it is."
-- `10.34.1.115` has not been touched since 2026-09-21.
+- **Direct play of MPEG-4 Part 2 fails in this set's decoder**
+  (`OMX.realtek.video.decoder`, `0x80001009`, `format_supported=YES`), seen
+  on *Classroom 216*. **Handled since develop `7549559` + core `e840d72`
+  (measured 2026-09-24, APK md5 `1bc8471a8bcf1107bb110c4479d63605`):** in
+  Auto the failure is reported as `media`, core falls back to a transcode on
+  the same node at the viewer's position, and it plays. Known wording fault,
+  left for after the release: the Mode hint then reads "this device plays
+  the file as it is; this television could not decode the original streams",
+  two reasons that contradict; `instructionNote` should drop
+  `source-plays-as-is` when `player-could-not-decode` is present. Also still
+  open: with Transcode chosen by hand earlier, the hint said "Chosen
+  automatically".
 
 ### Open, in order
 
@@ -62,7 +67,8 @@ things they got wrong. Read that first; this section is only what is open.
    address (`http://10.35.1.99:7438`) configured, the set reached Macha
    through its remembered nodes over two consecutive restarts. Now seeded by
    core's `seedEndpoints` (`b47773d`), which also stops the list being wiped
-   while nothing has answered yet; that half is **not yet on the set**.
+   while nothing has answered yet; that half is on the set since `1bc8471a`
+   but has not been exercised.
 3. **Faint focus in two places**, found while checking tonight's build: the top
    bar (focus and "current page" are one fill a shade apart) and the sign-in
    buttons (after moving, neither showed focus). Offered to Tom, not answered.
