@@ -2160,8 +2160,9 @@ than the logo, and the sentence is worth carrying:
 timer over that would turn every brief hesitation into an announcement"*
 (`macha-client/src/screens/PlayerScreen.tsx`). Its wider argument is this one's
 foundation — *"an unmarked spinner says only that something is happening"*, and
-Law 2, that a degraded state must be visible rather than becoming indefinite
-waiting. The logo is what makes a recovery *marked*.
+the principle *Work is bounded and event-driven*
+(`docs/principles-and-laws.md`), that a degraded state must be visible rather
+than becoming indefinite waiting. The logo is what makes a recovery *marked*.
 
 #### **This client has no spinner at all** — the pair is half missing
 
