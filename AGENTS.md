@@ -36,6 +36,17 @@ core does not have it yet, **say so at the declaration** and name what should
 replace it — `src/player/timingBudgets.ts` and `PlayerEngine.kt`'s failure
 classifier both do this.
 
+**Every word a viewer sees is this client's, not core's.** Tom's ruling,
+given to core directly on 2026-09-24: core handles no viewer text at all — no
+labels, subtitles, choice names, notices or error sentences. Core keeps
+structured data (`playbackContext`, `musicContext`, season, episode, track and
+disc numbers, sort and category keys, error and notice *codes*); this client
+composes the words from it. This narrows the rule above: logic still goes to
+core, **wording never does**. Core is cutting its composers (`episodeLabel`,
+`choiceLabel`, `trackSubtitle` and the rest) and will list what replaces each;
+move each use to local text as its replacement lands, and do not build on them
+meanwhile.
+
 **Appearance comes from `src/styles/theme.ts`**, a port of
 `macha-client/src/styles/base.css`. A colour or size written inline is one that
 will not follow when the web client changes. Cite the CSS rule in a comment, as

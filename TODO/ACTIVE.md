@@ -900,6 +900,17 @@ The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
 
+### 1.16 Viewer text leaves core — Tom, 2026-09-24, **waiting on core's list**
+
+Core will stop composing any viewer text (see AGENTS.md). This client
+currently takes from it: `episodeLabel` and `trackNumberLabel` (`cardLines.ts`);
+`media.subtitle` wherever a card or the player shows one; `choiceLabel`
+(`SortControl`) and `SearchCategory.label` (`CategoryToggles`); `error.message`
+(`Status.tsx`, `failureCopy`); and the coordinator's notice sentences
+(`PlayerScreen`). All reported to core (message `6b8ba178`) with a request for
+codes on every error and notice, and the album's artist as data. Move each to
+local text as core's replacement lands, so the set never shows a gap.
+
 ### 1.15 Search, sort and focus — **built and measured on `.133`, 2026-09-24**
 
 Measured on builds up to md5 `e04303d9…` (develop `58e9c65`), signed in as
