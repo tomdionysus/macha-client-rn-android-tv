@@ -10,6 +10,7 @@ import {
   serverStatusText,
   sortChoiceLabel,
   streamLines,
+  trackFacts,
   trackNumberLabel,
   trackSearchLine,
 } from './viewerText';
@@ -48,6 +49,21 @@ describe('viewer text', () => {
   it("shows the alphabet strip's catch-all as #", () => {
     expect(alphabetKeyLabel('other')).toBe('#');
     expect(alphabetKeyLabel('A')).toBe('A');
+  });
+});
+
+describe('trackFacts', () => {
+  const context = { album: { id: 'a', title: 'Homogenic', year: 1997 }, artist: { id: 'b', title: 'Björk' } };
+
+  it('gives the artist, the album with its year, and the place on the album (Tom, 2026-09-24)', () => {
+    expect(trackFacts({ trackNumber: 3, discNumber: 1, musicContext: context } as never)).toEqual({
+      artist: 'Björk', album: 'Homogenic (1997)', track: 'Track 3',
+    });
+    expect(trackFacts({ trackNumber: 3, discNumber: 2, musicContext: context } as never).track).toBe('Disc 2 · Track 3');
+  });
+
+  it('shows what it has for a track restored from before core 0.19.0 with no music context', () => {
+    expect(trackFacts({ trackNumber: 5 } as never)).toEqual({ artist: undefined, album: undefined, track: 'Track 5' });
   });
 });
 

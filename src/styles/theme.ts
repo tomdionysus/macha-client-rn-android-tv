@@ -118,6 +118,10 @@ export const colour = {
   inputBorder: '#3a3a40',
   inputBackground: '#19191c',
   placeholderGlyph: '#ffffff16',
+  /** `.audio-player-placeholder { color: #ffffff22 }` — a track's initial in the player. */
+  audioPlaceholderGlyph: '#ffffff22',
+  /** `.audio-player-artist { color: #f2f2f4 }`. */
+  audioArtist: '#f2f2f4',
   /** `.player-option-group button { background: #09090ab8 }`. */
   optionSurface: '#09090ab8',
   /** `.player-option-group button { color: #bcbcc2 }`. */

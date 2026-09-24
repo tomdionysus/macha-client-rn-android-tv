@@ -88,6 +88,22 @@ export function albumLabel(context: MusicHierarchyContext): string {
   return typeof year === 'number' && year > 0 ? `${title} (${year})` : title;
 }
 
+/**
+ * What a track is, for the lines under its artwork in the player: the artist,
+ * the album with its year, and where it sits on the album. Tom's request,
+ * 2026-09-24, matching the web client's `TrackFacts`. A track restored from
+ * before core 0.19.0 may carry no music context; it shows what it has.
+ */
+export function trackFacts(
+  track: Pick<MediaSummary, 'musicContext' | 'discNumber' | 'trackNumber'>,
+): { artist?: string; album?: string; track?: string } {
+  return {
+    artist: track.musicContext?.artist?.title,
+    album: track.musicContext ? albumLabel(track.musicContext) : undefined,
+    track: trackNumberLabel(track),
+  };
+}
+
 /** "Björk - Homogenic (1997)" — a track found by search. */
 export function trackSearchLine(context: MusicHierarchyContext): string {
   const album = albumLabel(context);

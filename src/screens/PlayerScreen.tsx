@@ -16,6 +16,7 @@ import {
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
+import { AudioPresentation } from './player/AudioPresentation';
 import {
   LIVE_DETAIL_CHARS,
   LIVE_TRAIL_ENTRIES,
@@ -509,6 +510,9 @@ export function PlayerScreen({
       ) : (
         <View style={styles.host} />
       )}
+
+      {/* `.audio-player` — a track has no picture, so its artwork and what it is. */}
+      {media.kind === 'track' ? <AudioPresentation track={media} /> : null}
 
       {playback?.fatalError ? (
         <View style={styles.fatalError}>
