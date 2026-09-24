@@ -1,5 +1,426 @@
 # Completed
 
+## 2026-09-23 to 2026-09-24 — episode navigation, search and focus, reaps that stay on their node, and every word moved out of core
+
+**Measured on `.133` throughout, against builds whose md5 was read off the set.**
+In one line each:
+
+- **The resume point survives a kill** (§1.11): force-stopped at 3:24, came back
+  at 0:53 — the one write the model predicted, including the attempt core
+  declined below its 30 s floor.
+- **Episode navigation, Tom's business P0** (§1.13): previous/next on every
+  episode, greyed when absent; Back walks season → series → TV Shows from any
+  entry point. Core supplied `episodeNeighbours` the same evening.
+- **Reaps** (the P-1 sections below): two direct-play reaps recovered in ~4 s but
+  failed over to remote nodes; the cause was this client reporting a
+  direct-play fatal as `unknown`. Core's liveness-before-charge change then
+  made a **transcode reap recover on the same node**. A direct-play reap never
+  reaches the player at all, because a deleted session's open body keeps
+  streaming.
+- **Search, sort and focus** (§1.14, §1.15): the web client's Search design
+  language; Sort By on every library; the focus scorer rebuilt on edges, same
+  row for Left/Right (stopping at the row's end), nearest row for Up/Down, and
+  an undo for the opposite press (TV only, by Tom's decision). The web client
+  ported everything but the undo.
+- **Viewer text left core** (§1.16): Tom ruled core composes no viewer text;
+  every string moved to `src/text/viewerText.ts` with the wording unchanged.
+
+**What went wrong, so it is not repeated:**
+
+1. **Claimed "seamless failover needs the native adapter"** — the exact wrong
+   claim `COMPLETED.md` already records as the fourth about that feature.
+   Read the file's own record of mistakes before comparing designs.
+2. **Proposed a one-byte `Range` probe** to classify direct-play failures; Tom
+   rejected it as a brittle hack and core reverted it the same hour.
+3. **Reported the set signed out when the sign-out had not happened** — the
+   confirm press had landed on Cancel, whose focus looks like Sign out's
+   styling. Capture after a destructive press, not before.
+4. **A first undo-rule test passed before the change existed** — the layout
+   let geometry pick the right answer. Rebuilt so geometry disagreed; then it
+   went red.
+5. **A focus rule shipped that skipped whole rows** ("row first" read as "same
+   column first" for Up/Down), found only on the set. Tests with real screen
+   geometry catch these; tests with tidy grids do not.
+6. **`describePlaybackSession`'s fields kept their names and became objects** in
+   core's text cut. It typechecked, and would have thrown inside a `<Text>`
+   the first time the player drew its stream line. Grep every render of a
+   changed field, not just the compile errors.
+7. **Several readings of `dumpsys media_session` were stale snapshots.** Read
+   the `updated` stamp against `/proc/uptime` before trusting a `state=`.
+
+### Reaped on a transcode, 2026-09-23 23:51 — **recovered on the same node**. Core's liveness fix works on the set.
+
+**Measured.** Build `d0298604…` (core `2bcce57` onward through the link).
+*Arrival* chosen because the set cannot decode its DTS audio, so Auto built an
+HLS session without touching the options menu: `9ea528ac…` on `10.35.1.50`,
+`mode: transcode`. The chrome read `FMP4 · http://10.35.1.50:7438`, `VIDEO COPY ·
+H264`, `AUDIO TRANSCODE · DTS 5.1 → AAC 5.1`.
+
+| Time | |
+| --- | --- |
+| 23:51:35 | session deleted, `204` |
+| 23:51:36 | buffer stops at 105.5 s. Each HLS segment is its own request, so the reap bites at once, unlike direct play |
+| 23:52:42.185 | ExoPlayer `state=7` at 105.3 s, the buffer's end, **66 s** after the reap |
+| 23:52:43.46 | new source, buffering |
+| 23:52:50.42 | playing |
+| 23:52:49 (node) | replacement `fbfbe0b1…` on **`10.35.1.50`**, `transcode`. Nothing on macnessa or ramaroja |
+
+On screen the film resumed where it stopped: 2:54 at 23:53:55, which is 1:45
+at 23:52:50 plus the elapsed time. About 8 s without picture (error plus
+buffering). The two direct-play reaps earlier the same night left `10.35.1.50`
+for remote nodes. **This one stayed**, which is what core `2bcce57` changed:
+an unclassified fatal now asks the node whether the session exists before
+charging it.
+
+**Still true:** nothing reacted for 66 s after the first failed segment.
+Detection waits for the buffer to run dry because `expo-video` reports no
+per-request failure (point 3 below). The trail was off for this run, so the
+classification lines were not seen. The evidence is the node's session list
+and the resumed position.
+
+### Reaped twice on `.133`, 2026-09-23 — no freeze, ~4 s visible, but it failed over instead of regenerating
+
+**Measured.** Build md5 `1b528dea…` — which **does carry everything this
+section waits for**, whatever "Not installed" below says: the bundle holds
+`failed-session-close-timeout`, `standby-preparation-refused`,
+`client_recovery_deadline`, `session-reaped-regenerating` and
+`generation-regenerate` (`verify-on-device.sh bundle`, all present in UTF-8;
+the local APK is byte-identical to the installed one). Signed in as `tvtest`,
+so the reap could use the account's own token. Diagnostics on for the runs,
+off again afterwards; screensaver disabled for the runs, restored to
+`1` / `600000` afterwards.
+
+| | Reap 1 | Reap 2 |
+| --- | --- | --- |
+| Session reaped | `0ccefac8…` on `10.35.1.50` (local, node `855716bd…`) | `719d5cdb…` on `macnessa.macha.network` |
+| Client state at DELETE | paused at 0:52 | playing at ~7:40 |
+| `DELETE` | 18:37:21, `204` | 18:46:10.843, `204` |
+| Buffer stops growing | 18:39:07, ~6 s after unpause, at 117.461 s | **18:48:39 — 2 min 28 s after the DELETE**, at 683.989 s |
+| Player notices | 18:40:06.230, ExoPlayer `state=7` at 117.363 s | 18:49:37.181, `state=7` at 683.875 s |
+| Playing again | 18:40:10.546 | 18:49:41.229 |
+| New session | `macnessa.macha.network` (node `377ce5b1…`, `78.149.248.154`) | `ramaroja.macha.network` (`85.87.142.154`, a Spanish ISP) |
+| Mode after | `direct`, unchanged | `direct`, unchanged |
+
+**The viewer saw about four seconds, twice.** From the hardware composer's
+frame posts to our surface: a 0.90 s gap then a 3.05 s gap, 18:40:06.4 →
+18:40:10.35; reap 2's state timeline is the same shape to within 0.1 s. No
+freeze, no failure screen, and the resume position is exact both times
+(`source-presented positionMs` equals the buffer end). **The P-1 freeze did not
+reproduce.**
+
+**What the trail shows** (reap 1; reap 2 is line-for-line the same):
+
+    2433.8s playback.api session-create
+    2433.9s playback.api http-error-response   DELETE …/0ccefac8…  404  (13.3 ms)
+    2433.9s playback.cluster failed-session-closed  {"attempts":1}
+    2434.0s playback.api session-created       macnessa.macha.network::719d5cdb…
+    2434.0s playback.coordinator source-failover-ready  old 10.35.1.50 → new macnessa
+    2434.0s playback.coordinator source-presented  positionMs 117362
+
+`failed-session-closed` appearing answers this section's kept-honest question
+below: **the close settles**, in one attempt, once the node answers.
+
+**Four things this changes or adds, in order of weight:**
+
+1. **It took the failover path, not regenerate, and left a healthy local node
+   for a remote one — twice.** `10.35.1.50` answered its own `status` at
+   14 ms throughout; the first recovery went over the internet to a different
+   node, and the second to a third node in another country. That is §1.0's
+   2026-09-20 finding again — *"left a healthy local node for a cross-site
+   one"* — except that this time the mode stayed `direct`, so the cost was
+   bandwidth and latency rather than a transcode. **Core then noticed on its
+   own**: `3055.8s cluster.health preemptive-endpoint-swap` from ramaroja
+   (272 ms) to `10.35.1.50` (14.3 ms), 51 s after the second failover — which
+   moves preference, not the playing session.
+2. **Why it failed over: this client sends every direct-play fatal to core as
+   `unknown`.** Read from `src/player/ExpoVideoAdapter.ts`
+   (`kindForTerminalError`), not seen on the trail: `if (!source.isManifest)
+   { warn('terminal-failure-unclassified', { state: 'not-a-manifest' });
+   return 'unknown'; }`. Both reaps were progressive MKV. Core confirmed the
+   other half the same evening, from its tree at `d58375a`: an `unknown` fatal
+   is endpoint evidence, `ClusterPlaybackResolver.failover` charges the node
+   and walks away, while `not-found` would have made it check liveness and
+   **regenerate on the same node, uncharged**. So the fix is at the
+   classification, and it is ours. **How is open.** A one-byte
+   `Range: bytes=0-0` probe of the progressive source was proposed to core,
+   and core built it (`probeSourceReadiness`, core `9885730`). **Tom rejected
+   it the same evening — "a filthy brittle hack. No." — and it is not used
+   here.** Core reverted it in `629e89c`; it was never published, and core's `dist`
+   no longer contains it (checked here, dist hash `27c7fdf7742a`). Do not
+   re-propose a stream probe.
+   The trail line that would have shown this on screen was lost because **one
+   recovery emits at least nine lines and the overlay holds eight**. That still
+   wants fixing before the next reap, because the next thing to confirm is the
+   `not-found` → regenerate path on hardware.
+3. **Detection waits for the buffer, not for the failure, and on `expo-video`
+   it has to.** The fetch against the dead session failed at 18:39:07 and
+   nothing reacted for 59 s, until the player ran dry. Core's answer is the
+   degradation channel: report the first failed fetch, and it regenerates
+   inside the remaining buffer (the web client measured 3.44 s, same node,
+   invisible). But this adapter's `subscribeDegradation` is fed only by the
+   stall watchdog, and `expo-video` exposes no per-load error (§2's "failure
+   evidence is weaker"). The native `PlayerEngine.kt` does see `onLoadError`
+   with `responseCode` (line ~450), and it is not the adapter the set runs.
+4. **A deleted session on `macnessa` kept serving for two and a half
+   minutes.** The buffer grew for 2 min 28 s after its `DELETE` returned `204`
+   — the stream already open was not cut. Reap 1 against `10.35.1.50` stopped
+   within ~6 s of the next request. **The server session answered from its
+   code** (server 0.53.2, `src/playback.cpp`, asserted, not measured):
+   `erase_session` removes the record, stops any transcode and returns `204`,
+   but has no handle on open response bodies. The `/direct` route checks the
+   session only when a request *arrives*, and the body it then streams captures
+   the file, not the session. So an in-flight ranged body runs to the end of
+   its range, and only the *next* request gets `404 stream not found`. The
+   server code is the same on every node; its guess at the 2.5 min vs 6 s gap
+   is one long open-ended range versus several short ones (unverified). Whether
+   a delete should also cut in-flight bodies is with Tom, and nothing on the
+   server has changed. **For P-1 this means a reap on direct play surfaces
+   only at the player's next request**, which can be minutes away.
+   **And a third reap, the same night, says even that may not hold.**
+   Measured on build `d0298604…`, which carries core's liveness-before-charge
+   change (`2bcce57`): session `b9d5aed0…` on `10.35.1.50` deleted at 23:03:21
+   (`204`), after which no node listed any session for the account. Playback
+   carried on for eight minutes with its buffer growing. Then a seek of more
+   than two minutes past the buffered edge (529 s → 661 s) at 23:11:31, and
+   playback **still** carried on, the buffer reaching 808 s over two open
+   connections to `10.35.1.50`. Whether that seek opened a new request, which
+   the server says would `404`, or reused an open one could not be seen from
+   here. **Consequence: core's liveness fix could not be exercised on direct
+   play, because the reap never reached the player.** It stays unverified on
+   the set.
+   **Neither side logs enough to settle it.** The server session (same
+   night): its journal has no line per direct range request at any level, and
+   the delete logs nothing either, so the window is silent. From the code,
+   every request to `/direct` looks the session up first and would `404`, so
+   *their inference* is that no new request was made and the seek was served
+   from an already-open body. The set's logcat is equally silent: 5 286 lines
+   in the 11 s around the seek, none from OkHttp, ExoPlayer or media3.
+   `expo-video` logs no requests. To test a reap, use HLS or a transcode,
+   where each segment is its own request.
+
+**Not verified, kept honest:** that "failover" here is a misclassification
+rather than correct behaviour for a stream-fetch error; and whether a
+`not-found` from the session `GET`, the 2026-09-20 entry, still regenerates and
+still hangs. Nothing today touched that path.
+
+**Measured 2026-09-20, 22:58, on the TCL, with core's walk fix (`10a1d93`) in
+the build.** A session deleted under a paused client was, for the first time,
+classified correctly:
+
+    755.3s playback terminal-failure-classified  {"status":404,"kind":"not-found"}
+    755.3s playback failure                      {… "kind":"not-found"}
+    755.4s playback.api http-error-response      GET  /playback/sessions/df33040e…  404
+    755.4s playback.coordinator source-reaped    endpoint 10.35.1.50:7438
+    755.4s playback.coordinator session-reaped-regenerating
+    755.4s playback.api http-error-response      DELETE /playback/sessions/df33040e…  404
+
+**And then nothing, for minutes.** Position frozen at 5:00, chrome reading
+"Preparing new stream on http://10.35.1.50:7438…", no failure screen, no
+further line. Tom watched it freeze; this session had reported it as
+recovering from 25-second screenshots, and was wrong.
+
+### 1.16 Viewer text leaves core — Tom, 2026-09-24, **done on develop `9b3d56f`**, against core dist `4dd849e9c8a3`; not yet seen on the set (the set's only node was down)
+
+Core will stop composing any viewer text (see AGENTS.md). This client
+currently takes from it: `episodeLabel` and `trackNumberLabel` (`cardLines.ts`);
+`media.subtitle` wherever a card or the player shows one; `choiceLabel`
+(`SortControl`) and `SearchCategory.label` (`CategoryToggles`); `error.message`
+(`Status.tsx`, `failureCopy`); and the coordinator's notice sentences
+(`PlayerScreen`). All reported to core (message `6b8ba178`) with a request for
+codes on every error and notice, and the album's artist as data. Move each to
+local text as core's replacement lands, so the set never shows a gap.
+
+### 1.15 Search, sort and focus — **built and measured on `.133`, 2026-09-24**
+
+Measured on builds up to md5 `e04303d9…` (develop `58e9c65`), signed in as
+`tvtest`. Everything in §1.14 is done, and so is the focus work that followed:
+
+| Checked on the set | Result |
+| --- | --- |
+| Search control row (field, Sort By, Movies/TV Shows/Music, refresh) | as the web's design language; one height and shape |
+| Episode and track lines | "Deadlock / Star Trek: Voyager / Season 2 Episode 21"; "Tool - Ænima (1996) / Track 6" |
+| Continue Watching | "Firefly / Season 1 Episode 3" |
+| Square music art | full width, centred in a poster's height, title on the posters' line |
+| Right from the search field | Sort → Movies → TV Shows → Music → Refresh; never into the results |
+| Down then Up | returns to the control left (the undo rule, TV only by Tom's decision) |
+| Up from a Movies card under a short Continue Watching row | the row above, not the top bar |
+| Left past Home | stops; no longer drops to a card |
+| Sort By on Movies / TV Shows | steps Title → Year → Recently added; A–Z hidden outside Title; each list starts at Title |
+| Episode card focus | the movie card's frame, gap, wash and scale |
+| Back to TV Shows | Firefly focused and fully in view |
+| Options panel | thick focus border, fill only for selected; focus stays in the panel past the chrome's timer |
+
+The focus rule changes (edges not centres; same row for Left/Right and stop
+at its end; nearest row for Up/Down) are in the web client too; the undo rule
+is not, by Tom's decision.
+
+**Still faint, found while checking:**
+- **The top bar:** focus and "current page" are the same fill, a shade apart.
+- **The sign-in buttons:** after moving between them, neither showed focus.
+
+### 1.14 Search and focus — Tom's list, 2026-09-23 — **done, see §1.15**
+
+From Tom, verbatim in substance:
+
+1. **Episode results name their series.** A search hit that is an episode
+   shows only `S01E01` under its title today; it needs the series name too.
+2. **The search field spans the full width**, and a **sort by** control sits
+   in the same row.
+3. **Search results use the movie card's focus look**: the thicker red border
+   with a gap between image and border. Same settings as the movie selector.
+4. **Episode cards the same** (Tom, same evening, before the Search list):
+   the season rail's episode cards get the movie card's focus look. They
+   currently show a thin outline.
+
+Found on the set while trying to switch a stream to transcode, measured on
+`.133`:
+
+- **The options panel's focus is nearly invisible.** A focused chip differs
+  from a selected one only by a one-pixel red border. Three attempts to reach
+  Transcode by D-pad landed on Direct or left the row without any visible
+  sign. On a 10-foot UI that is unusable.
+- **Opening the panel does not reliably move focus into it.** Once focus
+  stayed on the transport row, so the next Right moved to ✕.
+- **Up from the season page's episode rail does not reach the top bar**; it
+  moves along the rail.
+- **`dumpsys media_session` `state=` readings can be stale** — check the
+  `updated` stamp against `/proc/uptime` before trusting one.
+
+### 1.13 Episode navigation, Tom's business P0 — built and **measured working on `.133`**, 2026-09-23
+
+**Measured** on build md5 `d0298604…` (develop `9b4b638`, core `3f77ef4`
+through the link, bundle checked for `episodeNav`, `chromeButtonDisabled` and
+`provisional`, each absent from the older bundle), signed in as `tvtest`.
+
+| Step | What the set did |
+| --- | --- |
+| Resume Bushwhacked S01E02 from Continue Watching | control bar: restart · **previous** · rewind · pause · forward · **next** · options · close, both enabled |
+| Next | switched to Our Mrs. Reynolds S01E03 at 0:07, direct from `10.35.1.50` |
+| Back | **Season 1**, focus on 1×03, rail scrolled to it, TV Shows lit in the top bar |
+| Back | **Firefly**, synopsis shown, Season 1 focused |
+| Back | **TV Shows**, Firefly focused |
+| TV Shows → Firefly → Season 1 → episode 1 | The Train Job S01E01: **previous greyed**, next enabled |
+| Left twice from pause | pause → rewind → **restart**; the greyed button is stepped over |
+
+The rule is core's (`episodeNeighbours`, core `8dd1fcf`): it crosses season
+boundaries, keeps specials as their own chain, and answers empty instead of
+failing. This client owns the lifecycle (`src/app/useEpisodeNeighbours.ts`),
+the stack (`src/app/libraryTrail.ts`, six tests) and the buttons.
+
+**One defect found and fixed on the way** (`9b4b638`): opening a series from TV
+Shows left focus on the top bar's Home, so the next OK went Home. The screen's
+default card registers only after its fetch, and `focusDefault` had fallen back
+to the first thing on screen. That fallback is now provisional: a late
+`defaultFocus` element takes over unless the viewer has moved. Four tests; the
+first was seen red with `'nav-home'` where `'season-1'` belonged. **Asserted,
+not measured:** that this predates tonight's change. A plain `push` ran the
+same effect.
+
+**Seen and not fixed:** after Back to TV Shows, focus returns to the right card
+but the page does not scroll to it, so Firefly sat half below the fold. Not
+checked on the old build, so whether it is new is open.
+
+**The remote's own previous/next media keys are not wired.** Not attempted:
+nothing here confirmed which `eventType` the TCL's remote sends for them.
+
+### 1.11 The resume-point kill test — run 2026-09-23, **passed**, and the stored position matched the model to the second
+
+**Measured on `10.35.1.133`** (TCL, Android 12), md5 `1b528dea9c6a24db…`,
+`versionCode 600`, signed in as `tom`, serving node `10.35.1.50`. Everything
+below is read off the device or the node; nothing is inferred from the source
+except where it says so.
+
+*Harry Potter and the Half-Blood Prince* (2009) was chosen **because it was not
+in Continue Watching** — the rail held Joy of Cooking S04E05, The Day After
+Tomorrow and 28 Days Later — so a new entry could not be confused with an old
+one. Its detail page offered **Play only**, no resume affordance.
+
+| | |
+| --- | --- |
+| Play pressed | 17:55:39 |
+| Playing, confirmed | `state=3`, position 14 927 ms, `speed=1.0` |
+| Trail on screen | `MATROSKA : http://10.35.1.50:7438`, `DIRECT · HEVC · 1920×800 · 2.4 Mb/s`, `DIRECT · ENG · AAC · 5.1 · 48 kHz` |
+| `am force-stop` | 17:59:11, at position **204 209 ms (3:24)** |
+| Process after | gone |
+| Relaunch | 17:59:31 |
+| Continue Watching | **Half-Blood Prince first**, ahead of Joy of Cooking and Day After Tomorrow |
+| Resumed position | back-extrapolated to **53 456 ms** at the moment Resume was pressed |
+
+**The stored point was ~53 s, and that is exactly what the design predicts.**
+`useContinueWatchingWriter` ticks every `CONTINUE_WATCHING_TICK_MS` (30 s) from
+mount; core declines anything below `MINIMUM_PROGRESS_MS`, which is **30 000**
+(read from `macha-ts/src/state/continueWatching.ts` at `a3b40ca`). So the tick
+at position ≈23 s was attempted and declined, the tick at ≈53 s landed, and
+`CONTINUE_WATCHING_WRITE_INTERVAL_MS` (5 min) then held off the next one —
+which never came, because the kill was at 3:24. **One write, exactly where the
+model says it should be**, including the declined attempt that
+`nextWatermark` exists to retry.
+
+**Loss on the kill: 150.7 s**, against a bound of one write interval. The
+feature does what `progressPersistence.ts` claims, on the kill shape it was
+written for.
+
+How the position was established, since `dumpsys media_session` misleads here:
+its `position` is a **snapshot, not a live counter** — two reads 20 s apart
+returned the same figure. Each snapshot carries an `updated` stamp on the
+device's uptime clock, and two of those give the line (54 601 ms of clock to
+54 607 ms of position, so 1:1), which extrapolates back to the Resume press.
+That is a **lower bound**: playback cannot have begun before the press, so the
+true stored value is 53 456 ms plus however long session setup took.
+
+**Also confirmed, incidentally:**
+
+- **The detail page gained a Restart button.** Before the kill it showed one
+  control; after, it shows **Play and Restart**. The stored point is read back
+  on that screen too, not only in the rail.
+- **28 Days Later fell off the rail, and that is correct.**
+  `CONTINUE_WATCHING_LIMIT = 3` in core (same file, same commit). A fourth
+  entry evicts the oldest. Nobody should chase this as a fault.
+- **§1.8 reproduces on a second title.** `AudioOut_FD`, **type 1 (DIRECT)**,
+  channel count **6**, mask **`0x0000003f`** — positional, PCM 16-bit, 48 kHz.
+  The Hunger Games measurement was not a one-off.
+
+**What could not be done, and it is a hole in the procedure rather than in the
+client.** §0 said to *query the node for sessions before relaunching*.
+`GET /api/v1/playback/sessions` is **account-scoped** — it answers
+`{"account":{"max_sessions":32,"sessions":0},"items":[]}` for `tvtest` while
+the set plays as `tom`. So the step is unperformable from here unless the set
+is signed in as the account whose token we hold, or `tom`'s token is to hand.
+**Whoever rewrites that line should say so**, rather than leaving the next
+session to discover it mid-test.
+
+**Two things for anyone driving this set over `adb`:**
+
+- **The player chrome auto-hides, and the first keypress after it hides is
+  spent revealing it.** Several D-pad presses vanished before that was
+  understood. Budget one extra press, or keep the gaps under the hide timeout.
+- **`screencap` of the player is black** — the video sits on a surface the
+  capture does not see. The chrome overlay *does* capture, so the transport
+  row and the trail are readable; the picture is not.
+
+#### The stereo A/B could not be run, and the reason is not a fault
+
+Player options on Half-Blood Prince offered **MODE** Auto/Direct/Remux/Transcode
+(Auto selected, "Chosen automatically: this device plays the file as it is"),
+**QUALITY** Original/720p/480p/360p, **SUBTITLES** Off/ENG/CHI — and under
+**AUDIO**, exactly one entry: **`ENG · AAC · 6ch`**, annotated "Server
+processing: copy".
+
+There is no 2.0 track to select, so §0's item 2 cannot be run on this title.
+Two things are needed before it can be:
+
+1. **A title that carries a stereo track.** Not yet surveyed; the catalogue can
+   be asked without a set.
+2. **Somebody in front of the television.** The test asks whether level and
+   sync *snap back*, which is a listening judgement. The channel mask and the
+   output-thread type can be read over `adb` and were; loudness cannot.
+
+`MODE → Transcode` is the obvious way to force a different audio path without
+finding another title, and it was **deliberately not tried**: it starts a
+transcode on a cluster that had just come back from an outage, and it changes
+what is on screen for whoever is watching. That is Tom's call, not this
+session's.
+
 ## 2026-09-21 to 2026-09-23 — a way out of an account, 0.6.0, the resume point that survives a kill, and the audio answered
 
 **Four things landed, one release shipped, and the television corrected the

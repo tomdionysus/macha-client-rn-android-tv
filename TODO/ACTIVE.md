@@ -7,166 +7,96 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 ---
 
-## 0. Where this stands
+## 0. Where this stands — handover, 2026-09-24
 
-**0.6.0 is tagged and on `main` (2026-09-21), against core `^0.18.0` from the
-registry, with the link proven gone.** It carries sign-out from the set and the
-lapsed-session wall. `develop` is 8 commits ahead of origin — **not pushed,
-that is Tom's** — on the `file:../macha-ts` link, and the sibling checkout is
-`a3b40ca`, which *is* 0.18.0, so linked and published core agree today.
+**Two days of work are in `COMPLETED.md`'s top section**, with the seven
+things they got wrong. Read that first; this section is only what is open.
 
-**Standing down on the cluster, 2026-09-23.** Tom: server problems, stop until
-they are fixed. The catalogue answers `503 catalogue_unavailable` (§1.9), so
-nothing that needs a library can run on either set. Everything since is
-documentation. **Nothing below was started after that instruction.**
+### The tree
 
-**The catalogue came back the same day — measured 2026-09-23 17:40 EEST, and
-the stand-down has not been lifted by Tom.** `GET /api/v1/catalogue/items`
-answers `200` with items on **`10.44.1.50`** and on **`10.34.1.50`**, both with
-a `tvtest` token minted through the nested envelope. **`10.44.1.51` is
-unreachable** — no session, no route, `000`. The node's own
-`/api/v1/status` agrees and names it: `health: healthy`,
-`metadata_availability: "writable"`, quorum available and validated, with
-`conditions: ["1 node accepts no inbound connections"]`.
+- **`main` is `0.6.0`** (tagged), against core `^0.18.0` from the registry.
+- **`develop` is 42 commits ahead of origin, not pushed — the push is Tom's.**
+  It links `file:../macha-ts`, last checked at core `b5c0128` (dist hash
+  `71e9158332ca`); 288 tests pass against it.
+- **`develop` can no longer run against published core.** Core's viewer-text
+  cut (§1.16 in `COMPLETED.md`) removed APIs `0.18.0` has and added ones it
+  lacks. **Nothing on `develop` can reach `main` until core publishes** a
+  version carrying the cut, `progressWriteDue`, `episodeNeighbours`,
+  `SEARCH_SORTS` and the liveness check. Core has said it will announce it.
+- `.gitignore` (`*.local.md`) and `basemind.toml` are still uncommitted, as
+  they were before this session: tooling, nobody's decision yet.
 
-**There is a fourth node, `10.35.1.50`, and this file had not recorded it.**
-It is the one `.133` actually streams from — read off the set's own socket
-table during playback and confirmed by the trail on screen,
-`MATROSKA : http://10.35.1.50:7438` (§1.11). It answers `401` on
-`server/info`, mints a `tvtest` session and serves the catalogue. The cluster
-list elsewhere in this project says `10.44.1.50`, `10.44.1.51` and
-`10.34.1.50`; **that list is incomplete.**
+### The set
 
-**`10.35.1.133` was switched on by Tom at about 17:50** and the owed work
-started on it immediately — see §1.11. `10.34.1.115` was still off.
+- **`10.35.1.133`** runs develop `1618cc9`, md5 `af3e88da3c8c9d529c2ba60835434a8e`
+  (read off the set when installed), **signed in as `tvtest`** by Tom's
+  instruction. Screensaver and Diagnostics are back to what they were.
+- **It cannot currently reach Macha.** Its only configured endpoint is
+  `http://10.35.1.50:7438`. At the time of writing the cluster lists that
+  node **online** (it connects outbound) but it answers **nothing inbound** —
+  no ping, no API — from the set or the laptop; `10.44.1.50`, `macnessa` and
+  `ramaroja` all answer, and the set can reach them. Two ways on: the node
+  becomes reachable at `10.35.1.50` again, or a second endpoint is added in
+  Server settings (`http://10.44.1.50:7438`). **Adding one is Tom's call** —
+  it was offered and not yet answered; nothing was changed.
+- **The latest build has not been seen on screen.** It carries the viewer-text
+  move (every word now composed locally, wording unchanged) — so the first
+  thing to do on a connected set is look at: card lines (Continue Watching,
+  Search), Music albums with the artist beneath, Sort By, the player's clock,
+  stream lines and notices, and an error screen.
+- `10.34.1.115` has not been touched since 2026-09-21.
 
-**The unlink is a check, not a step**, and still not isolated: the same plain
-`npm install` produced a link on one run and a directory on another. The
-procedure that worked every time is `npm install @machafoundation/core@^x.y.z`
-**explicitly**, then `test -L node_modules/@machafoundation/core` **must fail**,
-then read the lockfile's `resolved` and see a registry URL. Never trust
-`package.json`, the installed `version` string, or a green typecheck; all three
-agreed with the link every time.
+### Open, in order
 
-**What the last three days did** is in `COMPLETED.md`, including the eight
-things they got wrong. In one line each: a viewer can leave an account; a
-session that lapses says so instead of emptying the library; the resume point
-is written while watching, so a kill discards at most five minutes; the "crash"
-was the set replacing WebView under the foreground app; and the 5.1 question in
-`docs/HISTORY.md` is answered — six positional channels reach the HAL, which is
-also why it is quiet (§1.8).
+1. **Get the set onto a node and eyeball the viewer-text build** (above).
+2. **A restart does not fall back to nodes the set has already reached.**
+   Found 2026-09-24: with `10.35.1.50` down, the set showed "Can't reach
+   Macha" although it had streamed from `macnessa` and `ramaroja` the night
+   before. Core persists confirmed discovered endpoints
+   (`persistConfirmedEndpoints` → `macha-discovered-endpoints-v1`), and this
+   client's hydrate filter (`macha` prefix) lets that key through — so the
+   cause is not yet found. Candidates: the list was never written, or it was
+   cleared by the sign-out/sign-in. Release builds cannot be `run-as`, so
+   reading the stored key needs a debug build or a logging line.
+3. **Faint focus in two places**, found while checking tonight's build: the top
+   bar (focus and "current page" are one fill a shade apart) and the sign-in
+   buttons (after moving, neither showed focus). Offered to Tom, not answered.
+4. **P-1, what remains** (section P-1 below): the transcode reap recovers on the
+   same node, but only after the buffer drains (66 s) because `expo-video`
+   reports no per-segment failure; and a direct-play reap never reaches the
+   player. Both point at the **native-adapter trial** Tom asked about ("is it a
+   two-way door, can we trial it") — proposed as a throwaway branch with the
+   current APK kept for reinstall; **not answered, not started.**
+5. **§1.8, the stereo A/B**, is now possible: *Firefly* season 1 episodes carry
+   `ENG · AAC · 2ch` beside the 5.1 track. It needs somebody listening.
+6. **§1.9** — whether a catalogue `5xx` should charge a node at all is with core
+   (message `167950ec`); the client's wording half is now `errorText`.
+7. **§1.12** — the list of smaller faults found switching accounts.
+8. The remote's own previous/next media keys are not wired to episodes.
+9. Parity, §4.
 
-**Failover has run once and recovered the expensive way** (§1.0, 2026-09-20):
-Law 2 held, but the client left a healthy local node for a cross-site one and
-turned a copy into a transcode. No stall watchdog has fired on its own, no
-standby has been promoted deliberately, and whether the park is ever reached is
-the question §1.0 ends on.
+### Waiting on others
 
-### State at the end of 2026-09-23, for whoever picks this up next
+- **Core:** a published version for `main` (above).
+- **Tom:** a second endpoint on the set; the faint-focus fix; the native-adapter
+  trial; whether series/season "links" on a TV card mean anything beyond Back
+  (core has put it to him).
 
-**Core is `a3b40ca` (0.18.0)**, linked from `../macha-ts`; `main` installs the
-same version from the registry. Reproduce a dist hash with `npm run dist:hash`
-**in core**.
+### Traps this session paid for — driving the set over adb
 
-**Both televisions run versionCode 600, and three different builds have worn
-it.** The released 0.6.0 is `md5 401b665e…`; `.133` was last seen on
-`1b528dea…`, a develop build carrying the resume-point work, signed in as
-`tom`. `verify-on-device.sh install` says "match" for any of them — **only an
-md5 against the local build tells them apart.** `.133` did not answer adb at
-the time of writing; `.115` has not been touched since 2026-09-21.
-
-- **`10.35.1.133`** — Android 12, 4K panel, DV 4/5/8/9. Last build
-  `1b528dea…`. Diagnostics **off** (was turned off at some point after
-  2026-09-21; the setting is the viewer's, not this session's).
-  **Confirmed still on `1b528dea9c6a24dbc5b9306e5a9c12ec` on 2026-09-23** by
-  `md5sum` of the installed `base.apk`, which is the only thing that tells the
-  three `versionCode 600` builds apart. `lastUpdateTime` 2026-09-22 21:31:52.
-  **Now signed in as `tvtest`** (since 18:34, for the P-1 reaps); it was `tom`
-  before, and only Tom can put that back.
-- **`10.34.1.115`** — Android 11, 1080p, `DOLBY VISION: none`. Installed
-  2026-09-21, signed out, never smoke-tested.
-
-**Owed to the set, in this order, when the cluster is back:**
-
-1. ~~**The resume-point kill test**~~ — **run and passed on `.133`, 2026-09-23
-   17:55–18:00.** Detail in §1.11 below. The next two remain.
-2. **The stereo-track A/B** for §1.8 — **attempted 2026-09-23 and it cannot be
-   run the way this line describes.** The title offered exactly one audio
-   track, `ENG · AAC · 6ch`, so there is no 2.0 to switch to; and the test as
-   written asks whether *level and sync snap back*, which is a judgement only
-   somebody in front of the set can make. It needs **a title that actually has
-   a stereo track, and Tom listening.** See §1.11.
-3. **P-1's five reaps** — **two run on `.133`, 2026-09-23 18:37 and 18:46.**
-   Neither froze; both failed over to a *remote* node rather than
-   regenerating on the healthy local one. Detail at the head of P-1. Three
-   remain, and the next one needs the classification line, which this build's
-   eight-line trail cannot hold (see there).
-
-~~**Waiting on other sessions:** core will name the version that carries the
-resume-point rule~~ — **done 2026-09-24.** Core took `progressWriteDue` and
-`nextWatermark` at `5061a03` (unpublished; develop has it through the link).
-The logic was diffed against ours with comments stripped and is identical.
-`src/player/progressPersistence.ts` and its test are deleted, and the hook
-imports core's. **`main` still needs a published core carrying it** before
-this can merge there — core will say when.
-
-### Where the tree is, for whoever picks this up
-
-- **`develop` links `file:../macha-ts`**, Tom's call on 2026-09-20 ("the
-  projects need to work together"). **`main` is on `^0.18.0` from the registry
-  and must stay that way** — it is what other people install. Before anything
-  merges to `main`: restore the registry version explicitly, verify the unlink
-  as above, run the three checks against *that*.
-- **`develop` carries the 0.6.0 bump on purpose.** Left at 0.5.0 it would have
-  minted versionCode 500 again, the collision §0 spent an afternoon on. The
-  cost is the one above: every develop build now wears 600, same as the
-  release.
-- `.gitignore` (`*.local.md`) and the untracked `basemind.toml` were left by an
-  earlier session and are **not committed** — tooling config, nobody's yet.
-- Three checks at the last commit: typecheck clean, **272 tests**, export
-  clean.
-
-### The single next action
-
-**Two reaps ran, with Tom's go-ahead, and P-1 did not freeze** — but both
-recoveries left the healthy local node for a remote one, and the line that
-would say why is lost to an eight-line trail (P-1, head of section). So the
-next action is **a client change before the next reap**: make the trail hold a
-whole recovery, or pin warn-level lines, so the classification is on screen
-when the picture comes back. Then reap again.
-
-**`.133` is left signed in as `tvtest`**, at Tom's instruction for the reaps.
-`tom` has to be signed back in at the set by Tom — this session does not hold
-that password. Screensaver and Diagnostics are back to what they were.
-
-Note the cluster is **three reachable nodes**, `10.44.1.51` being the one
-refusing inbound, which is a different candidate list from anything the
-failover work has assumed so far.
-
-**Off the set, §1.9 is the live thread**: its cause is traced to core's charge
-gate and reported (message `167950ec`), and the client half — screens rendering
-`error.message` raw — is specified there and needs neither a node nor a
-television.
-
-**P-1, below: a reaped session now freezes the viewer, and it is the direct
-consequence of the classification being fixed.** Everything else in this file
-is behind it. The mechanism is found, core has bounded it (`0e787f8`), this
-client can now see the whole recovery on screen, and none of that has been
-run. One reap, with the set on, decides whether it is closed.
-
-**Two of them are owed to the web session**, which cannot take either on a
-desktop. **They have since re-ordered them (2026-09-20): `session_idle` first.**
-
-1. **What does `session_idle` do to a set left paused, and after how long?**
-   Thirty minutes from the node's reaper, and both halves of their pause P0 are
-   built and neither has been watched. A television is where a pause that long
-   is ordinary, so this set is the right place to find out. **Disable the
-   screensaver first** (§0's device notes) or the dream takes the foreground
-   and kills the session before the reaper can.
-2. **Is the re-attach blank visible at ten feet?** Not whether it exists — it
-   does (§2.6) — but whether it reads as a fault or as nothing. That is what
-   decides whether holding the shutter open is worth a decoder instance
-   (§2.1). **They say this one can wait.**
+- **The player chrome hides after 4 s and the next key only reveals it.** Send
+  a sequence in one `adb shell` call, or budget a reveal press.
+- **`dumpsys media_session` `state=` can be stale**; compare `updated` with
+  `/proc/uptime`.
+- **`adb shell input text` drops characters** on this set's keyboard; type one
+  character per call.
+- **Hermes keeps property names, not local variable names**: to prove a bundle
+  carries a change, grep for a new property or string, never a local.
+- **This shell's `grep` skips files it thinks are binary** (logcat captures
+  included) — use `grep -a`. **zsh reads `===` and `$VAR:s…`** as syntax;
+  avoid both in commands.
+- **Back on a top-level screen leaves the app.** On Search that is one Back
+  after a keyboard that did not open.
 
 ### After the sitting, in order
 
@@ -229,7 +159,7 @@ invocation means `10.35.1.133`.
 | Android | **12** (SDK 31) | 11 |
 | ABI | `armeabi-v7a,armeabi` | `armeabi-v7a,armeabi` |
 | Surface | 3840×2160 panel, **1920×1080 override at density 320 → 960×540 dp** | unmeasured |
-| Site | `10.35.1.x` — node `10.35.1.50` is **not in the bootstrap list** | `10.34.1.x` — node `10.34.1.50` |
+| Site | `10.35.1.x` — node `10.35.1.50`, the set's **only** configured endpoint | `10.34.1.x` — node `10.34.1.50` |
 
 Both are `leanback_only`, `type.television`, no touchscreen. The APK's
 `armeabi-v7a` pin is right for both.
@@ -298,10 +228,11 @@ Both are `leanback_only`, `type.television`, no touchscreen. The APK's
 
 ### Two standing rules
 
-- **Take everything possible from `@machafoundation/core`.** Anything that is
-  not presentation is already in the NPM module and is to be consumed rather
-  than rewritten. It installs from the registry under its real name; there is
-  no alias and no local link, so imports read `@machafoundation/core`.
+- **Take every piece of logic from `@machafoundation/core` — and no words.**
+  Anything that is not presentation belongs in core and is consumed rather
+  than rewritten; **viewer text is presentation** (Tom, 2026-09-24) and lives
+  in `src/text/viewerText.ts`. `develop` links `../macha-ts`; `main` installs
+  from the registry (AGENTS.md has the check).
 - **Claims about other codebases get read, not remembered.** Every cross-repo
   assertion here has been wrong at least once — including two of this
   session's, listed in `COMPLETED.md`. Open the peer before writing "only",
@@ -309,176 +240,14 @@ Both are `leanback_only`, `type.television`, no touchscreen. The APK's
 
 ## P-1. The regenerate path froze the viewer once — bound landed, freeze not reproduced, **not closed**
 
-### Reaped on a transcode, 2026-09-23 23:51 — **recovered on the same node**. Core's liveness fix works on the set.
-
-**Measured.** Build `d0298604…` (core `2bcce57` onward through the link).
-*Arrival* chosen because the set cannot decode its DTS audio, so Auto built an
-HLS session without touching the options menu: `9ea528ac…` on `10.35.1.50`,
-`mode: transcode`. The chrome read `FMP4 · http://10.35.1.50:7438`, `VIDEO COPY ·
-H264`, `AUDIO TRANSCODE · DTS 5.1 → AAC 5.1`.
-
-| Time | |
-| --- | --- |
-| 23:51:35 | session deleted, `204` |
-| 23:51:36 | buffer stops at 105.5 s. Each HLS segment is its own request, so the reap bites at once, unlike direct play |
-| 23:52:42.185 | ExoPlayer `state=7` at 105.3 s, the buffer's end, **66 s** after the reap |
-| 23:52:43.46 | new source, buffering |
-| 23:52:50.42 | playing |
-| 23:52:49 (node) | replacement `fbfbe0b1…` on **`10.35.1.50`**, `transcode`. Nothing on macnessa or ramaroja |
-
-On screen the film resumed where it stopped: 2:54 at 23:53:55, which is 1:45
-at 23:52:50 plus the elapsed time. About 8 s without picture (error plus
-buffering). The two direct-play reaps earlier the same night left `10.35.1.50`
-for remote nodes. **This one stayed**, which is what core `2bcce57` changed:
-an unclassified fatal now asks the node whether the session exists before
-charging it.
-
-**Still true:** nothing reacted for 66 s after the first failed segment.
-Detection waits for the buffer to run dry because `expo-video` reports no
-per-request failure (point 3 below). The trail was off for this run, so the
-classification lines were not seen. The evidence is the node's session list
-and the resumed position.
-
-### Reaped twice on `.133`, 2026-09-23 — no freeze, ~4 s visible, but it failed over instead of regenerating
-
-**Measured.** Build md5 `1b528dea…` — which **does carry everything this
-section waits for**, whatever "Not installed" below says: the bundle holds
-`failed-session-close-timeout`, `standby-preparation-refused`,
-`client_recovery_deadline`, `session-reaped-regenerating` and
-`generation-regenerate` (`verify-on-device.sh bundle`, all present in UTF-8;
-the local APK is byte-identical to the installed one). Signed in as `tvtest`,
-so the reap could use the account's own token. Diagnostics on for the runs,
-off again afterwards; screensaver disabled for the runs, restored to
-`1` / `600000` afterwards.
-
-| | Reap 1 | Reap 2 |
-| --- | --- | --- |
-| Session reaped | `0ccefac8…` on `10.35.1.50` (local, node `855716bd…`) | `719d5cdb…` on `macnessa.macha.network` |
-| Client state at DELETE | paused at 0:52 | playing at ~7:40 |
-| `DELETE` | 18:37:21, `204` | 18:46:10.843, `204` |
-| Buffer stops growing | 18:39:07, ~6 s after unpause, at 117.461 s | **18:48:39 — 2 min 28 s after the DELETE**, at 683.989 s |
-| Player notices | 18:40:06.230, ExoPlayer `state=7` at 117.363 s | 18:49:37.181, `state=7` at 683.875 s |
-| Playing again | 18:40:10.546 | 18:49:41.229 |
-| New session | `macnessa.macha.network` (node `377ce5b1…`, `78.149.248.154`) | `ramaroja.macha.network` (`85.87.142.154`, a Spanish ISP) |
-| Mode after | `direct`, unchanged | `direct`, unchanged |
-
-**The viewer saw about four seconds, twice.** From the hardware composer's
-frame posts to our surface: a 0.90 s gap then a 3.05 s gap, 18:40:06.4 →
-18:40:10.35; reap 2's state timeline is the same shape to within 0.1 s. No
-freeze, no failure screen, and the resume position is exact both times
-(`source-presented positionMs` equals the buffer end). **The P-1 freeze did not
-reproduce.**
-
-**What the trail shows** (reap 1; reap 2 is line-for-line the same):
-
-    2433.8s playback.api session-create
-    2433.9s playback.api http-error-response   DELETE …/0ccefac8…  404  (13.3 ms)
-    2433.9s playback.cluster failed-session-closed  {"attempts":1}
-    2434.0s playback.api session-created       macnessa.macha.network::719d5cdb…
-    2434.0s playback.coordinator source-failover-ready  old 10.35.1.50 → new macnessa
-    2434.0s playback.coordinator source-presented  positionMs 117362
-
-`failed-session-closed` appearing answers this section's kept-honest question
-below: **the close settles**, in one attempt, once the node answers.
-
-**Four things this changes or adds, in order of weight:**
-
-1. **It took the failover path, not regenerate, and left a healthy local node
-   for a remote one — twice.** `10.35.1.50` answered its own `status` at
-   14 ms throughout; the first recovery went over the internet to a different
-   node, and the second to a third node in another country. That is §1.0's
-   2026-09-20 finding again — *"left a healthy local node for a cross-site
-   one"* — except that this time the mode stayed `direct`, so the cost was
-   bandwidth and latency rather than a transcode. **Core then noticed on its
-   own**: `3055.8s cluster.health preemptive-endpoint-swap` from ramaroja
-   (272 ms) to `10.35.1.50` (14.3 ms), 51 s after the second failover — which
-   moves preference, not the playing session.
-2. **Why it failed over: this client sends every direct-play fatal to core as
-   `unknown`.** Read from `src/player/ExpoVideoAdapter.ts`
-   (`kindForTerminalError`), not seen on the trail: `if (!source.isManifest)
-   { warn('terminal-failure-unclassified', { state: 'not-a-manifest' });
-   return 'unknown'; }`. Both reaps were progressive MKV. Core confirmed the
-   other half the same evening, from its tree at `d58375a`: an `unknown` fatal
-   is endpoint evidence, `ClusterPlaybackResolver.failover` charges the node
-   and walks away, while `not-found` would have made it check liveness and
-   **regenerate on the same node, uncharged**. So the fix is at the
-   classification, and it is ours. **How is open.** A one-byte
-   `Range: bytes=0-0` probe of the progressive source was proposed to core,
-   and core built it (`probeSourceReadiness`, core `9885730`). **Tom rejected
-   it the same evening — "a filthy brittle hack. No." — and it is not used
-   here.** Core reverted it in `629e89c`; it was never published, and core's `dist`
-   no longer contains it (checked here, dist hash `27c7fdf7742a`). Do not
-   re-propose a stream probe.
-   The trail line that would have shown this on screen was lost because **one
-   recovery emits at least nine lines and the overlay holds eight**. That still
-   wants fixing before the next reap, because the next thing to confirm is the
-   `not-found` → regenerate path on hardware.
-3. **Detection waits for the buffer, not for the failure, and on `expo-video`
-   it has to.** The fetch against the dead session failed at 18:39:07 and
-   nothing reacted for 59 s, until the player ran dry. Core's answer is the
-   degradation channel: report the first failed fetch, and it regenerates
-   inside the remaining buffer (the web client measured 3.44 s, same node,
-   invisible). But this adapter's `subscribeDegradation` is fed only by the
-   stall watchdog, and `expo-video` exposes no per-load error (§2's "failure
-   evidence is weaker"). The native `PlayerEngine.kt` does see `onLoadError`
-   with `responseCode` (line ~450), and it is not the adapter the set runs.
-4. **A deleted session on `macnessa` kept serving for two and a half
-   minutes.** The buffer grew for 2 min 28 s after its `DELETE` returned `204`
-   — the stream already open was not cut. Reap 1 against `10.35.1.50` stopped
-   within ~6 s of the next request. **The server session answered from its
-   code** (server 0.53.2, `src/playback.cpp`, asserted, not measured):
-   `erase_session` removes the record, stops any transcode and returns `204`,
-   but has no handle on open response bodies. The `/direct` route checks the
-   session only when a request *arrives*, and the body it then streams captures
-   the file, not the session. So an in-flight ranged body runs to the end of
-   its range, and only the *next* request gets `404 stream not found`. The
-   server code is the same on every node; its guess at the 2.5 min vs 6 s gap
-   is one long open-ended range versus several short ones (unverified). Whether
-   a delete should also cut in-flight bodies is with Tom, and nothing on the
-   server has changed. **For P-1 this means a reap on direct play surfaces
-   only at the player's next request**, which can be minutes away.
-   **And a third reap, the same night, says even that may not hold.**
-   Measured on build `d0298604…`, which carries core's liveness-before-charge
-   change (`2bcce57`): session `b9d5aed0…` on `10.35.1.50` deleted at 23:03:21
-   (`204`), after which no node listed any session for the account. Playback
-   carried on for eight minutes with its buffer growing. Then a seek of more
-   than two minutes past the buffered edge (529 s → 661 s) at 23:11:31, and
-   playback **still** carried on, the buffer reaching 808 s over two open
-   connections to `10.35.1.50`. Whether that seek opened a new request, which
-   the server says would `404`, or reused an open one could not be seen from
-   here. **Consequence: core's liveness fix could not be exercised on direct
-   play, because the reap never reached the player.** It stays unverified on
-   the set.
-   **Neither side logs enough to settle it.** The server session (same
-   night): its journal has no line per direct range request at any level, and
-   the delete logs nothing either, so the window is silent. From the code,
-   every request to `/direct` looks the session up first and would `404`, so
-   *their inference* is that no new request was made and the seek was served
-   from an already-open body. The set's logcat is equally silent: 5 286 lines
-   in the 11 s around the seek, none from OkHttp, ExoPlayer or media3.
-   `expo-video` logs no requests. To test a reap, use HLS or a transcode,
-   where each segment is its own request.
-
-**Not verified, kept honest:** that "failover" here is a misclassification
-rather than correct behaviour for a stream-fetch error; and whether a
-`not-found` from the session `GET`, the 2026-09-20 entry, still regenerates and
-still hangs. Nothing today touched that path.
-
-**Measured 2026-09-20, 22:58, on the TCL, with core's walk fix (`10a1d93`) in
-the build.** A session deleted under a paused client was, for the first time,
-classified correctly:
-
-    755.3s playback terminal-failure-classified  {"status":404,"kind":"not-found"}
-    755.3s playback failure                      {… "kind":"not-found"}
-    755.4s playback.api http-error-response      GET  /playback/sessions/df33040e…  404
-    755.4s playback.coordinator source-reaped    endpoint 10.35.1.50:7438
-    755.4s playback.coordinator session-reaped-regenerating
-    755.4s playback.api http-error-response      DELETE /playback/sessions/df33040e…  404
-
-**And then nothing, for minutes.** Position frozen at 5:00, chrome reading
-"Preparing new stream on http://10.35.1.50:7438…", no failure screen, no
-further line. Tom watched it freeze; this session had reported it as
-recovering from 25-second screenshots, and was wrong.
+**Status, 2026-09-24:** four reaps since 2026-09-23, none froze. A transcode
+reap now recovers **on the same node** (core's liveness-before-charge,
+`2bcce57`); direct-play reaps either failed over remotely (before that fix) or
+never reached the player (a deleted session's open body keeps streaming — the
+server session confirmed that from `playback.cpp`). All four are written up in
+`COMPLETED.md`'s top section. **Open:** detection waits for the buffer to drain
+(66 s) because `expo-video` reports no per-segment failure — see §0's item 4.
+The history below predates all of that.
 
 ### Why it is P-1 and not P0
 
@@ -900,110 +669,6 @@ The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
 
-### 1.16 Viewer text leaves core — Tom, 2026-09-24, **done on develop `9b3d56f`**, against core dist `4dd849e9c8a3`; not yet seen on the set (the set's only node was down)
-
-Core will stop composing any viewer text (see AGENTS.md). This client
-currently takes from it: `episodeLabel` and `trackNumberLabel` (`cardLines.ts`);
-`media.subtitle` wherever a card or the player shows one; `choiceLabel`
-(`SortControl`) and `SearchCategory.label` (`CategoryToggles`); `error.message`
-(`Status.tsx`, `failureCopy`); and the coordinator's notice sentences
-(`PlayerScreen`). All reported to core (message `6b8ba178`) with a request for
-codes on every error and notice, and the album's artist as data. Move each to
-local text as core's replacement lands, so the set never shows a gap.
-
-### 1.15 Search, sort and focus — **built and measured on `.133`, 2026-09-24**
-
-Measured on builds up to md5 `e04303d9…` (develop `58e9c65`), signed in as
-`tvtest`. Everything in §1.14 is done, and so is the focus work that followed:
-
-| Checked on the set | Result |
-| --- | --- |
-| Search control row (field, Sort By, Movies/TV Shows/Music, refresh) | as the web's design language; one height and shape |
-| Episode and track lines | "Deadlock / Star Trek: Voyager / Season 2 Episode 21"; "Tool - Ænima (1996) / Track 6" |
-| Continue Watching | "Firefly / Season 1 Episode 3" |
-| Square music art | full width, centred in a poster's height, title on the posters' line |
-| Right from the search field | Sort → Movies → TV Shows → Music → Refresh; never into the results |
-| Down then Up | returns to the control left (the undo rule, TV only by Tom's decision) |
-| Up from a Movies card under a short Continue Watching row | the row above, not the top bar |
-| Left past Home | stops; no longer drops to a card |
-| Sort By on Movies / TV Shows | steps Title → Year → Recently added; A–Z hidden outside Title; each list starts at Title |
-| Episode card focus | the movie card's frame, gap, wash and scale |
-| Back to TV Shows | Firefly focused and fully in view |
-| Options panel | thick focus border, fill only for selected; focus stays in the panel past the chrome's timer |
-
-The focus rule changes (edges not centres; same row for Left/Right and stop
-at its end; nearest row for Up/Down) are in the web client too; the undo rule
-is not, by Tom's decision.
-
-**Still faint, found while checking:**
-- **The top bar:** focus and "current page" are the same fill, a shade apart.
-- **The sign-in buttons:** after moving between them, neither showed focus.
-
-### 1.14 Search and focus — Tom's list, 2026-09-23 — **done, see §1.15**
-
-From Tom, verbatim in substance:
-
-1. **Episode results name their series.** A search hit that is an episode
-   shows only `S01E01` under its title today; it needs the series name too.
-2. **The search field spans the full width**, and a **sort by** control sits
-   in the same row.
-3. **Search results use the movie card's focus look**: the thicker red border
-   with a gap between image and border. Same settings as the movie selector.
-4. **Episode cards the same** (Tom, same evening, before the Search list):
-   the season rail's episode cards get the movie card's focus look. They
-   currently show a thin outline.
-
-Found on the set while trying to switch a stream to transcode, measured on
-`.133`:
-
-- **The options panel's focus is nearly invisible.** A focused chip differs
-  from a selected one only by a one-pixel red border. Three attempts to reach
-  Transcode by D-pad landed on Direct or left the row without any visible
-  sign. On a 10-foot UI that is unusable.
-- **Opening the panel does not reliably move focus into it.** Once focus
-  stayed on the transport row, so the next Right moved to ✕.
-- **Up from the season page's episode rail does not reach the top bar**; it
-  moves along the rail.
-- **`dumpsys media_session` `state=` readings can be stale** — check the
-  `updated` stamp against `/proc/uptime` before trusting one.
-
-### 1.13 Episode navigation, Tom's business P0 — built and **measured working on `.133`**, 2026-09-23
-
-**Measured** on build md5 `d0298604…` (develop `9b4b638`, core `3f77ef4`
-through the link, bundle checked for `episodeNav`, `chromeButtonDisabled` and
-`provisional`, each absent from the older bundle), signed in as `tvtest`.
-
-| Step | What the set did |
-| --- | --- |
-| Resume Bushwhacked S01E02 from Continue Watching | control bar: restart · **previous** · rewind · pause · forward · **next** · options · close, both enabled |
-| Next | switched to Our Mrs. Reynolds S01E03 at 0:07, direct from `10.35.1.50` |
-| Back | **Season 1**, focus on 1×03, rail scrolled to it, TV Shows lit in the top bar |
-| Back | **Firefly**, synopsis shown, Season 1 focused |
-| Back | **TV Shows**, Firefly focused |
-| TV Shows → Firefly → Season 1 → episode 1 | The Train Job S01E01: **previous greyed**, next enabled |
-| Left twice from pause | pause → rewind → **restart**; the greyed button is stepped over |
-
-The rule is core's (`episodeNeighbours`, core `8dd1fcf`): it crosses season
-boundaries, keeps specials as their own chain, and answers empty instead of
-failing. This client owns the lifecycle (`src/app/useEpisodeNeighbours.ts`),
-the stack (`src/app/libraryTrail.ts`, six tests) and the buttons.
-
-**One defect found and fixed on the way** (`9b4b638`): opening a series from TV
-Shows left focus on the top bar's Home, so the next OK went Home. The screen's
-default card registers only after its fetch, and `focusDefault` had fallen back
-to the first thing on screen. That fallback is now provisional: a late
-`defaultFocus` element takes over unless the viewer has moved. Four tests; the
-first was seen red with `'nav-home'` where `'season-1'` belonged. **Asserted,
-not measured:** that this predates tonight's change. A plain `push` ran the
-same effect.
-
-**Seen and not fixed:** after Back to TV Shows, focus returns to the right card
-but the page does not scroll to it, so Firefly sat half below the fold. Not
-checked on the old build, so whether it is new is open.
-
-**The remote's own previous/next media keys are not wired.** Not attempted:
-nothing here confirmed which `eventType` the TCL's remote sends for them.
-
 ### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **none fixed**
 
 All measured on the set, all by D-pad over `adb`. None is P-1; all are this
@@ -1039,104 +704,6 @@ client's.
   recovery. Reap 1's lines *did* appear with the chrome hidden. Observed
   twice-inconsistent and not explained — so do not trust a capture of the
   trail without the chrome up.
-
-### 1.11 The resume-point kill test — run 2026-09-23, **passed**, and the stored position matched the model to the second
-
-**Measured on `10.35.1.133`** (TCL, Android 12), md5 `1b528dea9c6a24db…`,
-`versionCode 600`, signed in as `tom`, serving node `10.35.1.50`. Everything
-below is read off the device or the node; nothing is inferred from the source
-except where it says so.
-
-*Harry Potter and the Half-Blood Prince* (2009) was chosen **because it was not
-in Continue Watching** — the rail held Joy of Cooking S04E05, The Day After
-Tomorrow and 28 Days Later — so a new entry could not be confused with an old
-one. Its detail page offered **Play only**, no resume affordance.
-
-| | |
-| --- | --- |
-| Play pressed | 17:55:39 |
-| Playing, confirmed | `state=3`, position 14 927 ms, `speed=1.0` |
-| Trail on screen | `MATROSKA : http://10.35.1.50:7438`, `DIRECT · HEVC · 1920×800 · 2.4 Mb/s`, `DIRECT · ENG · AAC · 5.1 · 48 kHz` |
-| `am force-stop` | 17:59:11, at position **204 209 ms (3:24)** |
-| Process after | gone |
-| Relaunch | 17:59:31 |
-| Continue Watching | **Half-Blood Prince first**, ahead of Joy of Cooking and Day After Tomorrow |
-| Resumed position | back-extrapolated to **53 456 ms** at the moment Resume was pressed |
-
-**The stored point was ~53 s, and that is exactly what the design predicts.**
-`useContinueWatchingWriter` ticks every `CONTINUE_WATCHING_TICK_MS` (30 s) from
-mount; core declines anything below `MINIMUM_PROGRESS_MS`, which is **30 000**
-(read from `macha-ts/src/state/continueWatching.ts` at `a3b40ca`). So the tick
-at position ≈23 s was attempted and declined, the tick at ≈53 s landed, and
-`CONTINUE_WATCHING_WRITE_INTERVAL_MS` (5 min) then held off the next one —
-which never came, because the kill was at 3:24. **One write, exactly where the
-model says it should be**, including the declined attempt that
-`nextWatermark` exists to retry.
-
-**Loss on the kill: 150.7 s**, against a bound of one write interval. The
-feature does what `progressPersistence.ts` claims, on the kill shape it was
-written for.
-
-How the position was established, since `dumpsys media_session` misleads here:
-its `position` is a **snapshot, not a live counter** — two reads 20 s apart
-returned the same figure. Each snapshot carries an `updated` stamp on the
-device's uptime clock, and two of those give the line (54 601 ms of clock to
-54 607 ms of position, so 1:1), which extrapolates back to the Resume press.
-That is a **lower bound**: playback cannot have begun before the press, so the
-true stored value is 53 456 ms plus however long session setup took.
-
-**Also confirmed, incidentally:**
-
-- **The detail page gained a Restart button.** Before the kill it showed one
-  control; after, it shows **Play and Restart**. The stored point is read back
-  on that screen too, not only in the rail.
-- **28 Days Later fell off the rail, and that is correct.**
-  `CONTINUE_WATCHING_LIMIT = 3` in core (same file, same commit). A fourth
-  entry evicts the oldest. Nobody should chase this as a fault.
-- **§1.8 reproduces on a second title.** `AudioOut_FD`, **type 1 (DIRECT)**,
-  channel count **6**, mask **`0x0000003f`** — positional, PCM 16-bit, 48 kHz.
-  The Hunger Games measurement was not a one-off.
-
-**What could not be done, and it is a hole in the procedure rather than in the
-client.** §0 said to *query the node for sessions before relaunching*.
-`GET /api/v1/playback/sessions` is **account-scoped** — it answers
-`{"account":{"max_sessions":32,"sessions":0},"items":[]}` for `tvtest` while
-the set plays as `tom`. So the step is unperformable from here unless the set
-is signed in as the account whose token we hold, or `tom`'s token is to hand.
-**Whoever rewrites that line should say so**, rather than leaving the next
-session to discover it mid-test.
-
-**Two things for anyone driving this set over `adb`:**
-
-- **The player chrome auto-hides, and the first keypress after it hides is
-  spent revealing it.** Several D-pad presses vanished before that was
-  understood. Budget one extra press, or keep the gaps under the hide timeout.
-- **`screencap` of the player is black** — the video sits on a surface the
-  capture does not see. The chrome overlay *does* capture, so the transport
-  row and the trail are readable; the picture is not.
-
-#### The stereo A/B could not be run, and the reason is not a fault
-
-Player options on Half-Blood Prince offered **MODE** Auto/Direct/Remux/Transcode
-(Auto selected, "Chosen automatically: this device plays the file as it is"),
-**QUALITY** Original/720p/480p/360p, **SUBTITLES** Off/ENG/CHI — and under
-**AUDIO**, exactly one entry: **`ENG · AAC · 6ch`**, annotated "Server
-processing: copy".
-
-There is no 2.0 track to select, so §0's item 2 cannot be run on this title.
-Two things are needed before it can be:
-
-1. **A title that carries a stereo track.** Not yet surveyed; the catalogue can
-   be asked without a set.
-2. **Somebody in front of the television.** The test asks whether level and
-   sync *snap back*, which is a listening judgement. The channel mask and the
-   output-thread type can be read over `adb` and were; loudness cannot.
-
-`MODE → Transcode` is the obvious way to force a different audio path without
-finding another title, and it was **deliberately not tried**: it starts a
-transcode on a cluster that had just come back from an outage, and it changes
-what is on screen for whoever is watching. That is Tom's call, not this
-session's.
 
 ### 1.1 Navigation faults found on hardware
 
