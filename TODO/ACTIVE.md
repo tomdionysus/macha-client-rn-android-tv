@@ -49,15 +49,15 @@ things they got wrong. Read that first; this section is only what is open.
 ### Open, in order
 
 1. **Get the set onto a node and eyeball the viewer-text build** (above).
-2. **A restart does not fall back to nodes the set has already reached.**
-   Found 2026-09-24: with `10.35.1.50` down, the set showed "Can't reach
-   Macha" although it had streamed from `macnessa` and `ramaroja` the night
-   before. Core persists confirmed discovered endpoints
-   (`persistConfirmedEndpoints` → `macha-discovered-endpoints-v1`), and this
-   client's hydrate filter (`macha` prefix) lets that key through — so the
-   cause is not yet found. Candidates: the list was never written, or it was
-   cleared by the sign-out/sign-in. Release builds cannot be `run-as`, so
-   reading the stored key needs a debug build or a logging line.
+2. **A restart did not fall back to nodes the set had already reached** —
+   cause found 2026-09-24 (asserted from source and a unit test, **not yet
+   seen on a set**). `MachaProvider` seeded the remembered endpoints as
+   `bootstrap`; core's `persistConfirmedEndpoints` rewrites the list from
+   `discovered` entries only, so the first health cycle after any restart
+   wiped it. Fixed in `src/state/endpointSeed.ts`, which seeds them as
+   `discovered`. To confirm on the set: reach a second node, restart the app
+   twice with `10.35.1.50` down, and it should still reach Macha. Core is asked
+   for a shared seeding helper; the web client appears to have the same fault.
 3. **Faint focus in two places**, found while checking tonight's build: the top
    bar (focus and "current page" are one fill a shade apart) and the sign-in
    buttons (after moving, neither showed focus). Offered to Tom, not answered.

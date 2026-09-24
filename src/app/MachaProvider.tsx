@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import {
-  bootstrapEndpoints,
   configureMachaHost,
   createMachaServices,
   EndpointHealthMonitor,
@@ -18,6 +17,7 @@ import {
   getDiscoveredEndpoints,
 } from '../state/client';
 import { nativeStorage } from '../state/storage';
+import { seedEndpoints } from '../state/endpointSeed';
 import { VolumeStore } from '../state/volumeStore';
 
 /**
@@ -81,7 +81,7 @@ export function MachaProvider({ children }: { children: ReactNode }): React.JSX.
   configureHost();
 
   const registry = useMemo(
-    () => new EndpointRegistry(bootstrapEndpoints([...getBootstrapEndpoints(), ...getDiscoveredEndpoints()])),
+    () => new EndpointRegistry(seedEndpoints(getBootstrapEndpoints(), getDiscoveredEndpoints())),
     [],
   );
 
