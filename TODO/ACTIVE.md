@@ -96,6 +96,15 @@ things they got wrong. Read that first; this section is only what is open.
    Tom's request 2026-09-24, built (`cdd7c0b`), **not yet seen on the set**.
    Ported from the web client's `.audio-player-*` rules, which were
    uncommitted in that tree; re-check them once they land.
+8c. **Versions (Tom, 2026-09-25)**: the generic Play stays as "decide for
+   me", with one play button per available quality beside it (a file, or a
+   capped transcode), the same set in the player's options, and a quality
+   ceiling in Settings (720p, 1080p, 1440p "2K", 4K), per device. Design agreed
+   with core; **waiting on core's API** (`playbackVersions` with transcode
+   rows, `play`/`update` taking `{ mediaId, transcodeCeiling }`). Nothing
+   built here yet.
+8d. **Multi-file items**: the facts supplier now hands core every file
+   (`a09fb56`, core `284e52e`), so the client chooses the file.
 8b. **Mode hint**: both faults found today are fixed in core `a98061b`
    (viewer's mid-playback choice reported as theirs; a fallback replaces
    `source-plays-as-is`). They arrive with core's next release.
@@ -707,7 +716,7 @@ The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
 
-### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **none fixed**
+### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **three of six fixed 2026-09-25, none yet seen on the set**
 
 All measured on the set, all by D-pad over `adb`. None is P-1; all are this
 client's.
@@ -723,18 +732,24 @@ client's.
   `seekMs: 0` — the rail offers a resume it then does not perform. Whether the
   position is being dropped or deliberately withheld across accounts is not
   established; either way the rail and the player disagree.
-- **Signed out, Settings reports a `401` as "catalogue unavailable".** The
+- ~~**Signed out, Settings reports a `401` as "catalogue unavailable".**~~
+  **Fixed `cbfc3ca`**: signed out outranks the ladder, the cards say "Sign in
+  required", and the Catalogue card words `error_code` instead of showing the
+  server's sentence. The
   header read "Server online; catalogue unavailable" with **PLAYBACK:
   Unavailable**, and the small print underneath gave the real reason, "a
   valid session bearer token is required". That is §1.9 turned round: an
   authentication state worded as a service outage.
-- **The sign-out dialog opens on Cancel, and the unfocused Sign out looks
-  focused.** Cancel is the focused button (a filled background); Sign out
+- ~~**The sign-out dialog opens on Cancel, and the unfocused Sign out looks
+  focused.**~~ **Fixed `dd32143`**: the dialog uses `Button`; the destructive
+  fill keeps no red border, so a red outline only ever means focus. Opening on
+  Cancel is kept on purpose. Cancel is the focused button (a filled background); Sign out
   carries a red outline as its destructive style, and a red outline is what
   focus looks like everywhere else in this client. It cost one confirm press
   that landed on Cancel. At ten feet the two are easy to confuse.
-- **The sign-in wall: DOWN from the password lands on Server settings, not
-  Sign in,** and going there **discards the typed username and password**. At
+- ~~**The sign-in wall: DOWN from the password lands on Server settings, not
+  Sign in,**~~ **Fixed `8119af6` (Sign in on its own row under the fields; the
+  draft kept in memory) and `c7f2137` (focus visible):** and going there **discards the typed username and password**. At
   one point neither button showed any visible focus.
 - **The on-screen trail did not repaint in captures while the chrome was
   hidden, during reap 2.** Forty-one captures across the recovery all showed
