@@ -5,6 +5,11 @@ measurements and the experiments that failed. **Read HISTORY before designing
 anything about playback or failover** — most of the expensive mistakes here have
 already been made once.
 
+[`docs/principles-and-laws.md`](docs/principles-and-laws.md) is the shared
+Macha document, the same in every Macha project: 1 control, 2 viewer, 3
+loader, 4 Shoot Thyself. Cite laws by that number. Its law text is core's and
+changes in core first, never here alone.
+
 ## Non-negotiables
 
 **This is an Android TV app.** Leanback, D-pad, 10-foot UI. No touch handlers,
