@@ -900,7 +900,7 @@ The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
 
-### 1.16 Viewer text leaves core — Tom, 2026-09-24, **waiting on core's list**
+### 1.16 Viewer text leaves core — Tom, 2026-09-24, **done on develop `9b3d56f`**, against core dist `4dd849e9c8a3`; not yet seen on the set (the set's only node was down)
 
 Core will stop composing any viewer text (see AGENTS.md). This client
 currently takes from it: `episodeLabel` and `trackNumberLabel` (`cardLines.ts`);
