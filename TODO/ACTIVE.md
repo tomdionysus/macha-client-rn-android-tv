@@ -77,7 +77,20 @@ things they got wrong. Read that first; this section is only what is open.
 6. **§1.9** — whether a catalogue `5xx` should charge a node at all is with core
    (message `167950ec`); the client's wording half is now `errorText`.
 7. **§1.12** — the list of smaller faults found switching accounts.
-8. The remote's own previous/next media keys are not wired to episodes.
+8. **Remote next/previous keys — wired 2026-09-24** (`76c4487`). Measured on
+   `.133`: next moved S01E03 to S01E04, previous back. The same test found
+   switching episodes **lost the place** (previous resumed at 0:16, not
+   29:31): a progress write in the gap before React re-rendered stored the
+   new episode's position under the old one. Fixed in the same commit
+   (`attributableProgress`); **the fix is not yet on the set.** To confirm:
+   next from an episode past 0:30, previous, and it resumes where it was.
+8a. **A track's artwork, artist, album (year) and track in the player** —
+   Tom's request 2026-09-24, built (`cdd7c0b`), **not yet seen on the set**.
+   Ported from the web client's `.audio-player-*` rules, which were
+   uncommitted in that tree; re-check them once they land.
+8b. **Mode hint**: both faults found today are fixed in core `a98061b`
+   (viewer's mid-playback choice reported as theirs; a fallback replaces
+   `source-plays-as-is`). They arrive with core's next release.
 9. Parity, §4.
 
 ### Waiting on others
@@ -87,7 +100,6 @@ things they got wrong. Read that first; this section is only what is open.
   the latter, so core's design (drop a remembered server the moment a current
   member omits it; before any member answers, use what is saved) is correct.
   An alarm raised here the same day was withdrawn; nothing changes.
-- **Core:** a published version for `main` (above).
 - **Server 0.56.0** (develop `60ce47a`, announced 2026-09-24, not yet
   deployed): a top-level `status` code on every JSON response. This client
   parses no server JSON itself, so nothing here breaks. Core `a5b08f0` swapped
@@ -95,7 +107,7 @@ things they got wrong. Read that first; this section is only what is open.
   the code locally (`serverStatusText`) and shows no server sentence. Seen on
   the set against 0.55.1 (serving, so no note); the worded failure cases are
   unseen. Server will say when es-1/fi-1 are live.
-- **Tom:** a second endpoint on the set; the faint-focus fix; the native-adapter
+- **Tom:** the faint-focus fix; the native-adapter
   trial; whether series/season "links" on a TV card mean anything beyond Back
   (core has put it to him).
 
