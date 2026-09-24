@@ -82,15 +82,11 @@ things they got wrong. Read that first; this section is only what is open.
 
 ### Waiting on others
 
-- **Core: Tom's cluster-membership rule (2026-09-24).** "The TV must
-  ABSOLUTELY NOT pick up old servers and talk to them if they're not in the
-  cluster." Core's `candidates()` treats a remembered endpoint as a full
-  candidate from startup until the first cluster-status answer, token and all,
-  and keeps it all run if no member answers (read in core `f7dc0f6`, not
-  measured). Sent to core with the design it implies: remembered endpoints ask
-  only who the cluster is, carry no token, and are dropped the moment an
-  advertisement omits them. **The restart fallback confirmed today runs
-  through this window**, so it is not done until core lands this.
+- **Settled 2026-09-24: which servers the set may use.** Tom: only configured
+  servers and those the servers themselves advertised. The remembered list is
+  the latter, so core's design (drop a remembered server the moment a current
+  member omits it; before any member answers, use what is saved) is correct.
+  An alarm raised here the same day was withdrawn; nothing changes.
 - **Core:** a published version for `main` (above).
 - **Server 0.56.0** (develop `60ce47a`, announced 2026-09-24, not yet
   deployed): a top-level `status` code on every JSON response. This client
