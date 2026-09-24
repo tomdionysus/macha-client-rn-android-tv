@@ -80,8 +80,10 @@ function rectGap(start: number, size: number, otherStart: number, otherSize: num
  * the current element's *edge* on that side, and the primary distance is the
  * gap between the facing edges. For two equal cards in a grid this chooses
  * exactly what the centre rule chose; it differs only where sizes differ,
- * which is where the centre rule was wrong. **Owed to the web client**, whose
- * `useTvNavigation.ts` has the same rule and the same fault.
+ * which is where the centre rule was wrong. **The web client made the same
+ * change the same night** (its develop `50a2ff7`, "TV focus: judge direction from edges
+ * and prefer the current row"), after its own tests of these cases failed
+ * first — so the two ports still agree.
  */
 export function scoreTvCandidate(
   current: FocusRect,
