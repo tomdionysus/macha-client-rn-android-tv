@@ -526,3 +526,31 @@ describe('reversing a move', () => {
     stops.forEach((stop) => stop());
   });
 });
+
+/**
+ * Home, measured off `.133` on 2026-09-24: the top bar, a Continue Watching
+ * row of three cards at the left, and a full Movies row below. Up from a
+ * Movies card with nothing directly above it in Continue Watching went
+ * straight to the top bar — the column-first reading of "row first" skipping a
+ * whole row.
+ */
+describe('moving between rows', () => {
+  const nav = [
+    { id: 'nav-home', rect: rect(740, 20, 60, 40) },
+    { id: 'nav-search', rect: rect(1040, 20, 70, 40) },
+  ];
+  const cw = [60, 290, 520].map((left, index) => ({ id: `cw-${index}`, rect: rect(left, 140, 200, 330) }));
+  const movies = [60, 290, 520, 745, 975].map((left, index) => ({
+    id: `movie-${index}`,
+    rect: rect(left, 640, 200, 320),
+  }));
+
+  it('goes up to the row above, not over it to the top bar', () => {
+    const hellboy = movies[4]!;
+    expect(pickTvCandidate(hellboy.rect, [...nav, ...cw, ...movies.slice(0, 4)], 'up')?.id).toBe('cw-2');
+  });
+
+  it('still reaches the top bar from the first row', () => {
+    expect(pickTvCandidate(cw[0]!.rect, [...nav, ...cw.slice(1), ...movies], 'up')?.id).toMatch(/^nav-/);
+  });
+});

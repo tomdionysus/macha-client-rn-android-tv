@@ -128,18 +128,37 @@ export function pickTvCandidate<T extends { rect: FocusRect }>(
   const scored = candidates
     .map((entry) => ({ entry, score: scoreTvCandidate(current, entry.rect, direction) }))
     .filter((item): item is { entry: T; score: number } => item.score !== null);
-  // **The row first.** When anything in the direction of travel shares the
-  // current element's row (or column, going up or down), only those compete;
-  // the next row is where a move goes once its own row has run out. The lane
-  // penalty alone could not promise this — a far control on the same row lost
-  // to a near card on the next (Search: field → refresh past a results row).
+  const byScore = (a: { score: number }, b: { score: number }) => a.score - b.score;
   const horizontal = direction === 'left' || direction === 'right';
-  const inLane = scored.filter(({ entry }) =>
-    horizontal
-      ? rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0
-      : rectGap(current.left, current.width, entry.rect.left, entry.rect.width) === 0,
+
+  // **Left and right: the row first.** When anything in the direction of
+  // travel shares the current element's row, only those compete; the next row
+  // is where a move goes once its own row has run out. The lane penalty alone
+  // could not promise this — a far control on the same row lost to a near card
+  // on the next (Search: field → refresh past a results row).
+  if (horizontal) {
+    const sameRow = scored.filter(
+      ({ entry }) => rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0,
+    );
+    return (sameRow.length > 0 ? sameRow : scored).sort(byScore)[0]?.entry;
+  }
+
+  // **Up and down: the nearest row first, then the best of it.** Not "the same
+  // column first": that reading skipped a whole row on Home — Up from a Movies
+  // card with nothing directly above it in a short Continue Watching row went
+  // straight to the top bar (`.133`, 2026-09-24). A viewer reads Up as "the
+  // row above". So the row is the band of candidates overlapping, vertically,
+  // the one whose facing edge is nearest; the usual score chooses within it.
+  const nearest = [...scored].sort(
+    (a, b) =>
+      rectGap(current.top, current.height, a.entry.rect.top, a.entry.rect.height) -
+      rectGap(current.top, current.height, b.entry.rect.top, b.entry.rect.height),
+  )[0];
+  if (!nearest) return undefined;
+  const row = scored.filter(
+    ({ entry }) => rectGap(nearest.entry.rect.top, nearest.entry.rect.height, entry.rect.top, entry.rect.height) === 0,
   );
-  return (inLane.length > 0 ? inLane : scored).sort((a, b) => a.score - b.score)[0]?.entry;
+  return row.sort(byScore)[0]?.entry;
 }
 
 function sequentialCandidate(
@@ -210,7 +229,8 @@ class TvFocusRegistry {
    * from where they now are. Only the move just made is remembered, and any
    * other selection — another direction, a restore, a default — forgets it,
    * so the rule stays one a viewer can predict: *the opposite press undoes
-   * the last one*. **Not in the web client**; offered to it.
+   * the last one*. **Not in the web client, by Tom's decision (2026-09-24)** — the
+   * one place the two focus ports deliberately differ.
    */
   private lastMove: { from: string; to: string; direction: TvDirection } | undefined;
 
