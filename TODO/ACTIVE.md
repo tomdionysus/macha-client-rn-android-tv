@@ -63,9 +63,15 @@ things they got wrong. Read that first; this section is only what is open.
    core's `seedEndpoints` (`b47773d`), which also stops the list being wiped
    while nothing has answered yet; that half is on the set since `1bc8471a`
    but has not been exercised.
-3. **Faint focus in two places**, found while checking tonight's build: the top
-   bar (focus and "current page" are one fill a shade apart) and the sign-in
-   buttons (after moving, neither showed focus). Offered to Tom, not answered.
+3. **Focus — fixed 2026-09-24, not yet on the set** (`c7f2137`, `1098898`).
+   Tom: Home looked selected whatever held focus, focus jumped to Home however
+   a screen was reached, and the sign-in buttons must match every other
+   button. The top bar now uses the standard ring; the focus fallback prefers
+   the nav item last used (`tvFocus`'s `lastNavId`); `Button` is the one text
+   button, used by Settings, sign-in and the offline screen. To confirm: move
+   to Movies in the top bar and press OK, and focus should stay on Movies
+   rather than jumping to Home; move between the sign-in buttons and the
+   focused one should show the ring.
 4. **P-1, what remains** (section P-1 below): the transcode reap recovers on the
    same node, but only after the buffer drains (66 s) because `expo-video`
    reports no per-segment failure; and a direct-play reap never reaches the
@@ -108,8 +114,10 @@ things they got wrong. Read that first; this section is only what is open.
   `ServerStatus.message` for `code` and `detail`; Settings > Server now words
   the code locally (`serverStatusText`) and shows no server sentence. Seen on
   the set against 0.55.1 (serving, so no note); the worded failure cases are
-  unseen. Server will say when es-1/fi-1 are live.
-- **Tom:** the faint-focus fix; whether series/season "links" on a TV card mean anything beyond Back
+  unseen. **0.57.0 is live on gbni-1 and fi-1 since 18:57Z (core, 2026-09-24):**
+  look at Settings > Server against fi-1 (`10.35.1.50`) and send core what it
+  shows, with the node.
+- **Tom:** whether series/season "links" on a TV card mean anything beyond Back
   (core has put it to him).
 
 ### Traps this session paid for — driving the set over adb
