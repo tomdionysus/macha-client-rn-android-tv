@@ -9,6 +9,16 @@ import { colour, font, rem, type } from '../styles/theme';
 export const LOGIN_SCOPE = 'login';
 
 /**
+ * What the viewer has typed, kept while the sign-in wall is away.
+ *
+ * §1.12, measured on `.133` 2026-09-23: going to Server settings and back
+ * discarded the typed username and password, because the screen unmounts.
+ * In memory only, never storage; the username is forgotten after a sign-in
+ * that succeeds, and the password after every attempt.
+ */
+const draft = { username: '', password: '' };
+
+/**
  * Sign in as somebody.
  *
  * Usually there is nothing to "enter" here in the sense of gaining access — a
@@ -72,8 +82,16 @@ export function LoginScreen({
    */
   notice?: string;
 }): React.JSX.Element {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsernameState] = useState(draft.username);
+  const [password, setPasswordState] = useState(draft.password);
+  const setUsername = (value: string) => {
+    draft.username = value;
+    setUsernameState(value);
+  };
+  const setPassword = (value: string) => {
+    draft.password = value;
+    setPasswordState(value);
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -97,6 +115,7 @@ export function LoginScreen({
     try {
       await onSignIn(username.trim(), password);
       setPassword('');
+      draft.username = '';
       onSignedIn();
     } catch (cause) {
       // The server's own words where it gave them — see `signInErrorText`.
@@ -139,8 +158,19 @@ export function LoginScreen({
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        {/*
+          * Sign in on its own row, the width of the fields, so Down from the
+          * password lands on it (§1.12: it landed on Server settings, whose
+          * centre sat nearer the field's). Geometry, not a focus override: the
+          * scoring weights are the web client's and stay untouched.
+          */}
+        <Button
+          label={busy ? 'Signing in…' : 'Sign in'}
+          onSelect={submit}
+          scope={LOGIN_SCOPE}
+          style={styles.primaryAction}
+        />
         <View style={styles.actions}>
-          <Button label={busy ? 'Signing in…' : 'Sign in'} onSelect={submit} scope={LOGIN_SCOPE} />
           {guestAllowed && onBrowseAsGuest ? (
             <Button label="Browse as guest" onSelect={onBrowseAsGuest} scope={LOGIN_SCOPE} />
           ) : null}
@@ -183,6 +213,10 @@ const styles = StyleSheet.create({
     color: colour.text,
     fontSize: type.small,
     marginBottom: rem(0.8),
+  },
+  primaryAction: {
+    marginTop: rem(0.4),
+    alignItems: 'center',
   },
   actions: {
     flexDirection: 'row',
