@@ -14,19 +14,13 @@ things they got wrong. Read that first; this section is only what is open.
 
 ### The tree
 
-- **`main` is `0.6.0`** (tagged), against core `^0.18.0` from the registry.
-- **`develop` is 49 commits ahead of origin, not pushed — the push is Tom's.**
-  It links `file:../macha-ts`, last checked at core `d8600cb`; typecheck, 297
-  tests and the export pass against it (2026-09-24).
-- **Release called by Tom 2026-09-24; blocked on core publishing.** The
-  registry's latest is `0.18.0` and `macha-ts` still says `0.18.0`, while
-  develop needs the viewer-text cut, `ServerStatus.code`/`detail`,
-  `seedEndpoints`, the decode fallback (`e840d72`), `progressWriteDue`,
-  `episodeNeighbours`, `SEARCH_SORTS` and the liveness check. Core has been
-  asked which version and when. Then: point `main`'s dependency at that
-  version, re-run the three checks against the *registry* copy, bump
-  `package.json` + `app.json` + `versionCode` in the release commit, tag
-  bare semver, annotated. The version number is Tom's.
+- **`main` is `0.7.0`** (`73cf87d`, annotated tag, pushed 2026-09-24 by
+  Tom's one-off authorisation), against core `^0.19.0` from the registry.
+  Verified from a fresh clone of the tag with no sibling core: `npm ci`
+  resolved the npm tarball, typecheck clean, 297 tests, export OK. The APK
+  (md5 `5695b83a8d3d5406d8675c319fe496a6`, `versionCode 700`, `armeabi-v7a`,
+  leanback) direct-played *The Train Job* on `.133`.
+- **`develop` links `file:../macha-ts` again** for development, as after 0.6.0.
 - `.gitignore` (`*.local.md`) and `basemind.toml` are still uncommitted, as
   they were before this session: tooling, nobody's decision yet.
 
