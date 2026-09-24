@@ -102,7 +102,13 @@ things they got wrong. Read that first; this section is only what is open.
    ceiling in Settings (720p, 1080p, 1440p "2K", 4K), per device. Design agreed
    with core; **waiting on core's API** (`playbackVersions` with transcode
    rows, `play`/`update` taking `{ mediaId, transcodeCeiling }`). Nothing
-   built here yet.
+   built here yet. **Which qualities appear** (Tom, via the phone client
+   2026-09-25): "cap down", never upscale. Offer each step of 4K, 2K, 1080p and
+   720p at or below the best file's step. A step with its own file plays that
+   file, and a step without one is a capped transcode from a better file.
+   Nothing above the best file is offered; below 720p it's Play only. Classify
+   a file's step by width as well as height, since a 1080p scope film is about
+   1920x800. The list is core's (`playbackVersions`); the words are ours.
 8d. **Multi-file items**: the facts supplier now hands core every file
    (`a09fb56`, core `284e52e`), so the client chooses the file.
 8b. **Mode hint**: both faults found today are fixed in core `a98061b`
