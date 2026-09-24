@@ -554,3 +554,22 @@ describe('moving between rows', () => {
     expect(pickTvCandidate(cw[0]!.rect, [...nav, ...cw.slice(1), ...movies], 'up')?.id).toMatch(/^nav-/);
   });
 });
+
+/**
+ * `.133`, 2026-09-24: Left from Home — the first item in the top bar — left
+ * the bar for the Arrival card below it, because with nothing further left in
+ * its own row the move fell back to anything to the left in any row.
+ */
+describe('the end of a row', () => {
+  const home = { id: 'nav-home', rect: rect(740, 20, 60, 40) };
+  const movies = { id: 'nav-movies', rect: rect(820, 20, 80, 40) };
+  const arrival = { id: 'cw-0', rect: rect(60, 140, 200, 330) };
+
+  it('stops a sideways move rather than dropping into another row', () => {
+    expect(pickTvCandidate(home.rect, [movies, arrival], 'left')).toBeUndefined();
+  });
+
+  it('still moves along the row it is in', () => {
+    expect(pickTvCandidate(movies.rect, [home, arrival], 'left')?.id).toBe('nav-home');
+  });
+});

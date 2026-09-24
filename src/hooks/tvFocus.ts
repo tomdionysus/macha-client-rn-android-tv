@@ -131,16 +131,17 @@ export function pickTvCandidate<T extends { rect: FocusRect }>(
   const byScore = (a: { score: number }, b: { score: number }) => a.score - b.score;
   const horizontal = direction === 'left' || direction === 'right';
 
-  // **Left and right: the row first.** When anything in the direction of
-  // travel shares the current element's row, only those compete; the next row
-  // is where a move goes once its own row has run out. The lane penalty alone
-  // could not promise this — a far control on the same row lost to a near card
-  // on the next (Search: field → refresh past a results row).
+  // **Left and right: only the row.** Only candidates sharing the current
+  // element's row compete, and at the end of the row the move stops. The lane
+  // penalty alone could not promise the first — a far control on the same row
+  // lost to a near card on the next (Search: field → refresh past a results
+  // row). And a fallback to "anything that way, in any row" was the second
+  // fault: Left from Home, first in the top bar, dropped to a card below it
+  // (`.133`, 2026-09-24). Changing row is what Up and Down are for.
   if (horizontal) {
-    const sameRow = scored.filter(
-      ({ entry }) => rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0,
-    );
-    return (sameRow.length > 0 ? sameRow : scored).sort(byScore)[0]?.entry;
+    return scored
+      .filter(({ entry }) => rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0)
+      .sort(byScore)[0]?.entry;
   }
 
   // **Up and down: the nearest row first, then the best of it.** Not "the same
