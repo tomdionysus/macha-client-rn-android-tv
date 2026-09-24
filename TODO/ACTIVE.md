@@ -119,6 +119,14 @@ things they got wrong. Read that first; this section is only what is open.
    Nothing above the best file is offered; below 720p it's Play only. Classify
    a file's step by width as well as height, since a 1080p scope film is about
    1920x800. The list is core's (`playbackVersions`); the words are ours.
+   **Settled by Tom 2026-09-25 (via core):** below 720p, the best file's own
+   class is shown (core's classes: 2160, 1440, 1080, 720, 576, 480, 360). An
+   explicit pick is never capped. With no setting, automatic play caps at
+   **the display's class, which the host states: on this TV the panel,
+   3840x2160 on `.133`, not the 1920x1080 UI override** that React Native's
+   screen size reports. Read the physical mode (`Display.getMode()` /
+   `dumpsys display`) when building it. Core gives a reason code when the cap
+   limits the choice; we word it.
 8d. **Multi-file items**: the facts supplier now hands core every file
    (`a09fb56`, core `284e52e`), so the client chooses the file.
 8b. **Mode hint**: both faults found today are fixed in core `a98061b`
