@@ -900,7 +900,35 @@ The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
 
-### 1.14 Search and focus — Tom's list, 2026-09-23, **not started**
+### 1.15 Search, sort and focus — **built and measured on `.133`, 2026-09-24**
+
+Measured on builds up to md5 `e04303d9…` (develop `58e9c65`), signed in as
+`tvtest`. Everything in §1.14 is done, and so is the focus work that followed:
+
+| Checked on the set | Result |
+| --- | --- |
+| Search control row (field, Sort By, Movies/TV Shows/Music, refresh) | as the web's design language; one height and shape |
+| Episode and track lines | "Deadlock / Star Trek: Voyager / Season 2 Episode 21"; "Tool - Ænima (1996) / Track 6" |
+| Continue Watching | "Firefly / Season 1 Episode 3" |
+| Square music art | full width, centred in a poster's height, title on the posters' line |
+| Right from the search field | Sort → Movies → TV Shows → Music → Refresh; never into the results |
+| Down then Up | returns to the control left (the undo rule, TV only by Tom's decision) |
+| Up from a Movies card under a short Continue Watching row | the row above, not the top bar |
+| Left past Home | stops; no longer drops to a card |
+| Sort By on Movies / TV Shows | steps Title → Year → Recently added; A–Z hidden outside Title; each list starts at Title |
+| Episode card focus | the movie card's frame, gap, wash and scale |
+| Back to TV Shows | Firefly focused and fully in view |
+| Options panel | thick focus border, fill only for selected; focus stays in the panel past the chrome's timer |
+
+The focus rule changes (edges not centres; same row for Left/Right and stop
+at its end; nearest row for Up/Down) are in the web client too; the undo rule
+is not, by Tom's decision.
+
+**Still faint, found while checking:**
+- **The top bar:** focus and "current page" are the same fill, a shade apart.
+- **The sign-in buttons:** after moving between them, neither showed focus.
+
+### 1.14 Search and focus — Tom's list, 2026-09-23 — **done, see §1.15**
 
 From Tom, verbatim in substance:
 
