@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
 import {
-  progressFor,
   sessionManager,
   type Episode,
   type MediaSummary,
@@ -19,6 +18,7 @@ import { isMediaFocusId, mediaFocusId } from './hooks/useAlphabetIndex';
 import { libraryTrail, type KnownAncestry } from './app/libraryTrail';
 import { SIGN_OUT_REVOKE_FAILED } from './text/viewerText';
 import { useEpisodeNeighbours } from './app/useEpisodeNeighbours';
+import { attributableProgress } from './app/progressAttribution';
 import { orphanedSessions } from './state/liveSessions';
 import { playbackLog } from './diagnostics/playbackLog';
 import { androidTvPlatform } from './platform/AndroidTvPlatform';
@@ -241,13 +241,9 @@ function Shell(): React.JSX.Element {
    * node's single transcode slot, and the next viewer is refused with a 429.
    */
   const recordPlayingProgress = useCallback(() => {
-    const snapshot = runtime.getPlaybackSnapshot();
     const media = route.name === 'player' ? route.media : undefined;
-    if (media && snapshot?.event && snapshot.event.durationMs > 0) {
-      continueWatching.update(
-        progressFor(media, snapshot.event.positionMs, snapshot.event.durationMs),
-      );
-    }
+    const progress = attributableProgress(runtime.getPlaybackSnapshot(), media);
+    if (progress) continueWatching.update(progress);
   }, [runtime, route, continueWatching]);
 
   const closePlayer = useCallback(() => {
@@ -321,6 +317,15 @@ function Shell(): React.JSX.Element {
     onRewind: () => route.name === 'player' && runtime.seekBy(-10_000),
     onFastForward: () => route.name === 'player' && runtime.seekBy(10_000),
     onStop: () => route.name === 'player' && closePlayer(),
+    // The remote's next / previous keys do exactly what the player's episode
+    // buttons do, and nothing where those buttons are greyed. `episodeNav` and
+    // `switchEpisode` are declared below; these run on a key, long after.
+    onNext: () => {
+      if (route.name === 'player' && episodeNav.next) switchEpisode(episodeNav.next);
+    },
+    onPrevious: () => {
+      if (route.name === 'player' && episodeNav.previous) switchEpisode(episodeNav.previous);
+    },
   });
 
   // Re-seed focus when the screen changes, the job the web client's

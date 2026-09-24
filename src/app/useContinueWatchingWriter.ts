@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import {
   isFinished,
   nextWatermark,
-  progressFor,
   progressWriteDue,
   type ContinueWatchingStore,
   type MediaSummary,
@@ -13,6 +12,7 @@ import {
   CONTINUE_WATCHING_TICK_MS,
   CONTINUE_WATCHING_WRITE_INTERVAL_MS,
 } from '../player/timingBudgets';
+import { attributableProgress } from './progressAttribution';
 
 /**
  * Keep the viewer's place on disk while they are still watching.
@@ -94,7 +94,12 @@ export function useContinueWatchingWriter(
         return;
       }
 
-      const progress = progressFor(playing, snapshot.event.positionMs, snapshot.event.durationMs);
+      // Only ever the media the player is actually on: see `attributableProgress`.
+      const progress = attributableProgress(snapshot, playing);
+      if (!progress) {
+        watermark.current = { ...watermark.current, paused: current.paused };
+        return;
+      }
 
       if (isFinished(progress)) {
         // Core drops a finished item from the list rather than storing a

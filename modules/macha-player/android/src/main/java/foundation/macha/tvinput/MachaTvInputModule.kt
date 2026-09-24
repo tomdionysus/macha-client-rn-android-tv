@@ -138,6 +138,8 @@ class MachaTvInputModule : Module() {
         KeyEvent.KEYCODE_MEDIA_REWIND to "rewind",
         KeyEvent.KEYCODE_MEDIA_FAST_FORWARD to "fastForward",
         KeyEvent.KEYCODE_MEDIA_STOP to "stop",
+        KeyEvent.KEYCODE_MEDIA_NEXT to "next",
+        KeyEvent.KEYCODE_MEDIA_PREVIOUS to "previous",
       )
   }
 }

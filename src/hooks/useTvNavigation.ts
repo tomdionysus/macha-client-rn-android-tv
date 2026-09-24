@@ -29,6 +29,9 @@ export interface TvNavigationOptions {
   onRewind?: () => void;
   onFastForward?: () => void;
   onStop?: () => void;
+  /** The remote's own next / previous keys. */
+  onNext?: () => void;
+  onPrevious?: () => void;
 }
 
 /**
@@ -89,6 +92,12 @@ export function useTvNavigation(options: TvNavigationOptions = {}): void {
             return;
           case 'stop':
             handlers.onStop?.();
+            return;
+          case 'next':
+            handlers.onNext?.();
+            return;
+          case 'previous':
+            handlers.onPrevious?.();
             return;
           default:
             break;
