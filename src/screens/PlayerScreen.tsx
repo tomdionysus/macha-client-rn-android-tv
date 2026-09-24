@@ -152,9 +152,22 @@ export function PlayerScreen({
   // release a player still attached to a live surface.
   useEffect(() => androidTvPlatform.releaseRetiredPlayer(), [video]);
 
+  /**
+   * Read by `showChrome`, which is stable and so cannot see the state.
+   *
+   * **The panel pins the chrome.** Measured on `.133`, 2026-09-23: with the
+   * options panel open, a keypress re-armed the hide timer, the chrome hid,
+   * and the next press brought it back — pushing the chrome's focus scope
+   * *above* the panel's, so the D-pad moved along the transport row while
+   * the panel was on screen. Not arming the timer while the panel is open
+   * means the chrome never re-stacks over it.
+   */
+  const optionsOpenRef = useRef(false);
+
   const showChrome = useCallback(() => {
     setChromeVisible(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
+    if (optionsOpenRef.current) return;
     hideTimer.current = setTimeout(() => setChromeVisible(false), CHROME_HIDE_MS);
   }, []);
 
@@ -248,8 +261,11 @@ export function PlayerScreen({
   // The panel holds the chrome open under it: letting the auto-hide run would
   // unmount the scope the viewer is currently navigating.
   useEffect(() => {
+    optionsOpenRef.current = optionsOpen;
     if (optionsOpen && hideTimer.current) clearTimeout(hideTimer.current);
-  }, [optionsOpen]);
+    // Closing the panel hands the chrome back to its ordinary timer.
+    if (!optionsOpen) showChrome();
+  }, [optionsOpen, showChrome]);
 
   /**
    * Back unwinds what is on screen, one layer per press, before it leaves.

@@ -8,7 +8,7 @@ import type {
   PlaybackUpdate,
 } from '@machafoundation/core';
 import { Focusable } from '../../components/Focusable';
-import { colour, px, radius, rem, type, vh } from '../../styles/theme';
+import { colour, focusFrame, px, radius, rem, type, vh } from '../../styles/theme';
 import {
   assumptionNote,
   audioProcessingNote,
@@ -307,7 +307,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: rem(0.7),
     paddingVertical: rem(0.42),
     borderRadius: radius.pill,
-    borderWidth: 1,
+    // `focusFrame.border`, not base.css's 1px: measured on `.133`, 2026-09-23,
+    // a one-pixel focus border on these chips could not be read from the sofa
+    // — three attempts to reach Transcode by D-pad landed elsewhere unseen.
+    // Always present, so nothing moves when focus lands.
+    borderWidth: focusFrame.border,
     borderColor: colour.inputBorder,
     backgroundColor: colour.optionSurface,
   },
@@ -315,14 +319,15 @@ const styles = StyleSheet.create({
    * `:hover, :focus-visible, .selected { border-color: var(--focus);
    * background: var(--accent-surface-strong); color: #dedee2 }` — one rule for
    * all three on the web, and selected and focused are different things here, so
-   * the border carries focus and the fill carries selection.
+   * the border carries focus and the fill carries selection — **only**. Focus
+   * used to take the fill too, which made a focused chip indistinguishable
+   * from a selected one.
    */
   optionSelected: {
     backgroundColor: colour.accentSurfaceStrong,
   },
   optionFocused: {
     borderColor: colour.focus,
-    backgroundColor: colour.accentSurfaceStrong,
   },
   optionLabel: {
     color: colour.optionText,
