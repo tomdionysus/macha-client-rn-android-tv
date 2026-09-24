@@ -28,36 +28,41 @@ things they got wrong. Read that first; this section is only what is open.
 
 ### The set
 
-- **`10.35.1.133`** runs develop `1618cc9`, md5 `af3e88da3c8c9d529c2ba60835434a8e`
-  (read off the set when installed), **signed in as `tvtest`** by Tom's
-  instruction. Screensaver and Diagnostics are back to what they were.
-- **It cannot currently reach Macha.** Its only configured endpoint is
-  `http://10.35.1.50:7438`. At the time of writing the cluster lists that
-  node **online** (it connects outbound) but it answers **nothing inbound** —
-  no ping, no API — from the set or the laptop; `10.44.1.50`, `macnessa` and
-  `ramaroja` all answer, and the set can reach them. Two ways on: the node
-  becomes reachable at `10.35.1.50` again, or a second endpoint is added in
-  Server settings (`http://10.44.1.50:7438`). **Adding one is Tom's call** —
-  it was offered and not yet answered; nothing was changed.
-- **The latest build has not been seen on screen.** It carries the viewer-text
-  move (every word now composed locally, wording unchanged) — so the first
-  thing to do on a connected set is look at: card lines (Continue Watching,
-  Search), Music albums with the artist beneath, Sort By, the player's clock,
-  stream lines and notices, and an error screen.
+- **`10.35.1.133`** runs develop `e537528`, APK md5
+  `0a74b0a5d4ac1895bbe8111d2c35b890`, built against core `a5b08f0` (before
+  core's `seedEndpoints`). **Signed in as `tvtest`** (re-signed 2026-09-24;
+  the earlier session did not survive the dead node). Left paused in the
+  *Classroom 216* player; `screen_off_timeout` put back to `600000`.
+- **Configured endpoints: `http://10.35.1.50:7438`, `http://10.44.1.50:7438`**,
+  by Tom's instruction 2026-09-24. `10.35.1.50` came back during the
+  sitting. Remembered: `https://macnessa.macha.network`. **`ramaroja` is
+  offline for the foreseeable** (Tom) and no longer in the cluster list.
+- **Seen on screen 2026-09-24 (measured):** Continue Watching card lines,
+  Settings > Server (no note while serving), the player's clock and stream
+  lines, direct and transcode. Still unseen: Music albums, Sort By, notices,
+  an error screen.
+- **Direct play of MPEG-4 Part 2 fails on this set.** *Classroom 216* (AVI,
+  `video/mp4v-es` 624x352): `OMX.realtek.video.decoder` raises `0x80001009`
+  with `format_supported=YES`, so Auto picks Direct and it sits at 0:00. The
+  source then moved between addresses of the same node, which cannot help a
+  decode error. Transcode plays it. Two open questions: whether `mpeg4` should
+  count as direct-playable here (a platform probe question, this repo's), and
+  whether a decoder error should move node at all (the coordinator's
+  classifier). Also: with Transcode chosen, the hint under Mode still says
+  "Chosen automatically: this device plays the file as it is."
 - `10.34.1.115` has not been touched since 2026-09-21.
 
 ### Open, in order
 
-1. **Get the set onto a node and eyeball the viewer-text build** (above).
-2. **A restart did not fall back to nodes the set had already reached** —
-   cause found 2026-09-24 (asserted from source and a unit test, **not yet
-   seen on a set**). `MachaProvider` seeded the remembered endpoints as
-   `bootstrap`; core's `persistConfirmedEndpoints` rewrites the list from
-   `discovered` entries only, so the first health cycle after any restart
-   wiped it. Fixed in `src/state/endpointSeed.ts`, which seeds them as
-   `discovered`. To confirm on the set: reach a second node, restart the app
-   twice with `10.35.1.50` down, and it should still reach Macha. Core is asked
-   for a shared seeding helper; the web client appears to have the same fault.
+1. **Eyeball the rest of the viewer-text build** (Music, Sort By, notices, an
+   error screen; above).
+2. **Restart fallback — fixed and confirmed on the set 2026-09-24.** The
+   remembered list was wiped by the first health cycle after a restart (seeded
+   as `bootstrap`; core persists only `discovered`). Measured: with only a dead
+   address (`http://10.35.1.99:7438`) configured, the set reached Macha
+   through its remembered nodes over two consecutive restarts. Now seeded by
+   core's `seedEndpoints` (`b47773d`), which also stops the list being wiped
+   while nothing has answered yet; that half is **not yet on the set**.
 3. **Faint focus in two places**, found while checking tonight's build: the top
    bar (focus and "current page" are one fill a shade apart) and the sign-in
    buttons (after moving, neither showed focus). Offered to Tom, not answered.
@@ -82,8 +87,9 @@ things they got wrong. Read that first; this section is only what is open.
   deployed): a top-level `status` code on every JSON response. This client
   parses no server JSON itself, so nothing here breaks. Core `a5b08f0` swapped
   `ServerStatus.message` for `code` and `detail`; Settings > Server now words
-  the code locally (`serverStatusText`) and shows no server sentence. **Not
-  seen on the set.** Server will say when es-1/fi-1 are live.
+  the code locally (`serverStatusText`) and shows no server sentence. Seen on
+  the set against 0.55.1 (serving, so no note); the worded failure cases are
+  unseen. Server will say when es-1/fi-1 are live.
 - **Tom:** a second endpoint on the set; the faint-focus fix; the native-adapter
   trial; whether series/season "links" on a TV card mean anything beyond Back
   (core has put it to him).
