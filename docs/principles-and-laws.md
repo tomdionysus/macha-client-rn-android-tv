@@ -1,7 +1,7 @@
 # Macha principles and laws
 
 *The shared Macha document, taken from `@machafoundation/core`
-(`macha-core-npm` `docs/principles-and-laws.md` at `65d1594`) on Tom's
+(`macha-core-npm` `docs/principles-and-laws.md` at `89df8b3`) on Tom's
 instruction of 2026-09-24 to standardise it across every Macha project. The
 law text, numbering and attributions are core's, unchanged. Only the ownership
 principle names this client's own files, where core names its classes.*
