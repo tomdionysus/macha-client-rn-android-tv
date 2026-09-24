@@ -69,9 +69,11 @@ things they got wrong. Read that first; this section is only what is open.
 4. **P-1, what remains** (section P-1 below): the transcode reap recovers on the
    same node, but only after the buffer drains (66 s) because `expo-video`
    reports no per-segment failure; and a direct-play reap never reaches the
-   player. Both point at the **native-adapter trial** Tom asked about ("is it a
-   two-way door, can we trial it") — proposed as a throwaway branch with the
-   current APK kept for reinstall; **not answered, not started.**
+   player. Both point at the **native-adapter trial**. **Shelved by Tom
+   2026-09-24: "The player is good enough."** `expo-video` stays the player;
+   `ExoPlayerAdapter` / `modules/macha-player` stay in the tree, unused, as
+   something that might be picked up later. The two gaps above stand as
+   known limits, not open work.
 5. **§1.8, the stereo A/B**, is now possible: *Firefly* season 1 episodes carry
    `ENG · AAC · 2ch` beside the 5.1 track. It needs somebody listening.
 6. **§1.9** — whether a catalogue `5xx` should charge a node at all is with core
@@ -107,8 +109,7 @@ things they got wrong. Read that first; this section is only what is open.
   the code locally (`serverStatusText`) and shows no server sentence. Seen on
   the set against 0.55.1 (serving, so no note); the worded failure cases are
   unseen. Server will say when es-1/fi-1 are live.
-- **Tom:** the faint-focus fix; the native-adapter
-  trial; whether series/season "links" on a TV card mean anything beyond Back
+- **Tom:** the faint-focus fix; whether series/season "links" on a TV card mean anything beyond Back
   (core has put it to him).
 
 ### Traps this session paid for — driving the set over adb
