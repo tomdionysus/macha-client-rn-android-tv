@@ -113,6 +113,8 @@ export function playbackNoticeText(notice: PlaybackNotice): string {
   switch (notice.code) {
     case 'copy-refused':
       return 'This node could not copy the original streams, so they are being converted.';
+    case 'decode-fallback':
+      return 'This television could not decode the original streams, so they are being converted.';
     case 'cannot-seek':
       return 'This stream cannot seek.';
     case 'not-ready':

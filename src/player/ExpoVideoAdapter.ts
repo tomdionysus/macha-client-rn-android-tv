@@ -23,6 +23,7 @@ import { createWatchdogEnvironment } from './watchdogEnvironment';
 import { awaitFirstFragment } from './readiness';
 import { firstFragmentTimeoutMs } from './timingBudgets';
 import { playbackLog } from '../diagnostics/playbackLog';
+import { decoderFailureKind } from './playerErrorKind';
 
 /**
  * Buffer ahead the way the web client does.
@@ -857,6 +858,14 @@ export class ExpoVideoAdapter implements Player {
     // and a watchdog firing during the probe would report it a second time.
     this.startWatchdog.stop();
     this.stallWatchdog.stop();
+    // The set's own decoder failed: nothing the node could answer would change
+    // that, so it is reported as it is rather than probed. See
+    // `decoderFailureKind`.
+    const decoderKind = decoderFailureKind(message);
+    if (decoderKind) {
+      this.reportFailure(new PlaybackSourceError(message, decoderKind));
+      return;
+    }
     void this.kindForTerminalError(this.classificationBudgetMs()).then((kind) => {
       // Core moved on while we asked, so the answer is about a source nobody is
       // watching any more.

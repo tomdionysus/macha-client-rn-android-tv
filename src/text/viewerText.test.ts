@@ -51,6 +51,14 @@ describe('viewer text', () => {
   });
 });
 
+describe('playbackNoticeText', () => {
+  it('words core e840d72 decode fallback beside the copy refusal it mirrors', () => {
+    expect(playbackNoticeText({ code: 'decode-fallback', error: new Error('MediaCodecVideoRenderer error') })).toBe(
+      'This television could not decode the original streams, so they are being converted.',
+    );
+  });
+});
+
 describe('errorText', () => {
   it('words a failed walk by whether any node answered', async () => {
     const { MachaClusterRouteError } = await import('@machafoundation/core');
