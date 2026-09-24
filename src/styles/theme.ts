@@ -143,8 +143,6 @@ export const colour = {
   scrim: '#000000b8',
   /** `.modal-panel { background: #171719f7 }`. */
   modalSurface: '#171719f7',
-  /** `.modal-danger-action { border-color: #8a303b }`. */
-  dangerBorder: '#8a303b',
   /** `.modal-danger-action { background: #39080e }`. */
   dangerSurface: '#39080e',
 } as const;

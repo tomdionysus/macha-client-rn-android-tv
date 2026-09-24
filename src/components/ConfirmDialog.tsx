@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Focusable } from './Focusable';
+import { Button } from './Button';
 import { tvFocus } from '../hooks/tvFocus';
 import { colour, font, radius, rem, screenSize, type, vh } from '../styles/theme';
 
@@ -74,33 +74,14 @@ export function ConfirmDialog({
             * viewer walks past on the way to everything else, and the cost of
             * getting it wrong here is a password typed back in with a D-pad.
             */}
-          <Focusable
-            ring={false}
-            defaultFocus
-            scope={CONFIRM_SCOPE}
-            disabled={busy}
-            onSelect={onCancel}
-            style={styles.button}
-            focusedStyle={styles.buttonFocused}
-          >
-            {({ focused }) => (
-              <Text style={[styles.buttonLabel, focused && styles.buttonLabelFocused]}>Cancel</Text>
-            )}
-          </Focusable>
-          <Focusable
-            ring={false}
-            scope={CONFIRM_SCOPE}
-            disabled={busy}
+          <Button label="Cancel" onSelect={onCancel} scope={CONFIRM_SCOPE} defaultFocus disabled={busy} />
+          <Button
+            label={busy ? 'Working…' : confirmLabel}
             onSelect={onConfirm}
-            style={[styles.button, destructive && styles.buttonDanger]}
-            focusedStyle={styles.buttonFocused}
-          >
-            {({ focused }) => (
-              <Text style={[styles.buttonLabel, focused && styles.buttonLabelFocused]}>
-                {busy ? 'Working…' : confirmLabel}
-              </Text>
-            )}
-          </Focusable>
+            scope={CONFIRM_SCOPE}
+            disabled={busy}
+            destructive={destructive}
+          />
         </View>
       </View>
     </View>
@@ -164,33 +145,5 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: rem(0.55),
     marginTop: rem(1.1),
-  },
-  /**
-   * `.secondary-button` and `.primary-button` share their geometry; the fill is
-   * what separates them, and here the destructive one is the only one filled.
-   */
-  button: {
-    paddingHorizontal: rem(0.9),
-    paddingVertical: rem(0.5),
-    borderRadius: radius.control,
-    borderWidth: 1,
-    borderColor: colour.inputBorder,
-    backgroundColor: colour.optionSurface,
-  },
-  /** `.modal-danger-action { border-color: #8a303b; background: #39080e }`. */
-  buttonDanger: {
-    borderColor: colour.dangerBorder,
-    backgroundColor: colour.dangerSurface,
-  },
-  buttonFocused: {
-    borderColor: colour.focus,
-    backgroundColor: colour.accentSurfaceStrong,
-  },
-  buttonLabel: {
-    color: colour.optionText,
-    fontSize: type.body,
-  },
-  buttonLabelFocused: {
-    color: colour.heading,
   },
 });

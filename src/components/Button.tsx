@@ -20,6 +20,7 @@ export function Button({
   defaultFocus,
   disabled,
   onFocusChange,
+  destructive,
   style,
 }: {
   label: string;
@@ -29,6 +30,12 @@ export function Button({
   disabled?: boolean;
   /** For a screen that scrolls its focused row into view. */
   onFocusChange?: (focused: boolean) => void;
+  /**
+   * `.modal-danger-action`'s dark red fill, without its red border: on a
+   * television a red border is what focus looks like, and the unfocused
+   * destructive button read as focused (§1.12). Focus is the standard ring.
+   */
+  destructive?: boolean;
   /** Placement only — margins, alignment. Never colour. */
   style?: StyleProp<ViewStyle>;
 }): React.JSX.Element {
@@ -39,7 +46,7 @@ export function Button({
       disabled={disabled}
       onSelect={onSelect}
       onFocusChange={onFocusChange}
-      style={[styles.button, style]}
+      style={[styles.button, destructive && styles.destructive, style]}
       focusedStyle={styles.buttonFocused}
     >
       <Text style={styles.label}>{label}</Text>
@@ -54,6 +61,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: rem(1),
     borderRadius: radius.control,
     backgroundColor: colour.accentSurface,
+  },
+  /** `.modal-danger-action { background: #39080e }`. */
+  destructive: {
+    backgroundColor: colour.dangerSurface,
   },
   buttonFocused: {
     backgroundColor: colour.accentSurfaceStrong,
