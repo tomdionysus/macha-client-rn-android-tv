@@ -204,11 +204,19 @@ function Shell(): React.JSX.Element {
    * canonical container, real bit depth, colour transfer and Dolby Vision
    * profile, plus the node's `operations` — what this build will actually mux
    * and copy, which no catalogue profile knows.
+   *
+   * **Every file, not the first.** Tom's ruling (2026-09-24, via core): the
+   * client chooses among an item's files, not the server. Core's coordinator
+   * (`284e52e`) picks the best file from the whole list, reports it as
+   * `snapshot.instruction.mediaId` and sends it on the session. Handing it
+   * `[0]` left a multi-file item's choice to whichever file came first.
    */
   const runtimeOptions = useMemo(
     () => ({
-      facts: async (media: MediaSummary) =>
-        (await services.playbackFactsApi.facts({ itemId: media.id }))[0],
+      facts: async (media: MediaSummary) => {
+        const files = await services.playbackFactsApi.facts({ itemId: media.id });
+        return files.length > 0 ? files : undefined;
+      },
     }),
     [services.playbackFactsApi],
   );
