@@ -17,7 +17,7 @@ import { PageTitle } from '../components/Status';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
 import { version as clientVersion } from '../../package.json';
-import { errorText } from '../text/viewerText';
+import { errorText, serverStatusText } from '../text/viewerText';
 
 /**
  * Settings, laid out as the web client's is.
@@ -141,7 +141,7 @@ export function SettingsScreen(): React.JSX.Element {
                     : 'Unavailable',
               ],
             ]}
-            error={server.error ? errorText(server.error) : (server.value?.message ?? undefined)}
+            error={server.error ? errorText(server.error) : (server.value ? serverStatusText(server.value) : undefined)}
           />
           <StatusCard
             label="Catalogue"

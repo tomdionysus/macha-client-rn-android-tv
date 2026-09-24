@@ -7,6 +7,7 @@ import {
   episodeLabel,
   formatPlaybackTime,
   playbackNoticeText,
+  serverStatusText,
   sortChoiceLabel,
   streamLines,
   trackNumberLabel,
@@ -63,6 +64,41 @@ describe('errorText', () => {
     });
     expect(errorText(lapsed)).toBe('Your session has ended. Sign in again.');
     expect(errorText(new Error('All configured Macha API endpoints failed.'))).toBe('Something went wrong.');
+  });
+});
+
+/**
+ * Server 0.56.0 codes, read from `macha` `src/service.cpp`, `src/playback.cpp`
+ * at `60ce47a`: the ones that can answer `GET /api/v1/playback/status`.
+ */
+describe('serverStatusText', () => {
+  const status = (httpStatus: number, code: string | null, detail: string | null = null) => ({
+    version: null, playback: {}, playbackAvailable: httpStatus < 300, httpStatus, code, detail,
+  });
+
+  it('says nothing about a node that is serving, with or without a code', () => {
+    expect(serverStatusText(status(200, 'ok'))).toBeUndefined();
+    expect(serverStatusText(status(200, null))).toBeUndefined();
+  });
+
+  it('words the code, never the server sentence beside it', () => {
+    expect(serverStatusText(status(503, 'service_recovering', 'recovering local services'))).toBe(
+      'The Macha server is still starting up. Try again shortly.',
+    );
+    expect(serverStatusText(status(503, 'startup_failed', 'x'))).toBe("The Macha server couldn't start.");
+    expect(serverStatusText(status(503, 'streaming_disabled', 'streaming is disabled'))).toBe(
+      'Playback is switched off on this Macha server.',
+    );
+    expect(serverStatusText(status(401, 'unauthorized', 'a valid session bearer token is required'))).toBe(
+      'Your session has ended. Sign in again.',
+    );
+  });
+
+  it('falls back to the HTTP status for a code it does not know, or none', () => {
+    expect(serverStatusText(status(503, 'something_new', 'x'))).toBe(
+      "The Macha server couldn't answer right now. Try again shortly.",
+    );
+    expect(serverStatusText(status(418, null))).toBe('Playback is not available on this Macha server.');
   });
 });
 

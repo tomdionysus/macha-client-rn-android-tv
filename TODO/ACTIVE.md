@@ -78,6 +78,12 @@ things they got wrong. Read that first; this section is only what is open.
 ### Waiting on others
 
 - **Core:** a published version for `main` (above).
+- **Server 0.56.0** (develop `60ce47a`, announced 2026-09-24, not yet
+  deployed): a top-level `status` code on every JSON response. This client
+  parses no server JSON itself, so nothing here breaks. Core `a5b08f0` swapped
+  `ServerStatus.message` for `code` and `detail`; Settings > Server now words
+  the code locally (`serverStatusText`) and shows no server sentence. **Not
+  seen on the set.** Server will say when es-1/fi-1 are live.
 - **Tom:** a second endpoint on the set; the faint-focus fix; the native-adapter
   trial; whether series/season "links" on a TV card mean anything beyond Back
   (core has put it to him).

@@ -13,6 +13,7 @@ import {
   type PlaybackStatusDescription,
   type PlaybackStreamInfo,
   type SearchCategoryKey,
+  type ServerStatus,
 } from '@machafoundation/core';
 
 /**
@@ -158,6 +159,36 @@ export function errorText(error: unknown): string {
   if (status === 404 || status === 410) return "That isn't available any more.";
   if (status !== undefined && status >= 500) return "The Macha server couldn't answer right now. Try again shortly.";
   return 'Something went wrong.';
+}
+
+/**
+ * The note under Settings > Server, or nothing while the node is serving.
+ *
+ * Worded from the server's code (core's `ServerStatus.code`, from server
+ * 0.56.0), never from its `detail` sentence. The codes are the ones that can
+ * answer `GET /api/v1/playback/status`, read from `macha` `src/service.cpp`
+ * and `src/playback.cpp` at `60ce47a`; any other, and an older node's
+ * missing code, falls back to the HTTP status as `errorText` does.
+ */
+export function serverStatusText(status: ServerStatus): string | undefined {
+  if (status.playbackAvailable) return undefined;
+  switch (status.code) {
+    case 'service_recovering':
+      return 'The Macha server is still starting up. Try again shortly.';
+    case 'startup_failed':
+      return "The Macha server couldn't start.";
+    case 'streaming_disabled':
+      return 'Playback is switched off on this Macha server.';
+    case 'unauthorized':
+    case 'forbidden':
+      return 'Your session has ended. Sign in again.';
+    default:
+      break;
+  }
+  const http = status.httpStatus;
+  if (http === 401 || http === 403) return 'Your session has ended. Sign in again.';
+  if (http >= 500) return "The Macha server couldn't answer right now. Try again shortly.";
+  return 'Playback is not available on this Macha server.';
 }
 
 /**
