@@ -82,10 +82,14 @@ Driven over adb; every line below was read off the set or its trail.
   `maxHeight: null`, core's stale-cap fix holding); into transcode again,
   **reacquired** (updated, presented at 29:32). No `resource_limit`, since nobody
   else held the slot; the refusal sentence is still unseen.
-- **The served container is FMP4, not MPEG-TS.** Both a Version pick and a
-  plain Mode → Transcode PATCHed `container: "fmp4"`, and the stream line
-  reads `FMP4`. Core said a capped transcode would be this client's segment
-  container, MPEG-TS; the TV states no container preference. Sent to core.
+- **The served container is FMP4, and that is correct.** Both a Version
+  pick and a plain Mode → Transcode PATCHed `container: "fmp4"`. Core
+  confirmed it: `segmentContainer` picks fMP4 whenever `hlsFmp4` is true,
+  and MPEG-TS only for a host that states `preferSegmentContainer: 'mpegts'`
+  because fMP4 is broken on its device (the 2017 Samsung, the web client's
+  host). Its earlier "mpegts on the TV" was a mix-up. **State nothing here
+  unless fMP4 is measured failing on this set**, and then as policy with the
+  evidence.
 - **Settings > Playback reads "Screen (2160p)"**, so `displayMode` reads the
   panel (3840x2160 active mode), not the 1920x1080 UI.
 - **The decoder limit could not be read on screen** (below): from the loaded
@@ -122,8 +126,8 @@ Driven over adb; every line below was read off the set or its trail.
    - a file with several audio tracks, in remux and in transcode;
    - the decode fallback: *Classroom 216* in Auto;
    - failover between fi-1 and macnessa mid-play;
-   - the served container is **MPEG-TS** (the stream line reads `MPEG-TS`,
-     not `FMP4`).
+   - the served container is **FMP4** (core's choice while `hlsFmp4` is
+     true; confirmed 2026-09-25, and measured the same afternoon);
 3. **Settings > Server against fi-1:** send core what it shows, with the
    node. Signed out, the header should read "Signed out", and the cards
    "Sign in required".
