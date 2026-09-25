@@ -23,7 +23,9 @@ Read that first; this section is only what is open.
   0.58.0.) **The fix is a core release carrying `0bce895` onward, then TV
   0.7.1. Tom's call; core has put its release to him.** The phone's 0.9.0 is
   in the same state.
-- **Server 0.60.0** (`7c1d210`) is live on both nodes since 12:42Z
+- **Server 0.61.0** (`acd74ef`) is live on both nodes since 13:35Z
+  2026-09-25, per core (asserted): torrent jobs only, nothing for the TV.
+- **Server 0.60.0** (`7c1d210`) went live on both nodes at 12:42Z
   2026-09-25, per core (asserted): a PATCH out of transcode releases the
   slot, so a switch back can be refused `429 resource_limit`, which the TV
   words (`2b15bb2`). **To test on the set:** direct play, switch to
