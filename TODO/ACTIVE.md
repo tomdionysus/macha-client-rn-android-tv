@@ -2559,7 +2559,7 @@ Missing:
 
 Fullscreen is **not applicable** — a TV app is always fullscreen.
 
-### 4.3 Components — 10 of 21 ported
+### 4.3 Components — 11 of 21 ported
 
 Ported: `MediaCard`, `MediaRow`, `Status`, `PlayerIcons`, `LazyArtwork`,
 `AlphabetIndex`, `ConnectionForm`-adjacent `TvTextInput`, plus TV-only
@@ -2574,8 +2574,14 @@ Missing, in the order they matter on a D-pad:
 
 - **`OverflowMenu`** and **`Modal`** — every "add to playlist / play next / play
   later" affordance hangs off these, so **music depends on them**.
-- **`CardCloseButton`** — there is no way to dismiss a finished film from
-  Continue Watching.
+- ~~**`CardCloseButton`**~~ — **built 2026-09-25, not yet seen on the set.**
+  The × on each Continue Watching card calls core's `clear`. Up from the card
+  reaches it and Down returns (the scorer cannot: its centre is inside the
+  card). **To see on the set:** Up from a card lands on its ×, OK removes the
+  entry, focus then lands on the first remaining card, and Down onto the row
+  from above still lands on a poster. Building it found that a control whose
+  `disabled` changed lost its geometry (`9845ffa`); the player's previous and
+  next buttons were exposed to the same thing.
 - **`MediaPageTitle`** refresh affordance, **`EpisodeRail`**, **`SectionNav`**,
   **`MusicNav`**, **`StatusNav`**, **`ConnectionForm`**, **`DeviceCapabilities`**,
   **`AsyncIconButton`**, **`AppLogo`**. `EditButton`, `ManageNav` and
