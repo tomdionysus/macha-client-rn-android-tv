@@ -36,8 +36,6 @@ Read that first; this section is only what is open.
   three checks, build, verify with `aapt2 dump badging`, and smoke-test on
   the set. Merge to `main` fast-forward, tag it annotated and bare, and
   re-link develop afterwards. **Pushing needs Tom's say-so each time.**
-- `.gitignore` (`*.local.md`) and `basemind.toml` are uncommitted tooling,
-  nobody's decision yet.
 
 ### The set
 
