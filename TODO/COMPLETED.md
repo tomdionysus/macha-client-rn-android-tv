@@ -1,5 +1,76 @@
 # Completed
 
+## 2026-09-24 to 2026-09-25 — 0.7.0, the restart fallback, the decode fallback, focus, and the server that stopped choosing
+
+**Measured on `.133` where it says so; everything else is asserted from source
+and tests.** In one line each:
+
+- **Released 0.7.0** (`73cf87d`, tag `0.7.0`, pushed on Tom's one-off say-so)
+  against core `^0.19.0` from npm. Verified from a fresh clone of the tag with
+  no sibling core: `npm ci`, typecheck, 297 tests, export; the APK
+  (`versionCode 700`, `armeabi-v7a`, leanback) direct-played on `.133`.
+  **Then broken by server 0.58.0** (see ACTIVE §0): core 0.19.0 sends
+  `item_id`, which 0.58.0 refuses.
+- **Restart fallback** (measured): the remembered-endpoint list was wiped by
+  the first health cycle after every restart, because it was seeded as
+  `bootstrap` and core persists only `discovered`. With only a dead address
+  configured, the set reached Macha through remembered nodes over two
+  restarts. Now core's `seedEndpoints`.
+- **Decode fallback** (measured): the set's hardware decoder fails MPEG-4
+  Part 2 (`OMX.realtek.video.decoder`, `0x80001009`, `format_supported=YES`).
+  The adapter now reports a renderer error as `media` (`decoderFailureKind`),
+  and core `e840d72` transcodes on the same node at the viewer's position.
+  *Classroom 216* played that way in Auto.
+- **Remote next/previous keys** (measured on `.133`). The same test found
+  that **switching episodes lost the place**: a progress write in the gap
+  before React re-rendered stored the new episode's position under the old
+  one. Fixed (`attributableProgress`), not yet seen on the set.
+- **Focus** (Tom): the top bar's ring restored; the fallback returns to the
+  nav item last used; one `Button` for Settings, sign-in, offline and the
+  sign-out dialog. **§1.12:** Settings says signed out instead of calling a
+  401 an outage; Sign in sits under the password and the typed draft
+  survives a trip to Settings.
+- **Viewer text:** Settings > Server and Catalogue word the server's codes
+  (0.56.0) and never its sentences; the decode-fallback notice, the refused
+  track choice, and the track view (artwork, artist, album and year, track)
+  are all worded locally.
+- **Every file's facts go to core**, so the client chooses the file; nothing
+  outside core lets the server choose (audited for 0.58.0).
+- **Principles and laws** adopted from core (`docs/principles-and-laws.md`),
+  and law citations checked against what each law says.
+- **Settled, not built:** the native-adapter trial is shelved ("the player is
+  good enough"); per-quality Play is designed with core and waits for its API.
+
+**What went wrong, so it is not repeated:**
+
+1. **Pressed next on the set while Tom was watching it**, which moved him off
+   his episode and lost his place. It exposed a real bug, but check for a
+   viewer first: if `dumpsys media_session` says playing and nobody asked
+   for a test, ask.
+2. **Named a cause without evidence:** said `monkey … 1` had injected the
+   keypress that started playback. Tom had played it himself. Say "unknown"
+   until something shows the cause.
+3. **Turned "never talk to old servers" into a core redesign request** before
+   asking Tom what he meant; he withdrew it as a false alarm. Clarify a sharp
+   ruling before propagating it to other sessions.
+4. **A restart test that tested nothing:** the IME's Enter did not save the
+   endpoints, and two restarts ran against the old configuration. Read the
+   saved state back before a test that depends on it.
+5. **`npm install` kept the lockfile's `file:` link** after `package.json`
+   said `^0.19.0`; the version read right only because the checkout was also
+   0.19.0. `npm install @machafoundation/core@^0.19.0` forced the registry
+   copy. Always check `ls -ld` and the lockfile's `resolved`, never the
+   version string.
+6. **A commit that held half its change:** `git add` aborted on a path
+   `git rm` had already staged, and the commit went ahead without the rest.
+   Read `git show --stat` after every commit.
+7. **Pushed develop a second time** under "push develop and continue", for a
+   follow-on fix. It was probably within the instruction, but a push is Tom's
+   by default; say so before, not after.
+8. **Missed the screen timeout:** it was set to 30 min for a sitting and left
+   there, because the set dropped off before the sitting ended. ACTIVE §0
+   records it for the next session to restore.
+
 ## 2026-09-23 to 2026-09-24 — episode navigation, search and focus, reaps that stay on their node, and every word moved out of core
 
 **Measured on `.133` throughout, against builds whose md5 was read off the set.**

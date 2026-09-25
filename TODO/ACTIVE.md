@@ -7,151 +7,149 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 ---
 
-## 0. Where this stands — handover, 2026-09-24
+## 0. Where this stands — handover, 2026-09-25
 
-**Two days of work are in `COMPLETED.md`'s top section**, with the seven
-things they got wrong. Read that first; this section is only what is open.
+**What landed and what went wrong are in `COMPLETED.md`'s top section.**
+Read that first; this section is only what is open.
 
 ### The tree
 
-- **`main` is `0.7.0`** (`73cf87d`, annotated tag, pushed 2026-09-24 by
-  Tom's one-off authorisation), against core `^0.19.0` from the registry.
-  Verified from a fresh clone of the tag with no sibling core: `npm ci`
-  resolved the npm tarball, typecheck clean, 297 tests, export OK. The APK
-  (md5 `5695b83a8d3d5406d8675c319fe496a6`, `versionCode 700`, `armeabi-v7a`,
-  leanback) direct-played *The Train Job* on `.133`.
-- **0.7.0 cannot play against server 0.58.0 (measured 2026-09-25).** Server
-  0.58.0 (live on fi-1 and gbni-1; fi-1 reported itself as `0.57.1` when
-  measured, a number the server then withdrew and renumbered, since the
-  change breaks old clients) chooses no file and refuses a create
-  without `media_id`; core 0.19.0 sends `item_id` only. Replayed on fi-1:
-  `HTTP 400 {"error":{"code":"item_id_not_accepted",…}}`. The fix is core
-  `0bce895` published, then a TV **0.7.1** onto it. **Tom's call.**
-- **`develop` links `file:../macha-ts` again** for development, as after 0.6.0, now at core `0bce895`
-  (speaks 0.58.0); typecheck, 310 tests and export pass against it. The
-  player's Source group is dead under it (core maps `media_ids` to `[]`) until
-  versions replace it.
-- `.gitignore` (`*.local.md`) and `basemind.toml` are still uncommitted, as
-  they were before this session: tooling, nobody's decision yet.
+- **`main` is `0.7.0`** (`73cf87d`, tag `0.7.0`, pushed), against core
+  `^0.19.0` from npm. **It cannot play against server 0.58.0**, now on both
+  nodes. Server 0.58.0 chooses no file and refuses a create without
+  `media_id`; core 0.19.0 sends `item_id` only. Measured on fi-1
+  2026-09-25: `HTTP 400 {"error":{"code":"item_id_not_accepted",…}}`. (fi-1
+  reported `0.57.1` that morning, a number the server then withdrew; it is
+  0.58.0.) **The fix is a core release carrying `0bce895` onward, then TV
+  0.7.1. Tom's call; core has put its release to him.** The phone's 0.9.0 is
+  in the same state.
+- **`develop` is 17 commits ahead of origin, unpushed; the push is Tom's.**
+  It links `file:../macha-ts`, last checked at core `a50ef64`, which
+  includes the 0.58.0 fix `de86392`. Typecheck, 311 tests and export pass.
+- **Releasing 0.7.1:** repeat 0.7.0's procedure (`COMPLETED.md` top, and
+  `git show 73cf87d`). Put `^<core version>` in `package.json`, then run
+  `npm install @machafoundation/core@^<v>` **by name**: a plain `npm install`
+  keeps the link. Check `ls -ld node_modules/@machafoundation/core` is a
+  directory and the lockfile `resolved` is the npm tarball. Bump
+  `package.json`, `app.json`, `versionCode 701` and the README's `_v…_` line,
+  then run `EXPO_TV=1 npx expo prebuild --platform android --clean`. Run the
+  three checks, build, verify with `aapt2 dump badging`, and smoke-test on
+  the set. Merge to `main` fast-forward, tag it annotated and bare, and
+  re-link develop afterwards. **Pushing needs Tom's say-so each time.**
+- `.gitignore` (`*.local.md`) and `basemind.toml` are uncommitted tooling,
+  nobody's decision yet.
 
 ### The set
 
-- **`10.35.1.133`** runs develop `cc5f553`, APK md5
-  `1bc8471a8bcf1107bb110c4479d63605`, built against core `ba82c52`. **Signed in as `tvtest`** (re-signed 2026-09-24;
-  the earlier session did not survive the dead node). Left paused in the
-  *Classroom 216* player (transcoding); `screen_off_timeout` put back to `600000`.
-- **Configured endpoints: `http://10.35.1.50:7438`, `http://10.44.1.50:7438`**,
-  by Tom's instruction 2026-09-24. `10.35.1.50` came back during the
-  sitting. Remembered: `https://macnessa.macha.network`. **`ramaroja` is
-  offline for the foreseeable** (Tom) and no longer in the cluster list.
-- **Seen on screen 2026-09-24 (measured):** Continue Watching card lines,
-  Settings > Server (no note while serving), the player's clock and stream
-  lines, direct and transcode. Still unseen: Music albums, Sort By, notices,
-  an error screen.
-- **Direct play of MPEG-4 Part 2 fails in this set's decoder**
-  (`OMX.realtek.video.decoder`, `0x80001009`, `format_supported=YES`), seen
-  on *Classroom 216*. **Handled since develop `7549559` + core `e840d72`
-  (measured 2026-09-24, APK md5 `1bc8471a8bcf1107bb110c4479d63605`):** in
-  Auto the failure is reported as `media`, core falls back to a transcode on
-  the same node at the viewer's position, and it plays. Known wording fault,
-  left for after the release: the Mode hint then reads "this device plays
-  the file as it is; this television could not decode the original streams",
-  two reasons that contradict; `instructionNote` should drop
-  `source-plays-as-is` when `player-could-not-decode` is present. Also still
-  open: with Transcode chosen by hand earlier, the hint said "Chosen
-  automatically".
+- **`10.35.1.133` has been off since the morning of 2026-09-25.** When it
+  comes back, the first thing to do is `settings put system
+  screen_off_timeout 600000`: the last sitting set it to `1800000` and never
+  restored it.
+- **Installed:** a develop build from about `76c4487` (md5 not recorded),
+  against core from before `0bce895`, so **it cannot play against 0.58.0
+  either.** **Ready to install:** develop `457d00e` against core `a50ef64`,
+  md5 `288c9f933b4f593afd5170ca4919e460` in `android/app/build/outputs`.
+  Rebuild if develop has moved since.
+- **Signed in as `tvtest`.** Configured endpoints: `http://10.35.1.50:7438`
+  (fi-1) and `http://10.44.1.50:7438` (macnessa). Remembered:
+  `https://macnessa.macha.network`. **`ramaroja` is offline for the
+  foreseeable** (Tom).
+- **Tom uses the set himself.** Check `dumpsys media_session` before any
+  key; if something is playing and nobody asked for a test, ask first.
+- **Launch with `am start`, not `monkey`:** `adb shell am start -n
+  foundation.macha.client.tv/.MainActivity`. `monkey … 1` also injects one
+  random event.
+
+### The next sitting, in order
+
+1. Install `288c9f93…` (read back `versionCode` and md5), then restore the
+   screen timeout.
+2. **Core's 0.58.0 exercises** (send core any error envelope verbatim, with
+   its code and the node):
+   - a multi-file item, in Auto and under a mode the viewer picked;
+   - a file with several audio tracks, in remux and in transcode;
+   - the decode fallback: *Classroom 216* in Auto;
+   - failover between fi-1 and macnessa mid-play;
+   - the served container is **MPEG-TS** (the stream line reads `MPEG-TS`,
+     not `FMP4`).
+3. **Settings > Server against fi-1:** send core what it shows, with the
+   node. Signed out, the header should read "Signed out", and the cards
+   "Sign in required".
+4. **Focus:** OK on Movies in the top bar should leave focus on Movies. The
+   ring should show on the top bar and on the sign-in buttons. Down from the
+   password should land on Sign in. A trip to Server settings and back should
+   keep the typed username. The sign-out dialog's red fill should have no
+   outline.
+5. **Next/previous:** from an episode past 0:30, press next then previous;
+   it should resume where it was.
+6. **A track:** artwork, artist, "Album (Year)", "Track N" beneath.
+7. The rest of the viewer-text build not yet seen: Music albums, Sort By,
+   notices, an error screen.
 
 ### Open, in order
 
-1. **Eyeball the rest of the viewer-text build** (Music, Sort By, notices, an
-   error screen; above).
-2. **Restart fallback — fixed and confirmed on the set 2026-09-24.** The
-   remembered list was wiped by the first health cycle after a restart (seeded
-   as `bootstrap`; core persists only `discovered`). Measured: with only a dead
-   address (`http://10.35.1.99:7438`) configured, the set reached Macha
-   through its remembered nodes over two consecutive restarts. Now seeded by
-   core's `seedEndpoints` (`b47773d`), which also stops the list being wiped
-   while nothing has answered yet; that half is on the set since `1bc8471a`
-   but has not been exercised.
-3. **Focus — fixed 2026-09-24, not yet on the set** (`c7f2137`, `1098898`).
-   Tom: Home looked selected whatever held focus, focus jumped to Home however
-   a screen was reached, and the sign-in buttons must match every other
-   button. The top bar now uses the standard ring; the focus fallback prefers
-   the nav item last used (`tvFocus`'s `lastNavId`); `Button` is the one text
-   button, used by Settings, sign-in and the offline screen. To confirm: move
-   to Movies in the top bar and press OK, and focus should stay on Movies
-   rather than jumping to Home; move between the sign-in buttons and the
-   focused one should show the ring.
-4. **P-1, what remains** (section P-1 below): the transcode reap recovers on the
-   same node, but only after the buffer drains (66 s) because `expo-video`
-   reports no per-segment failure; and a direct-play reap never reaches the
-   player. Both point at the **native-adapter trial**. **Shelved by Tom
-   2026-09-24: "The player is good enough."** `expo-video` stays the player;
-   `ExoPlayerAdapter` / `modules/macha-player` stay in the tree, unused, as
-   something that might be picked up later. The two gaps above stand as
-   known limits, not open work.
-5. **§1.8, the stereo A/B**, is now possible: *Firefly* season 1 episodes carry
-   `ENG · AAC · 2ch` beside the 5.1 track. It needs somebody listening.
-6. **§1.9** — whether a catalogue `5xx` should charge a node at all is with core
-   (message `167950ec`); the client's wording half is now `errorText`.
-7. **§1.12** — the list of smaller faults found switching accounts.
-8. **Remote next/previous keys — wired 2026-09-24** (`76c4487`). Measured on
-   `.133`: next moved S01E03 to S01E04, previous back. The same test found
-   switching episodes **lost the place** (previous resumed at 0:16, not
-   29:31): a progress write in the gap before React re-rendered stored the
-   new episode's position under the old one. Fixed in the same commit
-   (`attributableProgress`); **the fix is not yet on the set.** To confirm:
-   next from an episode past 0:30, previous, and it resumes where it was.
-8a. **A track's artwork, artist, album (year) and track in the player** —
-   Tom's request 2026-09-24, built (`cdd7c0b`), **not yet seen on the set**.
-   Ported from the web client's `.audio-player-*` rules, which were
-   uncommitted in that tree; re-check them once they land.
-8c. **Versions (Tom, 2026-09-25)**: the generic Play stays as "decide for
-   me", with one play button per available quality beside it (a file, or a
-   capped transcode), the same set in the player's options, and a quality
-   ceiling in Settings (720p, 1080p, 1440p "2K", 4K), per device. Design agreed
-   with core; **waiting on core's API** (`playbackVersions` with transcode
-   rows, `play`/`update` taking `{ mediaId, transcodeCeiling }`). Nothing
-   built here yet. **Which qualities appear** (Tom, via the phone client
-   2026-09-25): "cap down", never upscale. Offer each step of 4K, 2K, 1080p and
-   720p at or below the best file's step. A step with its own file plays that
-   file, and a step without one is a capped transcode from a better file.
-   Nothing above the best file is offered; below 720p it's Play only. Classify
-   a file's step by width as well as height, since a 1080p scope film is about
-   1920x800. The list is core's (`playbackVersions`); the words are ours.
-   **Settled by Tom 2026-09-25 (via core):** below 720p, the best file's own
-   class is shown (core's classes: 2160, 1440, 1080, 720, 576, 480, 360). An
-   explicit pick is never capped. With no setting, automatic play caps at
-   **the display's class, which the host states: on this TV the panel,
-   3840x2160 on `.133`, not the 1920x1080 UI override** that React Native's
-   screen size reports. Read the physical mode (`Display.getMode()` /
-   `dumpsys display`) when building it. Core gives a reason code when the cap
-   limits the choice; we word it.
-8d. **Multi-file items**: the facts supplier now hands core every file
-   (`a09fb56`, core `284e52e`), so the client chooses the file.
-8b. **Mode hint**: both faults found today are fixed in core `a98061b`
-   (viewer's mid-playback choice reported as theirs; a fallback replaces
-   `source-plays-as-is`). They arrive with core's next release.
-9. Parity, §4.
+1. **TV 0.7.1**, when core publishes (above).
+2. **Per-quality Play** ("Per-quality Play: the design" below): designed with core, **waiting on
+   core's API**. It replaces the player's Source group, which is dead under
+   0.58.0 (core maps `media_ids` to `[]`). The display class this TV states
+   is the **panel's** (3840x2160, read natively), not the 1920x1080 UI.
+3. **§1.12, what remains:** Continue Watching is not per-account, and
+   resuming another account's entry starts at zero. Both are in core's
+   storage and part of the storage-key standardisation.
+4. **§1.8, the stereo A/B**, needs somebody listening (*Firefly* S1 has
+   `ENG · AAC · 2ch`).
+5. **§1.9**, whether a catalogue `5xx` charges a node, is with core.
+6. **§1.1:** does the nav bar trap Left/Right at its ends? Unverified since
+   the top bar was rebuilt.
+7. Parity, §4.
+
+**Known limits, not open work:** the native-adapter trial is shelved (Tom,
+2026-09-24). So a transcode reap recovers only after the buffer drains, and
+a direct-play reap never reaches the player (P-1 below).
 
 ### Waiting on others
 
-- **Settled 2026-09-24: which servers the set may use.** Tom: only configured
-  servers and those the servers themselves advertised. The remembered list is
-  the latter, so core's design (drop a remembered server the moment a current
-  member omits it; before any member answers, use what is saved) is correct.
-  An alarm raised here the same day was withdrawn; nothing changes.
-- **Server 0.56.0** (develop `60ce47a`, announced 2026-09-24, not yet
-  deployed): a top-level `status` code on every JSON response. This client
-  parses no server JSON itself, so nothing here breaks. Core `a5b08f0` swapped
-  `ServerStatus.message` for `code` and `detail`; Settings > Server now words
-  the code locally (`serverStatusText`) and shows no server sentence. Seen on
-  the set against 0.55.1 (serving, so no note); the worded failure cases are
-  unseen. **0.57.0 is live on gbni-1 and fi-1 since 18:57Z (core, 2026-09-24):**
-  look at Settings > Server against fi-1 (`10.35.1.50`) and send core what it
-  shows, with the node.
-- **Tom:** whether series/season "links" on a TV card mean anything beyond Back
-  (core has put it to him).
+- **Tom:** the core release and TV 0.7.1; whether series/season "links" on a
+  TV card mean anything beyond Back.
+- **Core:** the per-quality API. The Mode-hint fixes (`a98061b`) are already
+  in the link and reach `main` with the next core release.
+- **Web client:** its `.audio-player-*` CSS was uncommitted when the track
+  view was ported. Re-check `AudioPresentation.tsx` against it once it lands.
+
+### Per-quality Play: the design (agreed with core 2026-09-25, not built)
+
+Tom's rulings, relayed by core, the web client and the phone client:
+
+- **The generic Play stays and means "decide for me".** Beside it goes one
+  play button per available quality, each playing a specific file or a
+  capped transcode. The same set appears in the player's options during play.
+- **Cap down, never up.** Offer each class at or below the best file's, down
+  to 720p. A class with its own file plays that file; one without is a capped
+  transcode from a better file. Nothing above the best file is offered.
+  Where the best file is below 720p, its own class is shown (core's classes:
+  2160, 1440, 1080, 720, 576, 480, 360). Classify by width as well as height
+  (a 1080p scope film is about 1920x800).
+- **A quality ceiling in Settings** (720p, 1080p, 1440p "2K", 4K), **per
+  device**. Label by height; "2K" is ambiguous. With no setting, automatic
+  play caps at the display's class. **On this TV that is the panel's
+  physical mode, 3840x2160 on `.133`** (`Display.getMode()`), not React
+  Native's 1920x1080. An explicit pick is never capped. Core gives a reason
+  code when the cap limits the choice, and we word it.
+- **Not from measured bandwidth.** No default is derived from it: a ceiling
+  that moves by itself would change what a viewer chose.
+- **Capability does not hide a version.** A version this set can't decode
+  directly can still be transcoded, so show how it would play. A capability
+  claim is a prediction, not proof (the MPEG-4 AVI).
+- **On the TV:** the detail page gets one row, Play first (default focus)
+  and then the quality buttons, moved with D-pad Left/Right, shown only when
+  there is more than one option. The player's options panel gets a group in
+  place of Source.
+- **Core's side** (proposed, awaiting the commit): `playbackVersions(files,
+  capabilities, preference)` for the detail page, including transcode rows;
+  `snapshot.versions` during play; `play({ media, mediaId |
+  transcodeCeiling })` and `update(...)` as a viewer choice that no fallback
+  overrides; and a per-device preference store with a `maxHeight`. **Every
+  word is ours.**
 
 ### Traps this session paid for — driving the set over adb
 
@@ -169,7 +167,7 @@ things they got wrong. Read that first; this section is only what is open.
 - **Back on a top-level screen leaves the app.** On Search that is one Back
   after a keyboard that did not open.
 
-### After the sitting, in order
+### Longer term, after the open list
 
 1. **Tier 3** (§2.1), if §1.3 allows a second decoder — it is the rest of the
    reason this repo exists, and it closes the one visible difference from the
@@ -740,10 +738,11 @@ The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
 
-### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **three of six fixed 2026-09-25, none yet seen on the set**
+### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **three remain**
 
-All measured on the set, all by D-pad over `adb`. None is P-1; all are this
-client's.
+All measured on the set, all by D-pad over `adb`. The three fixed on
+2026-09-25 (Settings' 401, the sign-out dialog, the sign-in wall) are in
+`COMPLETED.md`'s top section and wait on the set to be seen.
 
 - **Continue Watching is not per-account.** Signed in as `tvtest`, the rail
   showed `tom`'s three entries unchanged. Core's `signOut` clears only
@@ -756,25 +755,6 @@ client's.
   `seekMs: 0` — the rail offers a resume it then does not perform. Whether the
   position is being dropped or deliberately withheld across accounts is not
   established; either way the rail and the player disagree.
-- ~~**Signed out, Settings reports a `401` as "catalogue unavailable".**~~
-  **Fixed `cbfc3ca`**: signed out outranks the ladder, the cards say "Sign in
-  required", and the Catalogue card words `error_code` instead of showing the
-  server's sentence. The
-  header read "Server online; catalogue unavailable" with **PLAYBACK:
-  Unavailable**, and the small print underneath gave the real reason, "a
-  valid session bearer token is required". That is §1.9 turned round: an
-  authentication state worded as a service outage.
-- ~~**The sign-out dialog opens on Cancel, and the unfocused Sign out looks
-  focused.**~~ **Fixed `dd32143`**: the dialog uses `Button`; the destructive
-  fill keeps no red border, so a red outline only ever means focus. Opening on
-  Cancel is kept on purpose. Cancel is the focused button (a filled background); Sign out
-  carries a red outline as its destructive style, and a red outline is what
-  focus looks like everywhere else in this client. It cost one confirm press
-  that landed on Cancel. At ten feet the two are easy to confuse.
-- ~~**The sign-in wall: DOWN from the password lands on Server settings, not
-  Sign in,**~~ **Fixed `8119af6` (Sign in on its own row under the fields; the
-  draft kept in memory) and `c7f2137` (focus visible):** and going there **discards the typed username and password**. At
-  one point neither button showed any visible focus.
 - **The on-screen trail did not repaint in captures while the chrome was
   hidden, during reap 2.** Forty-one captures across the recovery all showed
   reap 1's lines; revealing the chrome showed reap 2's, timestamped at the
