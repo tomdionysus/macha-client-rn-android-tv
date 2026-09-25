@@ -99,7 +99,10 @@ Driven over adb; every line below was read off the set or its trail.
   decoders declare 4096x2176, so the app should claim class 2160 and 4K
   keeps direct play. **Asserted from the XML, not from the app's own call.**
   The claim is one maximum across all decoders, so a codec whose own decoder
-  stops at 1920x1088 (VP8 here) is still claimed 4K.
+  stops at 1920x1088 (VP8 here) is still claimed 4K. **Core, 2026-09-25: no
+  per-codec limits for now**; such a file fails direct decode and the decode
+  fallback transcodes it once. If a real title hits it, send core the file
+  and the trail.
 - **Seen working:** the Version group (marked from `instruction.quality`),
   the spinner mid-screen while a switched generation buffered, the × on a
   Continue Watching card (Up reaches it, Down returns, OK removed *The
