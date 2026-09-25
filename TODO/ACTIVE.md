@@ -55,14 +55,12 @@ Read that first; this section is only what is open.
 ### The set
 
 - **`10.35.1.133` is on (2026-09-25 afternoon).** The screen timeout is
-  restored to `600000` (it read `1800000`). **Installed 15:47:42:** develop
-  `f796268` against core `42cebd6` (versions reported after a start that
-  needed no facts), md5 `9a117d14fc49d778d5dd9b9ec5f34f02`, read back off the
-  set, `versionCode 700`. It replaced a 15:44 install on `c8099f1` that would
-  have left the player's Version group empty after a detail-page pick on a
-  single-file item. Not launched, and nothing below
-  has been run on it yet. The panel reports `3840x2160` at 60 Hz (active mode
-  1, `dumpsys display`), so Settings > Playback should read `Screen (2160p)`.
+  restored to `600000` (it read `1800000`). **Installed 21:11:55:** develop `9528d48` against core `d6fa069`, md5
+  `0caca3a2b591c5c579877679f39c2ef6`, read back off the set, `versionCode
+  700`: next episode on end, per-codec decoder limits (hardware first), and
+  the three Settings fixes. Not launched. The panel runs `3840x2160` at 60 Hz
+  (active mode 1, `dumpsys display`), and Settings > Playback reads
+  `Screen (2160p)`, measured.
 - **Signed in as `tvtest`.** Configured endpoints: `http://10.35.1.50:7438`
   (fi-1) and `http://10.44.1.50:7438` (macnessa, which core and the server
   call gbni-1). Remembered:
