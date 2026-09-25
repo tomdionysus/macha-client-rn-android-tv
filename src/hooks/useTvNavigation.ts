@@ -179,7 +179,7 @@ export function useFocusable(options: UseFocusableOptions = {}): UseFocusableRes
   useLayoutEffect(() => {
     return tvFocus.register({
       id,
-      disabled: options.disabled,
+      disabled: latest.current.disabled,
       defaultFocus: options.defaultFocus,
       scope: options.scope,
       activate: () => latest.current.onSelect?.(),
@@ -187,7 +187,33 @@ export function useFocusable(options: UseFocusableOptions = {}): UseFocusableRes
       ownsDirection: (direction) => latest.current.ownsDirection?.(direction) ?? false,
       onDirection: (direction) => latest.current.onDirection?.(direction),
     });
-  }, [id, options.disabled, options.defaultFocus, options.scope]);
+  }, [id, options.defaultFocus, options.scope]);
+
+  /**
+   * `disabled` is patched in place, not re-registered.
+   *
+   * React re-runs a registration by calling the old cleanup first, which
+   * deletes the entry and its rectangle, and a re-registered element then has
+   * no geometry until something lays it out again: the scorer cannot move from
+   * it, and the screen drops to sequential order. Measured in a test of the
+   * registry, 2026-09-25, found while adding Continue Watching's remove
+   * button, which is enabled only while its card has focus.
+   *
+   * What the unregister did that is still wanted: a selected element that
+   * becomes disabled gives the selection up, to the screen's default.
+   */
+  const firstDisabled = useRef(true);
+  useLayoutEffect(() => {
+    if (firstDisabled.current) {
+      firstDisabled.current = false;
+      return;
+    }
+    tvFocus.update(id, { disabled: options.disabled });
+    if (options.disabled && tvFocus.selected() === id) {
+      tvFocus.select(undefined);
+      tvFocus.focusDefault();
+    }
+  }, [id, options.disabled]);
 
   const onLayout = useCallback(
     (_event: LayoutChangeEvent) => {

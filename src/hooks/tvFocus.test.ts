@@ -175,6 +175,30 @@ describe('geometry arriving out of order', () => {
     stop();
   });
 
+  it('keeps geometry when an element is disabled and enabled again in place', () => {
+    // React re-runs a registration by calling the old cleanup *first*, which
+    // deletes the entry and its rectangle; the element then comes back with no
+    // geometry and the scorer cannot move from it. So `useFocusable` patches
+    // `disabled` through `update` instead of re-registering, and this is the
+    // contract it relies on. (The hook itself has no renderer to run under here.)
+    const card = tvFocus.register({ id: 'toggle-card' });
+    const button = tvFocus.register({ id: 'toggle-button', disabled: true });
+    tvFocus.measure('toggle-card', { left: 0, top: 0, width: 100, height: 100 });
+    tvFocus.measure('toggle-button', { left: 200, top: 0, width: 50, height: 50 });
+
+    tvFocus.select('toggle-card');
+    expect(tvFocus.handle('right')).toBe(false);
+
+    tvFocus.update('toggle-button', { disabled: false });
+    expect(tvFocus.handle('right')).toBe(true);
+    expect(tvFocus.selected()).toBe('toggle-button');
+    // Moving back needs the button's own rectangle, which a re-registration lost.
+    expect(tvFocus.handle('left')).toBe(true);
+    expect(tvFocus.selected()).toBe('toggle-card');
+    card();
+    button();
+  });
+
   it('forgets a held rectangle when the focusable never arrives', () => {
     tvFocus.measure('ghost', { left: 0, top: 0, width: 10, height: 10 });
     const stop = tvFocus.register({ id: 'ghost' });
