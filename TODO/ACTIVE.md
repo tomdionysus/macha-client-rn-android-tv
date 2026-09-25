@@ -50,9 +50,12 @@ Read that first; this section is only what is open.
 ### The set
 
 - **`10.35.1.133` is on (2026-09-25 afternoon).** The screen timeout is
-  restored to `600000` (it read `1800000`). **Installed 15:44:08:** develop
-  `13d7b62` against core `c8099f1`, md5 `71e2fdfffac445aa1d1252fcb2d377d2`,
-  read back off the set, `versionCode 700`. Not launched, and nothing below
+  restored to `600000` (it read `1800000`). **Installed 15:47:42:** develop
+  `f796268` against core `42cebd6` (versions reported after a start that
+  needed no facts), md5 `9a117d14fc49d778d5dd9b9ec5f34f02`, read back off the
+  set, `versionCode 700`. It replaced a 15:44 install on `c8099f1` that would
+  have left the player's Version group empty after a detail-page pick on a
+  single-file item. Not launched, and nothing below
   has been run on it yet. The panel reports `3840x2160` at 60 Hz (active mode
   1, `dumpsys display`), so Settings > Playback should read `Screen (2160p)`.
 - **Signed in as `tvtest`.** Configured endpoints: `http://10.35.1.50:7438`
