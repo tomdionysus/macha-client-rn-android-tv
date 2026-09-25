@@ -304,6 +304,15 @@ export class ExpoVideoAdapter implements Player {
   }
 
   private emit(): void {
+    // A player holding no source has nothing to report. `expo-video`'s time
+    // clock runs from the moment the interval is set, source or not, so between
+    // films the active player ticks position 0 every 250 ms; and core's
+    // coordinator lets a player event overwrite its start position until the
+    // session is presented. A tick landing while a resume was being resolved
+    // started the film at 0:00 (reproduced against core 3a5dc56's dist,
+    // 2026-09-25). Core is told; this is the platform half: an idle player's
+    // zero is not an observation.
+    if (!this.activeSource) return;
     const positionMs = Math.max(0, this.video.currentTime * 1_000);
     const durationMs = Math.max(0, this.video.duration * 1_000);
     const bufferedEndMs = Math.max(0, this.video.bufferedPosition * 1_000);

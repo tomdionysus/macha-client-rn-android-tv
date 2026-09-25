@@ -68,6 +68,7 @@ const REASON_TEXT: Record<PlaybackDecisionReason, string> = {
   'video-codec-not-playable': 'this device cannot decode the video',
   'video-codec-not-deliverable-over-hls': 'the video cannot be delivered over HLS here',
   'video-bit-depth-exceeds-client': 'the video is deeper than this device decodes',
+  'video-size-exceeds-client': 'the picture is larger than this device decodes',
   'video-transfer-not-presentable': 'this device cannot present the colour transfer',
   'video-dolby-vision-not-supported': 'this device does not support this Dolby Vision profile',
   'audio-codec-not-playable': 'this device cannot decode the audio',

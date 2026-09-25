@@ -211,6 +211,34 @@ describe('what the adapter reports to core', () => {
     expect(events.at(-1)).toMatchObject({ positionMs: 12_500, durationMs: 100_000 });
   });
 
+  it('reports nothing while it holds no source, so an idle tick cannot move a resume point', async () => {
+    // `expo-video`'s time clock runs from the moment the interval is set, source
+    // or not, so the app-scoped player ticks position 0 every 250 ms between
+    // films. Core's coordinator lets a player event overwrite its start
+    // position until the session is presented, so a tick landing while a
+    // resume was being resolved started the film at 0:00 (reproduced against
+    // core 3a5dc56's dist, 2026-09-25).
+    const adapter = new ExpoVideoAdapter();
+    const events: { positionMs: number }[] = [];
+    adapter.subscribe((event) => events.push(event));
+
+    fake.emit('timeUpdate');
+    fake.emit('statusChange', { status: 'idle' });
+    fake.emit('playingChange');
+    expect(events).toEqual([]);
+
+    await adapter.play(source(), 1_800_000);
+    fake.currentTime = 1_800;
+    fake.emit('timeUpdate');
+    expect(events.at(-1)).toMatchObject({ positionMs: 1_800_000 });
+
+    adapter.stop();
+    const afterStop = events.length;
+    fake.currentTime = 0;
+    fake.emit('timeUpdate');
+    expect(events).toHaveLength(afterStop);
+  });
+
   it('reports the forward buffer, which is what tells slow apart from dead', async () => {
     const adapter = new ExpoVideoAdapter();
     // Optional on `PlaybackEvent`: a platform that cannot measure buffering

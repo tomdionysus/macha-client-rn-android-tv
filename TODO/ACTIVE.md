@@ -758,7 +758,7 @@ The records of what was settled on 2026-09-13 — the sign-in P0, the D-pad
 verification and the 5.1 measurement — are in
 [`COMPLETED.md`](COMPLETED.md).
 
-### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **three remain**
+### 1.12 Found while switching `.133` between accounts, 2026-09-23 — **three remain, one fixed here and unmeasured**
 
 All measured on the set, all by D-pad over `adb`. The three fixed on
 2026-09-25 (Settings' 401, the sign-out dialog, the sign-in wall) are in
@@ -772,9 +772,21 @@ All measured on the set, all by D-pad over `adb`. The three fixed on
   the storage-keys standardisation, and the fix may be core's.
 - **And resuming one of those entries starts from zero.** Selecting `tom`'s
   Half-Blood Prince under `tvtest` logged `requestedPositionMs: 0`,
-  `seekMs: 0` — the rail offers a resume it then does not perform. Whether the
-  position is being dropped or deliberately withheld across accounts is not
-  established; either way the rail and the player disagree.
+  `seekMs: 0` — the rail offers a resume it then does not perform. **Not an
+  account question, most likely: Tom reported it 2026-09-25 as "sometimes"
+  on his own account, and the cause is reproduced (not measured on the set).**
+  `expo-video`'s time clock ticks position 0 every 250 ms from an idle
+  player, and core's coordinator lets a player event overwrite
+  `intent.positionMs` until `present()` arms its latch. A tick during the
+  facts fetch and resolve zeroes the resume point: direct play then starts
+  at 0, and a transcode is PATCHed back to seek 0. Reproduced against core
+  `3a5dc56` and `edfce82` dist with a fake player
+  (`scratchpad/resume-repro.mjs` in the 2026-09-25 session). The TV half is
+  fixed (`ExpoVideoAdapter.emit` reports nothing without a source); the
+  coordinator half is core's, reported. **To confirm on the set:** resume a
+  Continue Watching entry several times, both a direct-play and a
+  transcoded title, and read `initial-generation-ready` and
+  `source-presented` in the trail.
 - **The on-screen trail did not repaint in captures while the chrome was
   hidden, during reap 2.** Forty-one captures across the recovery all showed
   reap 1's lines; revealing the chrome showed reap 2's, timestamped at the
