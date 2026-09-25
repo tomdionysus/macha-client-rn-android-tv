@@ -23,7 +23,12 @@ Read that first; this section is only what is open.
   0.58.0.) **The fix is a core release carrying `0bce895` onward, then TV
   0.7.1. Tom's call; core has put its release to him.** The phone's 0.9.0 is
   in the same state.
-- **Server 0.59.0** (`1f37a41`) is on fi-1 and gbni-1 (gbni-1 is
+- **Server 0.60.0** (`7c1d210`) is live on both nodes since 12:42Z
+  2026-09-25, per core (asserted): a PATCH out of transcode releases the
+  slot, so a switch back can be refused `429 resource_limit`, which the TV
+  words (`2b15bb2`). **To test on the set:** direct play, switch to
+  Transcode in the options, and with the slot free it should work.
+- **Server 0.59.0** (`1f37a41`) was on fi-1 and gbni-1 (gbni-1 is
   macnessa, Tom 2026-09-25: core's name for it) since 11:30Z 2026-09-25,
   per core (asserted, not read off a node here). Scheduling only (replica
   repair keeps a 95:5 share under load); 0.58.3 before it was an ingest
@@ -44,17 +49,12 @@ Read that first; this section is only what is open.
 
 ### The set
 
-- **`10.35.1.133` has been off since the morning of 2026-09-25.** When it
-  comes back, the first thing to do is `settings put system
-  screen_off_timeout 600000`: the last sitting set it to `1800000` and never
-  restored it.
-- **Installed:** a develop build from about `76c4487` (md5 not recorded),
-  against core from before `0bce895`, so **it cannot play against 0.58.0
-  either.** **Ready to install:** develop `763cf9e` against core `424f8a6`,
-  md5 `479faea5dd8641ef479ddc2759d17ea5` in `android/app/build/outputs`
-  (`versionCode 700`, `armeabi-v7a`, leanback; the bundle carries
-  `macha.qualityPreference.v1`).
-  Rebuild if develop has moved since.
+- **`10.35.1.133` is on (2026-09-25 afternoon).** The screen timeout is
+  restored to `600000` (it read `1800000`). **Installed 15:44:08:** develop
+  `13d7b62` against core `c8099f1`, md5 `71e2fdfffac445aa1d1252fcb2d377d2`,
+  read back off the set, `versionCode 700`. Not launched, and nothing below
+  has been run on it yet. The panel reports `3840x2160` at 60 Hz (active mode
+  1, `dumpsys display`), so Settings > Playback should read `Screen (2160p)`.
 - **Signed in as `tvtest`.** Configured endpoints: `http://10.35.1.50:7438`
   (fi-1) and `http://10.44.1.50:7438` (macnessa, which core and the server
   call gbni-1). Remembered:
@@ -68,8 +68,7 @@ Read that first; this section is only what is open.
 
 ### The next sitting, in order
 
-1. Install `479faea5…` (read back `versionCode` and md5), then restore the
-   screen timeout.
+1. ~~Install, restore the screen timeout~~ — done 2026-09-25 15:44.
 2. **Core's 0.58.0 exercises** (send core any error envelope verbatim, with
    its code and the node):
    - a multi-file item, in Auto and under a mode the viewer picked;
