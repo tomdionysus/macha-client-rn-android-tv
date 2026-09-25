@@ -76,6 +76,8 @@ export function SettingsScreen(): React.JSX.Element {
     const display = androidTvPlatform.display();
     return display ? displayQualityClass(display.width, display.height) : undefined;
   }, []);
+  // Read once, with the capabilities: which limits no hardware decoder backs.
+  const softwareOnly = useMemo(() => androidTvPlatform.softwareOnlyVideoCodecs(), []);
   // Probed once: the answer cannot change while the app is running.
   const surface = useMemo(() => checkPlatformSurface(), []);
 
@@ -378,6 +380,10 @@ export function SettingsScreen(): React.JSX.Element {
                     .map(([codec, size]) => (size ? `${codec} ${size.width}×${size.height}` : codec))
                     .join(', ') || 'none below the decoder limit'
                 }
+              />
+              <Capability
+                name="Software only"
+                value={softwareOnly.length > 0 ? softwareOnly.join(', ') : 'none'}
               />
             </>
           ) : (

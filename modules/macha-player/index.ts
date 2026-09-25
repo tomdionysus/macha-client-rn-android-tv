@@ -61,6 +61,8 @@ export interface NativeCapabilities {
   maxHeight: number | null;
   /** Codecs whose decoders stop short of the overall maximum. */
   videoCodecMaxSize: Record<string, { width: number; height: number }>;
+  /** Codecs with no hardware decoder, whose size came from software. Diagnostics. */
+  softwareOnlyVideoCodecs: string[];
 }
 
 export interface NativeDecoder {

@@ -136,6 +136,18 @@ export class AndroidTvPlatform implements Platform {
     BackHandler.exitApp();
   }
 
+  /**
+   * Video codecs with no hardware decoder, whose limits came from a software
+   * one. For Settings. Diagnostics, not policy.
+   */
+  softwareOnlyVideoCodecs(): string[] {
+    try {
+      return MachaPlayer.capabilities().softwareOnlyVideoCodecs ?? [];
+    } catch {
+      return [];
+    }
+  }
+
   /** The raw decoder list, for the Status screen. Diagnostics, not policy. */
   decoders(): NativeDecoder[] {
     try {

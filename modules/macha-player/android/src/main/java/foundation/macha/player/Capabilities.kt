@@ -125,6 +125,8 @@ object Capabilities {
     val maxHeight: Int?,
     /** Codecs whose own decoders stop short of `maxWidth` x `maxHeight`; see `read`. */
     val videoCodecMaxSize: Map<String, Pair<Int, Int>>,
+    /** Codecs with no hardware decoder, whose size comes from a software one. Diagnostics. */
+    val softwareOnlyVideoCodecs: List<String>,
   )
 
   fun read(context: Context): Inventory {
@@ -133,9 +135,9 @@ object Capabilities {
     val decoders = mutableListOf<Decoder>()
     val dolbyVision = sortedSetOf<Int>()
     var bitDepth = 8
-    var maxWidth = 0
-    var maxHeight = 0
-    val codecMax = mutableMapOf<String, Pair<Int, Int>>()
+    // Sizes kept apart by decoder kind; see the return for why.
+    val hardwareMax = mutableMapOf<String, Pair<Int, Int>>()
+    val softwareMax = mutableMapOf<String, Pair<Int, Int>>()
     val decoderPq = mutableSetOf<Int>()
     var decoderTenBit = false
 
@@ -178,18 +180,31 @@ object Capabilities {
           }
           runCatching {
             val v = capabilities.videoCapabilities ?: return@runCatching
-            maxWidth = maxOf(maxWidth, v.supportedWidths.upper)
-            maxHeight = maxOf(maxHeight, v.supportedHeights.upper)
-            VIDEO_MIME[mime]?.let { codec ->
-              val (w, h) = codecMax[codec] ?: (0 to 0)
-              codecMax[codec] = maxOf(w, v.supportedWidths.upper) to maxOf(h, v.supportedHeights.upper)
-            }
+            val sizes = if (hardware) hardwareMax else softwareMax
+            val codec = VIDEO_MIME[mime] ?: mime
+            val (w, h) = sizes[codec] ?: (0 to 0)
+            sizes[codec] = maxOf(w, v.supportedWidths.upper) to maxOf(h, v.supportedHeights.upper)
           }
         }
       }
     }
 
     if (decoderTenBit) bitDepth = 10
+
+    // **Hardware first, software only where a codec has no hardware decoder.**
+    // A software decoder's declared size is what it will accept, not what the
+    // set's CPU decodes in real time: one that declares 4K plays 4K as a
+    // stutter, which the decode fallback cannot see, since nothing fails.
+    // Core's caution, 2026-09-25; the policy is this device's. So each codec's
+    // limit is its hardware decoders' largest frame, and the overall limit is
+    // the largest over those, falling back to software only for a codec (or a
+    // device) with no hardware decoder at all.
+    val codecMax = (hardwareMax.keys + softwareMax.keys).associateWith { codec ->
+      hardwareMax[codec] ?: softwareMax.getValue(codec)
+    }
+    val softwareOnly = codecMax.keys.filter { it !in hardwareMax }
+    val maxWidth = codecMax.values.maxOfOrNull { it.first } ?: 0
+    val maxHeight = codecMax.values.maxOfOrNull { it.second } ?: 0
 
     return Inventory(
       videoCodecs = video.toList(),
@@ -214,7 +229,10 @@ object Capabilities {
       // for a codec whose decoders stop at 1080p (VP8 on `.133`, per its vendor
       // XML). The largest over that codec's decoders, because the player may
       // use any of them. Only the short ones are stated, as core asks.
-      videoCodecMaxSize = codecMax.filterValues { (w, h) -> w < maxWidth || h < maxHeight },
+      videoCodecMaxSize = codecMax
+        .filterKeys { it in VIDEO_MIME.values }
+        .filterValues { (w, h) -> w < maxWidth || h < maxHeight },
+      softwareOnlyVideoCodecs = softwareOnly.filter { it in VIDEO_MIME.values }.sorted(),
     )
   }
 

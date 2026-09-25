@@ -93,6 +93,7 @@ class MachaPlayerModule : Module() {
         "videoCodecMaxSize" to inventory.videoCodecMaxSize.mapValues { (_, size) ->
           mapOf("width" to size.first, "height" to size.second)
         },
+        "softwareOnlyVideoCodecs" to inventory.softwareOnlyVideoCodecs,
       )
     }
 
