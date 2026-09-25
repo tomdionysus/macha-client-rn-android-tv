@@ -56,6 +56,11 @@ export class AndroidTvPlatform implements Platform {
       // on a set whose decoder handles 4K forces a transcode that buys nothing.
       ...(native.maxWidth ? { maxWidth: native.maxWidth } : {}),
       ...(native.maxHeight ? { maxHeight: native.maxHeight } : {}),
+      // Core d6fa069: a codec whose own decoders stop short of the limit
+      // above, which the chooser holds that codec's streams to instead.
+      ...(native.videoCodecMaxSize && Object.keys(native.videoCodecMaxSize).length > 0
+        ? { videoCodecMaxSize: native.videoCodecMaxSize }
+        : {}),
     };
 
     this.cached = capabilities;

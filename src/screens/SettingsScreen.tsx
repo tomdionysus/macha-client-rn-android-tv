@@ -371,6 +371,14 @@ export function SettingsScreen(): React.JSX.Element {
                     : 'unreported'
                 }
               />
+              <Capability
+                name="Codec limits"
+                value={
+                  Object.entries(capabilities.videoCodecMaxSize ?? {})
+                    .map(([codec, size]) => (size ? `${codec} ${size.width}×${size.height}` : codec))
+                    .join(', ') || 'none below the decoder limit'
+                }
+              />
             </>
           ) : (
             <Text style={styles.value}>Reading MediaCodecList…</Text>

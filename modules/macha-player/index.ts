@@ -59,6 +59,8 @@ export interface NativeCapabilities {
   dolbyVision: number[];
   maxWidth: number | null;
   maxHeight: number | null;
+  /** Codecs whose decoders stop short of the overall maximum. */
+  videoCodecMaxSize: Record<string, { width: number; height: number }>;
 }
 
 export interface NativeDecoder {

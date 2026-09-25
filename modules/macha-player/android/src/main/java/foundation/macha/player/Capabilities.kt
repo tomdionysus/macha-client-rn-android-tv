@@ -123,6 +123,8 @@ object Capabilities {
     val dolbyVision: List<Int>,
     val maxWidth: Int?,
     val maxHeight: Int?,
+    /** Codecs whose own decoders stop short of `maxWidth` x `maxHeight`; see `read`. */
+    val videoCodecMaxSize: Map<String, Pair<Int, Int>>,
   )
 
   fun read(context: Context): Inventory {
@@ -133,6 +135,7 @@ object Capabilities {
     var bitDepth = 8
     var maxWidth = 0
     var maxHeight = 0
+    val codecMax = mutableMapOf<String, Pair<Int, Int>>()
     val decoderPq = mutableSetOf<Int>()
     var decoderTenBit = false
 
@@ -177,6 +180,10 @@ object Capabilities {
             val v = capabilities.videoCapabilities ?: return@runCatching
             maxWidth = maxOf(maxWidth, v.supportedWidths.upper)
             maxHeight = maxOf(maxHeight, v.supportedHeights.upper)
+            VIDEO_MIME[mime]?.let { codec ->
+              val (w, h) = codecMax[codec] ?: (0 to 0)
+              codecMax[codec] = maxOf(w, v.supportedWidths.upper) to maxOf(h, v.supportedHeights.upper)
+            }
           }
         }
       }
@@ -202,6 +209,12 @@ object Capabilities {
       // forces a transcode that buys nothing.
       maxWidth = maxWidth.takeIf { it > 0 },
       maxHeight = maxHeight.takeIf { it > 0 },
+      // Core d6fa069: each codec's own largest frame, where it is below the
+      // overall one, which is a maximum over every decoder and so claims 4K
+      // for a codec whose decoders stop at 1080p (VP8 on `.133`, per its vendor
+      // XML). The largest over that codec's decoders, because the player may
+      // use any of them. Only the short ones are stated, as core asks.
+      videoCodecMaxSize = codecMax.filterValues { (w, h) -> w < maxWidth || h < maxHeight },
     )
   }
 

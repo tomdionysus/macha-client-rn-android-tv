@@ -90,6 +90,9 @@ class MachaPlayerModule : Module() {
         "dolbyVision" to inventory.dolbyVision,
         "maxWidth" to inventory.maxWidth,
         "maxHeight" to inventory.maxHeight,
+        "videoCodecMaxSize" to inventory.videoCodecMaxSize.mapValues { (_, size) ->
+          mapOf("width" to size.first, "height" to size.second)
+        },
       )
     }
 
