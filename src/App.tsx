@@ -20,6 +20,7 @@ import { isMediaFocusId, mediaFocusId } from './hooks/useAlphabetIndex';
 import { libraryTrail, type KnownAncestry } from './app/libraryTrail';
 import { SIGN_OUT_REVOKE_FAILED } from './text/viewerText';
 import { useEpisodeNeighbours } from './app/useEpisodeNeighbours';
+import { episodeToPlayOnEnd } from './app/autoAdvance';
 import { attributableProgress } from './app/progressAttribution';
 import { orphanedSessions } from './state/liveSessions';
 import { playbackLog } from './diagnostics/playbackLog';
@@ -455,6 +456,32 @@ function Shell(): React.JSX.Element {
     },
     [recordPlayingProgress, play, continueWatching],
   );
+
+  /**
+   * When an episode ends, play the next one, across seasons too (Tom,
+   * 2026-09-25); see `episodeToPlayOnEnd`. The same call as the player's next
+   * button, so the ended episode's place is written first (finished, so it
+   * leaves Continue Watching) and the next one starts from its own.
+   *
+   * Once per ending: the latch clears when playback is no longer ended, so an
+   * episode played again and finished again advances again.
+   */
+  const [playbackEnded, setPlaybackEnded] = useState(false);
+  useEffect(
+    () => runtime.subscribePlayback((snapshot) => setPlaybackEnded(Boolean(snapshot?.event.ended))),
+    [runtime],
+  );
+  const advancedFrom = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!playbackEnded) {
+      advancedFrom.current = undefined;
+      return;
+    }
+    const next = episodeToPlayOnEnd(playingMedia, playbackEnded, episodeNav);
+    if (!next || !playingMedia || advancedFrom.current === playingMedia.id) return;
+    advancedFrom.current = playingMedia.id;
+    switchEpisode(next);
+  }, [playbackEnded, playingMedia, episodeNav, switchEpisode]);
 
   // An episode resumed without its ancestry (a Continue Watching entry saved
   // before core carried it) cannot be placed on its trail until core has
