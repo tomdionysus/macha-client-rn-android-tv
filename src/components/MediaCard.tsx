@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@machafoundation/core';
 import { cardLines } from './cardLines';
 import { Focusable } from './Focusable';
 import { LazyArtwork } from './LazyArtwork';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
+import { tvFocus } from '../hooks/tvFocus';
 import { useMacha } from '../app/MachaProvider';
 import { colour, focusFrame, font, layout, px, radius, rem, type } from '../styles/theme';
 
@@ -24,6 +26,7 @@ export function MediaCard({
   onExtent,
   addressable = false,
   squareInPosterHeight = false,
+  onRemove,
 }: {
   media: MediaSummary;
   onSelect?: () => void;
@@ -49,20 +52,42 @@ export function MediaCard({
   onFocusChange?: (focused: boolean) => void;
   /** This card's box, for a scroller that has to follow focus. */
   onExtent?: (box: { x: number; y: number; width: number; height: number }) => void;
+  /**
+   * Draw `.card-close-button` over the card, for Continue Watching's "Remove
+   * … from Continue Watching". Its own focus target, above the card, as on
+   * the web client, whose focus weights this client's scorer reproduces.
+   */
+  onRemove?: () => void;
 }): React.JSX.Element {
   const { services } = useMacha();
   const mediaApi = services.mediaApi;
   const artwork = media.artwork?.poster ?? media.artwork?.thumbnail;
   const isSquare = media.kind === 'album' || media.kind === 'artist' || media.kind === 'track';
   const lines = cardLines(media);
+  // The remove button's focus pairing; see `CardCloseButton`.
+  const [cardFocused, setCardFocused] = useState(false);
+  const [closeFocused, setCloseFocused] = useState(false);
+  const cardId = addressable ? mediaFocusId(media.id) : onRemove ? `card:${media.id}` : undefined;
+  const closeId = `remove:${media.id}`;
 
-  return (
+  const card = (
     <Focusable
       ring={false}
-      {...(addressable ? { focusId: mediaFocusId(media.id) } : {})}
+      {...(cardId ? { focusId: cardId } : {})}
       onSelect={onSelect}
       defaultFocus={defaultFocus}
-      onFocusChange={onFocusChange}
+      onFocusChange={(focused) => {
+        setCardFocused(focused);
+        onFocusChange?.(focused);
+      }}
+      // Up from a card with a remove button goes to that button: the
+      // scorer cannot, because the button's centre is inside the card.
+      {...(onRemove
+        ? {
+            ownsDirection: (direction: string) => direction === 'up',
+            onDirection: (direction: string) => direction === 'up' && tvFocus.select(closeId),
+          }
+        : {})}
       onExtent={onExtent}
       style={styles.card}
       focusedStyle={styles.cardFocused}
@@ -114,9 +139,103 @@ export function MediaCard({
       )}
     </Focusable>
   );
+
+  if (!onRemove) return card;
+  return (
+    <View>
+      {card}
+      <CardCloseButton
+        focusId={closeId}
+        reachable={cardFocused || closeFocused}
+        onSelect={onRemove}
+        onFocusChange={setCloseFocused}
+        onDown={() => cardId && tvFocus.select(cardId)}
+      />
+    </View>
+  );
+}
+
+/**
+ * `.card-close-button.continue-card-remove`: a small × at the card's top
+ * right. The web client's label ("Remove … from Continue Watching") is for a
+ * screen reader, which a television has none of here, so none is drawn.
+ *
+ * **Reached from its card, not by the scorer.** It sits inside the card, so
+ * the scorer, which moves only to a centre beyond the current edge, cannot
+ * reach it with Up or Right from the card; and coming down onto the row, it
+ * is nearer than the card and would take focus meant for the poster. So it is
+ * a candidate only while its card or it has focus, Up from the card selects
+ * it, and Down from it returns. Always drawn, as on the web client.
+ */
+function CardCloseButton({
+  focusId,
+  reachable,
+  onSelect,
+  onFocusChange,
+  onDown,
+}: {
+  focusId: string;
+  reachable: boolean;
+  onSelect: () => void;
+  onFocusChange: (focused: boolean) => void;
+  onDown: () => void;
+}): React.JSX.Element {
+  return (
+    <Focusable
+      ring={false}
+      focusId={focusId}
+      disabled={!reachable}
+      onFocusChange={onFocusChange}
+      ownsDirection={(direction) => direction === 'down'}
+      onDirection={(direction) => direction === 'down' && onDown()}
+      onSelect={onSelect}
+      style={styles.close}
+      focusedStyle={styles.closeFocused}
+    >
+      {({ focused }) => <Text style={[styles.closeGlyph, focused && styles.closeGlyphFocused]}>×</Text>}
+    </Focusable>
+  );
 }
 
 const styles = StyleSheet.create({
+  /**
+   * `.card-close-button { position: absolute; width: 1.8rem; height: 1.8rem;
+   * border: 1px solid #ffffff18; border-radius: .48rem; background: #08080ac9;
+   * color: #dedee2; font-size: 1.25rem; opacity: .78 }` and
+   * `.continue-card-remove { top: .78rem; right: .78rem }`.
+   */
+  close: {
+    position: 'absolute',
+    top: rem(0.78),
+    right: rem(0.78),
+    width: rem(1.8),
+    height: rem(1.8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ffffff18',
+    borderRadius: rem(0.48),
+    backgroundColor: '#08080ac9',
+    opacity: 0.78,
+  },
+  /**
+   * `:focus-visible { opacity: 1; border-color: #8a303b; background: #30070be8;
+   * color: #fff; box-shadow: 0 0 0 1px var(--focus) }` — the ring as the
+   * border, in the focus colour, since the shadow does not draw here.
+   */
+  closeFocused: {
+    opacity: 1,
+    borderColor: colour.focus,
+    backgroundColor: '#30070be8',
+  },
+  closeGlyph: {
+    color: '#dedee2',
+    fontSize: rem(1.25),
+    lineHeight: rem(1.25),
+  },
+  closeGlyphFocused: {
+    color: '#ffffff',
+  },
   // `.media-card { flex: 0 0 clamp(145px, 13vw, 225px); border-radius: .75rem; padding: .35rem }`
   card: {
     width: layout.mediaCardWidth,

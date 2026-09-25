@@ -21,11 +21,14 @@ export function HomeScreen({
   continueWatching,
   onOpen,
   onResume,
+  onRemoveFromContinueWatching,
 }: {
   api: MediaApi;
   continueWatching: PlaybackProgress[];
   onOpen: (media: MediaSummary) => void;
   onResume: (media: MediaSummary) => void;
+  /** The card's ×: forget this entry, as the web client's does. */
+  onRemoveFromContinueWatching: (media: MediaSummary) => void;
 }): React.JSX.Element {
   const home = useRefreshableAsync(() => api.home(), [api]);
   const { scroller, measureViewport, measureRow, revealRow } = usePageFocusScroll(rem(1));
@@ -68,6 +71,7 @@ export function HomeScreen({
           title="Continue Watching"
           items={progressItems}
           onSelect={onResume}
+          onRemove={onRemoveFromContinueWatching}
           progressFor={progressFor}
           defaultFocusFirst
           onRowFocus={() => revealRow('continue')}

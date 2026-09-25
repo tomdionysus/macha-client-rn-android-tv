@@ -489,6 +489,9 @@ function Shell(): React.JSX.Element {
       continueWatching={progress}
       onOpen={open}
       onResume={(media) => play(media, continueWatching.positionFor(media.id))}
+      // Core's `clear`, as the web client's `removeFromContinueWatching`; the
+      // list it returns is the rail's new state.
+      onRemoveFromContinueWatching={(media) => setProgress(continueWatching.clear(media.id))}
     />
   ) : route.name === 'movies' ? (
     // Keyed by kind: both lists are one component, and without a key React
