@@ -17,6 +17,12 @@ const { withAndroidManifest } = require('expo/config-plugins');
  *    install an Android app.
  *  - `LEANBACK_LAUNCHER`: emitted by config-tv already; asserted here so a
  *    change upstream cannot silently drop the app off the TV home screen.
+ *  - `stateAlwaysHidden`: the keyboard only when asked for. Brought back to
+ *    the front on Settings (`am start`, `.133`, 2026-09-25), the app opened
+ *    the endpoints keyboard by itself: the window regained focus, the text
+ *    field is the only natively focusable view, and the platform raised the
+ *    IME for it. OK on a field still opens it, since `TextInput.focus()` asks
+ *    explicitly. `adjustResize` is Expo's and is kept.
  */
 const withAndroidTvOnly = (config) =>
   withAndroidManifest(config, (config) => {
@@ -41,6 +47,9 @@ const withAndroidTvOnly = (config) =>
     const launcher = manifest.application?.[0]?.activity?.find(
       (activity) => activity.$?.['android:name'] === '.MainActivity',
     );
+    if (launcher) {
+      launcher.$['android:windowSoftInputMode'] = 'adjustResize|stateAlwaysHidden';
+    }
     const leanbackCategory = 'android.intent.category.LEANBACK_LAUNCHER';
     const mainFilter = launcher?.['intent-filter']?.find((filter) =>
       filter.action?.some((action) => action.$?.['android:name'] === 'android.intent.action.MAIN'),
