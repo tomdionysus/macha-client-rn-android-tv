@@ -139,6 +139,18 @@ Driven over adb; every line below was read off the set or its trail.
 3. **Selected Settings chips were dim red on grey.** Now the web client's
    pressed pill (`851b38b`): "Screen (2160p)" reads in heading colour.
 
+### Next episode on end — built 2026-09-25, not yet seen on the set
+
+Tom: when an episode ends, play the next if one exists, across seasons.
+`src/app/autoAdvance.ts` (core's `episodeNeighbours`, which crosses seasons;
+the same as the next button). **To see on the set:** seek to the last
+minute of a season's last episode (*Firefly* has one season, so a show with
+two), let it end, and the next season's first episode should start from its
+own resume point, with the ended one gone from Continue Watching. Then the
+last episode of a show: the player should stay where it ends. **Not decided:**
+what a film, or a show's last episode, should do at its end (the web client
+returns to where play began and stops). Ask Tom.
+
 ### The next sitting, in order
 
 1. ~~Install, restore the screen timeout~~ — done 2026-09-25 15:44.
