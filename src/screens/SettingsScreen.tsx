@@ -257,7 +257,7 @@ export function SettingsScreen(): React.JSX.Element {
                     setCeiling(choice);
                   }}
                   onFocusChange={(focused) => focused && revealRow('quality')}
-                  style={styles.choice}
+                  style={[styles.choice, selected && styles.choiceSelected]}
                   focusedStyle={styles.toggleFocused}
                 >
                   <Text style={[styles.toggleState, selected && styles.toggleStateOn]}>
@@ -340,6 +340,7 @@ export function SettingsScreen(): React.JSX.Element {
           browser cannot ask either question.
         */}
         <View style={styles.section} onLayout={measureRow('decoding')}>
+          <ReadingStop onFocus={() => revealRow('decoding')}>
           <Text style={styles.heading}>Hardware decoding</Text>
           {error ? <Text style={styles.error}>{errorText(error)}</Text> : null}
           {capabilities ? (
@@ -378,9 +379,11 @@ export function SettingsScreen(): React.JSX.Element {
             Read from the platform decoder list, not a browser probe. AC-3 and E-AC-3 here mean this
             set direct-plays surround audio the WebView client had to have transcoded.
           </Text>
+          </ReadingStop>
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.section} onLayout={measureRow('surface')}>
+          <ReadingStop onFocus={() => revealRow('surface')}>
           <Text style={styles.heading}>Platform surface</Text>
           {surface.map((finding) => (
             <View key={finding.name} style={styles.row}>
@@ -400,9 +403,27 @@ export function SettingsScreen(): React.JSX.Element {
             Required members must all be present; optional ones absent here are expected on Hermes and
             are handled by core's own guards.
           </Text>
+          </ReadingStop>
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+/**
+ * A section with nothing to press, made a focus stop so it can be read.
+ *
+ * The page follows focus and nothing else scrolls it, so a section with no
+ * control in it could never be brought on screen: Hardware decoding and
+ * Platform surface sat below the last control, Diagnostics, and were
+ * unreachable on `.133` (2026-09-25). The web client's page scrolls with the
+ * keys, which a TV page cannot. OK does nothing; the ring says where you are.
+ */
+function ReadingStop({ onFocus, children }: { onFocus: () => void; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <Focusable onFocusChange={(focused) => focused && onFocus()} style={styles.readingStop}>
+      {children}
+    </Focusable>
   );
 }
 
@@ -618,7 +639,22 @@ const styles = StyleSheet.create({
     fontSize: type.body,
     fontWeight: font.weightMedium,
   },
+  /**
+   * `.search-type-pill[aria-pressed='true'] { color: #dedee2 }`: lit, in the
+   * heading colour. It was `colour.focus`, `#4b000f`, a border and fill colour
+   * that as text read as dim red on grey on `.133`, 2026-09-25.
+   */
   toggleStateOn: {
-    color: colour.focus,
+    color: colour.heading,
+  },
+  /** `[aria-pressed='true'] { background: var(--accent-surface-strong) }`. */
+  /** Room for the focus ring around a whole section. */
+  readingStop: {
+    padding: rem(0.6),
+    marginHorizontal: -rem(0.6),
+    borderRadius: radius.control,
+  },
+  choiceSelected: {
+    backgroundColor: colour.accentSurfaceStrong,
   },
 });
