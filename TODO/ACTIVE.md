@@ -105,8 +105,13 @@ Driven over adb; every line below was read off the set or its trail.
   and the trail. **Core added per-codec limits after all (`d6fa069`)**, and
   the TV states them (`videoCodecMaxSize`, from the same `MediaCodecList`
   walk, only codecs below the overall maximum). **To read on the set:**
-  Settings > Hardware decoding > Codec limits, build `99d41d26…`; the vendor
-  XML predicts `vp8`, and the software decoders may lift that.
+  Settings > Hardware decoding > Codec limits and Software only, build
+  `13cdb5cf…`. Limits now come from **hardware decoders, software only where
+  a codec has none** (a software decoder's declared size is what it accepts,
+  not what the CPU plays in real time). The vendor XML predicts `vp8
+  1920×1088`. **Also re-read Decoder limit**: it was `4096×2176` with software
+  counted and should be unchanged. Report both, and which decoder kind, to
+  core.
 - **Seen working:** the Version group (marked from `instruction.quality`),
   the spinner mid-screen while a switched generation buffered, the × on a
   Continue Watching card (Up reaches it, Down returns, OK removed *The
