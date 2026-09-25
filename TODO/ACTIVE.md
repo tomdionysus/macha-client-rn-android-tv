@@ -49,8 +49,8 @@ Read that first; this section is only what is open.
   restored it.
 - **Installed:** a develop build from about `76c4487` (md5 not recorded),
   against core from before `0bce895`, so **it cannot play against 0.58.0
-  either.** **Ready to install:** develop `c8dbef1` against core `3a5dc56`,
-  md5 `9e9fef9e8bf869f8c8214e5d7ce47263` in `android/app/build/outputs`
+  either.** **Ready to install:** develop `8aead00` against core `d93c9d8`,
+  md5 `31644402e1349ace9b21829c8ebe30fe` in `android/app/build/outputs`
   (`versionCode 700`, `armeabi-v7a`, leanback; the bundle carries
   `macha.qualityPreference.v1`).
   Rebuild if develop has moved since.
@@ -67,7 +67,7 @@ Read that first; this section is only what is open.
 
 ### The next sitting, in order
 
-1. Install `9e9fef9e…` (read back `versionCode` and md5), then restore the
+1. Install `31644402…` (read back `versionCode` and md5), then restore the
    screen timeout.
 2. **Core's 0.58.0 exercises** (send core any error envelope verbatim, with
    its code and the node):
