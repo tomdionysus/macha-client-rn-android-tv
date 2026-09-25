@@ -20,3 +20,7 @@ modules/macha-player/android/build/
 # docs/evidence/ with a date, not left at the root.
 /tv-*.png
 /tv-*.jpg
+
+# Per-machine agent rules. AGENTS.md is the shared, hand-written contract; the
+# .local.md sibling is generated (basemind init) and belongs to one checkout.
+*.local.md
