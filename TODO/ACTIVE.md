@@ -23,7 +23,8 @@ Read that first; this section is only what is open.
   0.58.0.) **The fix is a core release carrying `0bce895` onward, then TV
   0.7.1. Tom's call; core has put its release to him.** The phone's 0.9.0 is
   in the same state.
-- **Server 0.58.3** (`834d9f2`) is on fi-1 and gbni-1, per core
+- **Server 0.58.3** (`834d9f2`) is on fi-1 and gbni-1 (gbni-1 is
+  macnessa, Tom 2026-09-25: core's name for it), per core
   2026-09-25 (asserted, not read off a node here). An ingest fix only;
   nothing changes on the wire, so nothing above changes.
 - **`develop` is 26 commits ahead of origin, unpushed; the push is Tom's.**
@@ -54,7 +55,8 @@ Read that first; this section is only what is open.
   `macha.qualityPreference.v1`).
   Rebuild if develop has moved since.
 - **Signed in as `tvtest`.** Configured endpoints: `http://10.35.1.50:7438`
-  (fi-1) and `http://10.44.1.50:7438` (macnessa). Remembered:
+  (fi-1) and `http://10.44.1.50:7438` (macnessa, which core and the server
+  call gbni-1). Remembered:
   `https://macnessa.macha.network`. **`ramaroja` is offline for the
   foreseeable** (Tom).
 - **Tom uses the set himself.** Check `dumpsys media_session` before any
