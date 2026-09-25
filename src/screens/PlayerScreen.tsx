@@ -17,6 +17,9 @@ import {
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
+import { BufferingOverlay } from './player/BufferingOverlay';
+import { bufferingDelayMs, showsBuffering, startWaitNotice } from './player/bufferingIndicator';
+import { useElapsedMs } from '../hooks/useElapsedMs';
 import { AudioPresentation } from './player/AudioPresentation';
 import {
   LIVE_DETAIL_CHARS,
@@ -117,6 +120,10 @@ export function PlayerScreen({
    * a setting to offer everything). Per file, because a switch of version
    * changes what the device can do with it.
    */
+  // How long this start has been going on, for the spinner's note. Counted
+  // here because core says `starting` without saying since when.
+  const starting = playback?.starting ?? false;
+  const startWaitMs = useElapsedMs(starting);
   const facts = usePlaybackFacts(media.id);
   const playingMediaId = playback?.session?.mediaId;
   const modesOffered = useMemo(() => {
@@ -586,6 +593,14 @@ export function PlayerScreen({
             </View>
           ))}
         </View>
+      ) : null}
+
+      {/* The spinner, outside the chrome's gate so it outlives the chrome. */}
+      {showsBuffering(playback) ? (
+        <BufferingOverlay
+          delayMs={bufferingDelayMs(starting)}
+          note={startWaitNotice(starting, startWaitMs)}
+        />
       ) : null}
 
       {chromeVisible || playback?.fatalError ? (

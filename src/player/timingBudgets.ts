@@ -159,3 +159,27 @@ export const CONTINUE_WATCHING_WRITE_INTERVAL_MS = 5 * 60_000;
  * interval it measures.
  */
 export const CONTINUE_WATCHING_TICK_MS = 30_000;
+
+/**
+ * How long a rebuffer mid-film runs before the spinner shows. The web
+ * client's `playerSeekSpinnerDelayMs`, unchanged, so the two clients hesitate
+ * alike.
+ *
+ * A presentation delay: a brief hesitation has the picture behind it to say
+ * what is going on, and a spinner over every one would be noise. The
+ * relationship worth guarding is with core's `MEDIA_STALL_TIMEOUT_MS` (7 s):
+ * the spinner must be up before a stall is called, or a viewer sees a frozen
+ * picture turn straight into a failover with nothing in between.
+ */
+export const REBUFFER_SPINNER_DELAY_MS = 3_000;
+
+/**
+ * How long a start runs before the viewer is told how long it is taking. The
+ * web client's `playerStartWaitNoticeMs`, unchanged.
+ *
+ * Above an ordinary start, so the sentence does not flash on every title, and
+ * below the budget that bounds one node's attempt (`FIRST_FRAGMENT_TIMEOUT_MS`,
+ * core's generation budget), so a viewer waiting on a cold node hears about it
+ * before the client gives that node up — the guarded relationship.
+ */
+export const START_WAIT_NOTICE_MS = 5_000;

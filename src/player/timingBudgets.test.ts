@@ -19,7 +19,9 @@ import {
   firstFragmentTimeoutMs,
   HOLD_RETRY_BASE_MS,
   HOLD_RETRY_CEILING_MS,
+  REBUFFER_SPINNER_DELAY_MS,
   SERVER_SEGMENT_HOLD_MS,
+  START_WAIT_NOTICE_MS,
 } from './timingBudgets';
 
 /**
@@ -288,5 +290,15 @@ describe('the resume-point cadence', () => {
     // every film on a television with a load average that reached 30 during the
     // WebView update. It has no business being the busiest thing in the app.
     expect(CONTINUE_WATCHING_TICK_MS).toBeGreaterThanOrEqual(MEDIA_STALL_TIMEOUT_MS);
+  });
+});
+
+describe('what the viewer is shown while waiting', () => {
+  it('raises the rebuffer spinner before a stall is called', () => {
+    expect(REBUFFER_SPINNER_DELAY_MS).toBeLessThan(MEDIA_STALL_TIMEOUT_MS);
+  });
+
+  it("tells the viewer a start is slow before one node's attempt runs out", () => {
+    expect(START_WAIT_NOTICE_MS).toBeLessThan(FIRST_FRAGMENT_TIMEOUT_MS);
   });
 });

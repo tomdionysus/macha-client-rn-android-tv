@@ -156,6 +156,13 @@ export function playbackNoticeText(notice: PlaybackNotice): string {
   }
 }
 
+// ── The player's spinner ───────────────────────────────────────────────────
+
+/** Under the spinner once a start runs long: the web client's sentence. */
+export function startWaitText(elapsedMs: number): string {
+  return `Waiting for the node to start the stream — ${Math.floor(elapsedMs / 1_000)}s`;
+}
+
 // ── Versions and the quality ceiling ───────────────────────────────────────
 
 /**

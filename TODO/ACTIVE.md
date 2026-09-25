@@ -2515,15 +2515,18 @@ keyboard through `TvTextInput` — and keeps the web client's query rules exactl
 **Music is seven routes** and one of them exists (§4.6). It remains the
 largest single block.
 
-### 4.2 Player chrome — 7 of 12 controls
+### 4.2 Player chrome — 7 of 12 controls, and the spinner
 
-**Add one that was not on this list: there is no buffering indicator.** The
-adapter produces `buffering` correctly and nothing renders it, so between a
-black frame and a picture this client shows a viewer nothing at all. The web
-client has one, shown immediately on `starting` and after a delay otherwise.
-It is an ordinary port in the usual direction, and **§2.11 depends on it** —
-a logo defined as "not the spinner" cannot be built against a spinner that does
-not exist.
+**The buffering indicator is built, 2026-09-25, and not yet seen on the
+set.** The web client's rules unchanged (`screens/player/bufferingIndicator.ts`):
+shown at once on `starting`, after `REBUFFER_SPINNER_DELAY_MS` (3 s, guarded
+below core's 7 s stall) on `event.buffering`, never over a failure, with the
+web's "Waiting for the node to start the stream — Ns" note after
+`START_WAIT_NOTICE_MS` (5 s, guarded below the first-fragment budget). Drawn
+outside the chrome's gate, so it outlives the chrome's four seconds. §2.11's
+logo can now be defined against it. **To see on the set:** a cold start (the
+note should appear on a slow one), a seek outside the buffer, and that the
+spinner does not linger once the picture moves.
 
 Built: restart, rewind, play/pause, forward, options, close, plus the scrubber
 with a buffered range, the accelerating seek, and a cold Left/Right that raises
