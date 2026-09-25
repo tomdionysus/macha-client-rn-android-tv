@@ -150,6 +150,12 @@ export function playbackNoticeText(notice: PlaybackNotice): string {
       if (notice.refusal?.code === 'choice_not_available') {
         return "That track isn't in this file, so nothing was changed.";
       }
+      // Server 0.60.0 releases the transcode slot on a PATCH out of
+      // transcode, so a change back into it (a Mode, Quality or Version pick)
+      // can find another viewer holding the slot: 429 `resource_limit`.
+      if (notice.refusal?.code === 'resource_limit') {
+        return "This server is converting for another viewer right now, so that change wasn't made.";
+      }
       return 'That change could not be applied.';
     default:
       return '';

@@ -123,6 +123,12 @@ describe('playbackNoticeText', () => {
     );
   });
 
+  it('words a change back into transcode that found the slot taken (server 0.60.0)', () => {
+    expect(playbackNoticeText({ code: 'update-failed', refusal: { status: 429, code: 'resource_limit' } } as never)).toBe(
+      "This server is converting for another viewer right now, so that change wasn't made.",
+    );
+  });
+
   it('words core e840d72 decode fallback beside the copy refusal it mirrors', () => {
     expect(playbackNoticeText({ code: 'decode-fallback', error: new Error('MediaCodecVideoRenderer error') })).toBe(
       'This television could not decode the original streams, so they are being converted.',
