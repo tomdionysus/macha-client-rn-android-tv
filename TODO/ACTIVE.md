@@ -94,7 +94,7 @@ Driven over adb; every line below was read off the set or its trail.
   evidence.
 - **Settings > Playback reads "Screen (2160p)"**, so `displayMode` reads the
   panel (3840x2160 active mode), not the 1920x1080 UI.
-- **The decoder limit could not be read on screen** (below): from the loaded
+- **The decoder limit, first read from the codec XML** (then measured, below): from the loaded
   codec variant (`ro.media.xml_variant.codecs` `_4k_2`, RTD2875P), ten
   decoders declare 4096x2176, so the app should claim class 2160 and 4K
   keeps direct play. **Asserted from the XML, not from the app's own call.**
@@ -108,18 +108,21 @@ Driven over adb; every line below was read off the set or its trail.
 - **Screenshots never show video**: `screencap` omits the hardware video
   plane, so a playing picture captures black. Read position off the chrome.
 
-**Found, and fixed in `develop` but not yet seen on the set** (the set went
-offline before the build `9be437b0…` could be installed; install it and
-repeat each):
+**Found, fixed, and seen fixed on the set** (build `9be437b0…`, installed
+17:04:52, md5 read back):
 
-1. **Settings' Hardware decoding and Platform surface cannot be reached.**
-   Nothing below Diagnostics is focusable, so the page never scrolls to
-   them, on a device with no other way to scroll.
-2. **Returning to the app on Settings opened the endpoints keyboard** by
-   itself (`am start` brought the task to the front). Back dismissed it
-   without typing.
-3. **A selected chip in Settings draws dim red text on grey** ("Screen
-   (2160p)", the Diagnostics "On"), hard to read focused or not.
+1. **Settings' lower sections were unreachable.** Hardware decoding and
+   Platform surface are now focus stops (`851b38b`): Down from Diagnostics
+   lands on each with the ring and scrolls it into view. **Measured through
+   it: Decoder limit `4096×2176`**, from the app's own call, so the set is
+   class 2160 and 4K keeps direct play.
+2. **Returning to the app opened the endpoints keyboard.** With
+   `stateAlwaysHidden` (`19d4056`, `0x13` in the APK) it does not:
+   `mInputShown=false`, tried with the page at the top and scrolled down. The
+   field still takes native focus (a caret shows), but OK on TV Shows then
+   opened TV Shows, not the keyboard.
+3. **Selected Settings chips were dim red on grey.** Now the web client's
+   pressed pill (`851b38b`): "Screen (2160p)" reads in heading colour.
 
 ### The next sitting, in order
 
