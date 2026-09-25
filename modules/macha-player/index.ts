@@ -70,6 +70,8 @@ export interface NativeDecoder {
 interface MachaPlayerNativeModule {
   capabilities(): NativeCapabilities;
   decoderInventory(): NativeDecoder[];
+  /** The panel's current mode in physical pixels; null where none is reported. */
+  displayMode(): { width: number; height: number } | null;
   play(
     url: string,
     mimeType: string | null,

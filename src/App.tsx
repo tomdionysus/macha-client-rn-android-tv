@@ -3,9 +3,11 @@ import { Image } from 'expo-image';
 import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
 import {
   sessionManager,
+  versionPreferences,
   type Episode,
   type MediaSummary,
   type PlaybackProgress,
+  type VersionStep,
 } from '@machafoundation/core';
 import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime } from './app/usePlaybackRuntime';
@@ -22,6 +24,7 @@ import { attributableProgress } from './app/progressAttribution';
 import { orphanedSessions } from './state/liveSessions';
 import { playbackLog } from './diagnostics/playbackLog';
 import { androidTvPlatform } from './platform/AndroidTvPlatform';
+import { deviceQualityCeiling } from './player/qualityCeiling';
 import { TopBar, type NavItem } from './components/TopBar';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { Loading } from './components/Status';
@@ -217,6 +220,9 @@ function Shell(): React.JSX.Element {
         const files = await services.playbackFactsApi.facts({ itemId: media.id });
         return files.length > 0 ? files : undefined;
       },
+      // Read at each start, so a ceiling changed in Settings applies to the
+      // next play. Caps automatic play only; a version the viewer picks is not.
+      qualityCeiling: deviceQualityCeiling,
     }),
     [services.playbackFactsApi],
   );
@@ -394,11 +400,18 @@ function Shell(): React.JSX.Element {
    * player's own close — so nothing else has to know this happened.
    */
   const play = useCallback(
-    (media: MediaSummary, startPositionMs: number, known?: KnownAncestry) => {
+    (media: MediaSummary, startPositionMs: number, known?: KnownAncestry, version?: VersionStep) => {
+      // A version the viewer picked starts as their choice: never capped, and
+      // no fallback overrides it. Without one, core decides.
+      const start = () =>
+        void runtime.play(
+          { media, startPositionMs, returnTo: 'detail' },
+          version ? versionPreferences(version) : undefined,
+        );
       // An episode goes on its library trail, so Back arrives at its season
       // (Tom, 2026-09-23). Everything else keeps the detail-beneath rule below.
       if (placeOnTrail({ name: 'player', media }, media, known)) {
-        void runtime.play({ media, startPositionMs, returnTo: 'detail' });
+        start();
         return;
       }
       setStack((current) => {
@@ -413,7 +426,7 @@ function Shell(): React.JSX.Element {
           ? [...current, { name: 'player', media }]
           : [...current, detail, { name: 'player', media }];
       });
-      void runtime.play({ media, startPositionMs, returnTo: 'detail' });
+      start();
     },
     [runtime, placeOnTrail],
   );
@@ -491,7 +504,7 @@ function Shell(): React.JSX.Element {
     <DetailScreen
       media={route.media}
       resumePositionMs={continueWatching.positionFor(route.media.id)}
-      onPlay={(positionMs) => play(route.media, positionMs)}
+      onPlay={(positionMs, version) => play(route.media, positionMs, undefined, version)}
       onBack={pop}
     />
   ) : route.name === 'series' ? (

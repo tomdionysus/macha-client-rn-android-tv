@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { checkPlatformSurface, type PlaybackCapabilities } from '@machafoundation/core';
+import {
+  checkPlatformSurface,
+  qualityClass,
+  type PlaybackCapabilities,
+  type QualityClass,
+} from '@machafoundation/core';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
 import { useMacha } from '../app/MachaProvider';
 import { useRefreshableAsync } from '../hooks/useAsync';
@@ -14,11 +19,23 @@ import { Focusable } from '../components/Focusable';
 import { Button } from '../components/Button';
 import { TvTextInput } from '../components/TvTextInput';
 import { failureTrailEnabled, setFailureTrailEnabled } from '../diagnostics/failureTrailSetting';
+import {
+  QUALITY_CEILING_CHOICES,
+  qualityPreference,
+  setQualityPreference,
+} from '../state/qualityPreference';
 import { PageTitle } from '../components/Status';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
 import { version as clientVersion } from '../../package.json';
-import { catalogueStatusText, errorText, isSignedOut, serverStatusText } from '../text/viewerText';
+import {
+  automaticCeilingLabel,
+  catalogueStatusText,
+  errorText,
+  isSignedOut,
+  qualityLabel,
+  serverStatusText,
+} from '../text/viewerText';
 
 /**
  * Settings, laid out as the web client's is.
@@ -54,6 +71,13 @@ export function SettingsScreen(): React.JSX.Element {
   // Seeded from storage once. The setting is only ever changed from this
   // control, so there is nothing to subscribe to.
   const [trailEnabled, setTrailEnabled] = useState(failureTrailEnabled);
+  // Seeded from storage once, as the trail is; only this control changes it.
+  const [ceiling, setCeiling] = useState<QualityClass | undefined>(() => qualityPreference()?.wifi);
+  // The panel's class, which is the ceiling when none is set.
+  const screenClass = useMemo(() => {
+    const display = androidTvPlatform.display();
+    return display ? qualityClass(display.width, display.height) : undefined;
+  }, []);
   // Probed once: the answer cannot change while the app is running.
   const surface = useMemo(() => checkPlatformSurface(), []);
 
@@ -213,6 +237,42 @@ export function SettingsScreen(): React.JSX.Element {
               ))}
             </>
           ) : null}
+        </View>
+
+        {/*
+          The quality ceiling (Tom, 2026-09-25): per device, labelled by
+          height, and unset means the screen's own class. It caps automatic
+          play only; a version picked on the detail page or in the player is
+          never capped. No web rule to port yet: it takes Diagnostics' control.
+        */}
+        <View style={styles.section} onLayout={measureRow('quality')}>
+          <Text style={styles.heading}>Playback</Text>
+          <Text style={styles.label}>Highest quality for automatic play</Text>
+          <View style={styles.choices}>
+            {[undefined, ...QUALITY_CEILING_CHOICES].map((choice) => {
+              const selected = ceiling === choice;
+              return (
+                <Focusable
+                  key={choice ?? 'screen'}
+                  onSelect={() => {
+                    setQualityPreference(choice);
+                    setCeiling(choice);
+                  }}
+                  onFocusChange={(focused) => focused && revealRow('quality')}
+                  style={styles.choice}
+                  focusedStyle={styles.toggleFocused}
+                >
+                  <Text style={[styles.toggleState, selected && styles.toggleStateOn]}>
+                    {choice === undefined ? automaticCeilingLabel(screenClass) : qualityLabel(choice)}
+                  </Text>
+                </Focusable>
+              );
+            })}
+          </View>
+          <Text style={styles.note}>
+            Applies to this television only, from the next thing played. Play and Resume choose the
+            best version at or below it; the quality buttons beside them play what they say.
+          </Text>
         </View>
 
         {/* `.settings-diagnostics`. */}
@@ -502,6 +562,19 @@ const styles = StyleSheet.create({
   toggle: {
     alignSelf: 'flex-start',
     minWidth: rem(24),
+    paddingVertical: rem(0.6),
+    paddingHorizontal: rem(0.9),
+    borderRadius: radius.control,
+    backgroundColor: colour.surface2,
+  },
+  /** The ceiling's choices, in one row a D-pad crosses. */
+  choices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: rem(0.5),
+  },
+  /** `toggle` without its width: five of those would not fit one row. */
+  choice: {
     paddingVertical: rem(0.6),
     paddingHorizontal: rem(0.9),
     borderRadius: radius.control,

@@ -625,8 +625,13 @@ export function PlayerScreen({
               session={playback.session}
               pendingPreferences={playback.pendingPreferences}
               instruction={playback.instruction}
+              versions={playback.versions}
               onApply={(update) => {
                 runtime.update(update);
+                showChrome();
+              }}
+              onPlayVersion={(step) => {
+                void runtime.playVersion(step);
                 showChrome();
               }}
               onDismiss={() => {

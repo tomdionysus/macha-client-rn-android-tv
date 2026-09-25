@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaybackInstructionReport, PlaybackStreamInfo } from '@machafoundation/core';
+import type { PlaybackInstructionReport, PlaybackSession, PlaybackStreamInfo, VersionStep } from '@machafoundation/core';
 import {
   assumptionNote,
+  playingVersion,
   audioProcessingNote,
   instructionNote,
   noteIsWarning,
@@ -138,5 +139,35 @@ describe('reporting what the server is doing to the audio', () => {
 
   it('reports an omitted stream rather than implying it was copied', () => {
     expect(audioProcessingNote('omit', undefined)).toBe('Server processing: omitted');
+  });
+});
+
+describe('the version on screen', () => {
+  const instruction = { mode: 'direct', video: 'copy', audio: 'copy', reasons: [], assumed: [] } as unknown as VersionStep['instruction'];
+  // A 2160p file and a 1080p file, and 720p as a capped transcode of the 1080p.
+  const uhd: VersionStep = { quality: 2160, source: 'file', mediaId: 'm-uhd', instruction };
+  const hd: VersionStep = { quality: 1080, source: 'file', mediaId: 'm-hd', instruction };
+  const capped: VersionStep = { quality: 720, source: 'transcode', mediaId: 'm-hd', instruction, maxHeight: 720 };
+  const steps = [uhd, hd, capped];
+  const session = (mediaId: string, maxHeight: number | null) =>
+    ({ mediaId, preferences: { maxHeight } }) as unknown as PlaybackSession;
+
+  it('is the file step for a file played uncapped', () => {
+    expect(playingVersion(steps, session('m-hd', null))).toBe(hd);
+    expect(playingVersion(steps, session('m-uhd', null))).toBe(uhd);
+  });
+
+  it('tells a capped transcode from its own source file by the cap', () => {
+    expect(playingVersion(steps, session('m-hd', 720))).toBe(capped);
+  });
+
+  it('is none of them for a cap no version asked for', () => {
+    expect(playingVersion(steps, session('m-hd', 480))).toBeUndefined();
+  });
+
+  it('counts a change in flight as made', () => {
+    expect(playingVersion(steps, session('m-hd', null), { mediaId: 'm-uhd' })).toBe(uhd);
+    expect(playingVersion(steps, session('m-hd', null), { maxHeight: 720 })).toBe(capped);
+    expect(playingVersion(steps, session('m-hd', 720), { maxHeight: null })).toBe(hd);
   });
 });

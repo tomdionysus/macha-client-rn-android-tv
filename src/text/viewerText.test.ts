@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaybackStatusDescription } from '@machafoundation/core';
+import type { PlaybackStatusDescription, VersionStep } from '@machafoundation/core';
 import {
   alphabetKeyLabel,
+  ceilingText,
+  qualityLabel,
+  versionHowLabel,
   errorText,
   categoryLabel,
   episodeLabel,
@@ -212,5 +215,29 @@ describe('streamLines', () => {
       video: 'VIDEO COPY · H264 · 1920×804 · 3.6 Mb/s',
       audio: 'AUDIO TRANSCODE · SOURCE · ENG · DTS · 5.1 · 48 kHz · 768 kb/s → AAC · 5.1 · 48 kHz · 384 kb/s',
     });
+  });
+});
+
+describe('versions', () => {
+  it('labels a quality by its height, never "4K" or "2K"', () => {
+    expect(qualityLabel(2160)).toBe('2160p');
+    expect(qualityLabel(1440)).toBe('1440p');
+  });
+
+  it('says how a version would play, and a capped transcode is a transcode', () => {
+    const step = (mode: string, source: VersionStep['source']) =>
+      ({ quality: 1080, source, instruction: { mode } }) as unknown as VersionStep;
+    expect(versionHowLabel(step('direct', 'file'))).toBe('Direct');
+    expect(versionHowLabel(step('remux', 'file'))).toBe('Remux');
+    expect(versionHowLabel(step('direct', 'transcode'))).toBe('Transcode');
+  });
+
+  it('gives the reason automatic play was capped', () => {
+    expect(ceilingText({ quality: 2160, reason: 'ceiling-display' })).toBe(
+      "Automatic play stops at 2160p, this screen's resolution.",
+    );
+    expect(ceilingText({ quality: 1080, reason: 'ceiling-preference' })).toBe(
+      'Automatic play stops at 1080p, as set in Settings.',
+    );
   });
 });

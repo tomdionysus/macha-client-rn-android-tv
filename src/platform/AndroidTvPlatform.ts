@@ -15,6 +15,8 @@ export class AndroidTvPlatform implements Platform {
   readonly name = 'android' as const;
 
   private cached?: PlaybackCapabilities;
+  private displayRead = false;
+  private displayCached?: { width: number; height: number };
   private player?: ExpoVideoAdapter;
 
   /**
@@ -58,6 +60,29 @@ export class AndroidTvPlatform implements Platform {
 
     this.cached = capabilities;
     return capabilities;
+  }
+
+  /**
+   * The panel's physical mode, for the quality ceiling; undefined where the
+   * platform reports none, which leaves automatic play uncapped by the display.
+   *
+   * **The panel's, not the UI's.** React Native's window on `.133` is
+   * 1920x1080 while the panel runs 3840x2160 (Tom, 2026-09-25: the display
+   * class this TV states is the panel's), and capping at the UI would keep a
+   * 4K set off its 4K files. Read once: the mode is the set's, not the app's.
+   * Not a capability either — screen size is not a decoder limit (above).
+   */
+  display(): { width: number; height: number } | undefined {
+    if (!this.displayRead) {
+      this.displayRead = true;
+      try {
+        const mode = MachaPlayer.displayMode();
+        if (mode && mode.width > 0 && mode.height > 0) this.displayCached = mode;
+      } catch {
+        this.displayCached = undefined;
+      }
+    }
+    return this.displayCached;
   }
 
   /**

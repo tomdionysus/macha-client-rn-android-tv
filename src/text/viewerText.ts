@@ -12,6 +12,9 @@ import {
   type PlaybackNotice,
   type PlaybackStatusDescription,
   type PlaybackStreamInfo,
+  type QualityCeiling,
+  type QualityClass,
+  type VersionStep,
   type SearchCategoryKey,
   type ServerStatus,
   type CatalogueStatus,
@@ -151,6 +154,54 @@ export function playbackNoticeText(notice: PlaybackNotice): string {
     default:
       return '';
   }
+}
+
+// ── Versions and the quality ceiling ───────────────────────────────────────
+
+/**
+ * A quality, by its height. Tom, 2026-09-25: label by height, because "2K" is
+ * ambiguous; 2160p rather than "4K" for the same reason.
+ */
+export function qualityLabel(quality: QualityClass): string {
+  return `${quality}p`;
+}
+
+const VERSION_HOW: Record<VersionStep['instruction']['mode'], string> = {
+  direct: 'Direct',
+  remux: 'Remux',
+  transcode: 'Transcode',
+};
+
+/**
+ * How a version would play on this set. Tom: capability does not hide a
+ * version, so each shows how it would play instead. A capped transcode is a
+ * transcode whatever the file underneath could do.
+ */
+export function versionHowLabel(step: VersionStep): string {
+  return step.source === 'transcode' ? VERSION_HOW.transcode : VERSION_HOW[step.instruction.mode];
+}
+
+/**
+ * Why automatic play did not take a larger file, from core's reason code.
+ * Tom: "with context to the user as to why".
+ */
+export function ceilingText(ceiling: QualityCeiling): string {
+  const quality = qualityLabel(ceiling.quality);
+  switch (ceiling.reason) {
+    case 'ceiling-display':
+      return `Automatic play stops at ${quality}, this screen's resolution.`;
+    case 'ceiling-preference':
+      return `Automatic play stops at ${quality}, as set in Settings.`;
+    case 'ceiling-cellular':
+      return `Automatic play stops at ${quality} on mobile data.`;
+    default:
+      return `Automatic play stops at ${quality}.`;
+  }
+}
+
+/** The Settings choice that leaves the ceiling to the screen. */
+export function automaticCeilingLabel(display: QualityClass | undefined): string {
+  return display ? `Screen (${qualityLabel(display)})` : 'Screen';
 }
 
 // ── The alphabet strip ─────────────────────────────────────────────────────

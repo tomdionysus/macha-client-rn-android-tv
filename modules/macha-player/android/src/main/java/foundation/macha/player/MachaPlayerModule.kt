@@ -1,5 +1,8 @@
 package foundation.macha.player
 
+import android.content.Context
+import android.hardware.display.DisplayManager
+import android.view.Display
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -88,6 +91,21 @@ class MachaPlayerModule : Module() {
         "maxWidth" to inventory.maxWidth,
         "maxHeight" to inventory.maxHeight,
       )
+    }
+
+    /**
+     * The panel's current mode in physical pixels, for the quality ceiling.
+     *
+     * Not React Native's window: on `.133` that reads 1920x1080 (960x540 dp at
+     * density 2) while the panel runs 3840x2160, and automatic play capped at
+     * the UI's size would refuse a 4K file on a 4K set. Tom, 2026-09-25: the
+     * display class this TV states is the panel's. `Display.getMode()` is API
+     * 23; the default display, because a television has one.
+     */
+    Function("displayMode") {
+      val manager = appContext.reactContext?.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+      val mode = manager?.getDisplay(Display.DEFAULT_DISPLAY)?.mode
+      if (mode == null) null else mapOf("width" to mode.physicalWidth, "height" to mode.physicalHeight)
     }
 
     /** The raw decoder inventory, so the Status screen can show what was read. */

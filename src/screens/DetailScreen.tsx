@@ -1,9 +1,11 @@
 import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { MediaSummary } from '@machafoundation/core';
+import type { MediaSummary, VersionStep } from '@machafoundation/core';
+import { usePlaybackVersions } from '../app/usePlaybackVersions';
 import { Focusable } from '../components/Focusable';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { clamp, colour, font, pageGutter, px, radius, rem, type, vw } from '../styles/theme';
+import { ceilingText, qualityLabel, versionHowLabel } from '../text/viewerText';
 
 /**
  * Movie detail, from `.detail` / `.movie-detail-layout` in base.css.
@@ -23,12 +25,16 @@ export function DetailScreen({
 }: {
   media: MediaSummary;
   resumePositionMs: number;
-  onPlay: (positionMs: number) => void;
+  /** With a version, that version as the viewer's choice; without, core decides. */
+  onPlay: (positionMs: number, version?: VersionStep) => void;
   onBack: () => void;
 }): React.JSX.Element {
   const poster = media.artwork?.poster ?? media.artwork?.thumbnail;
   const backdrop = media.artwork?.backdrop;
   const canResume = resumePositionMs > 0;
+  const versions = usePlaybackVersions(media);
+  // Tom, 2026-09-25: the quality buttons show only when there is a choice.
+  const steps = versions && versions.steps.length > 1 ? versions.steps : [];
 
   return (
     <ScrollView contentContainerStyle={styles.page} scrollEnabled={false}>
@@ -85,7 +91,24 @@ export function DetailScreen({
               onSelect={() => onPlay(canResume ? resumePositionMs : 0)}
             />
             {canResume ? <ControlButton icon="restart" onSelect={() => onPlay(0)} /> : null}
+            {/*
+              Per-quality Play (Tom, 2026-09-25): the generic Play above means
+              "decide for me", and beside it one button per quality, each playing
+              that version as the viewer's choice. One row, crossed with
+              Left/Right, Play first and focused. Each plays from the same place
+              Play would.
+            */}
+            {steps.map((step) => (
+              <VersionButton
+                key={step.quality}
+                step={step}
+                onSelect={() => onPlay(canResume ? resumePositionMs : 0, step)}
+              />
+            ))}
           </View>
+          {steps.length > 0 && versions?.limitedBy ? (
+            <Text style={styles.versionNote}>{ceilingText(versions.limitedBy)}</Text>
+          ) : null}
         </View>
       </View>
     </ScrollView>
@@ -117,6 +140,27 @@ function ControlButton({
       focusedStyle={styles.controlButtonFocused}
     >
       <PlayerIcon name={icon} />
+    </Focusable>
+  );
+}
+
+/**
+ * One version: its quality, and how this set would play it.
+ *
+ * No web rule to port yet; no client had drawn these when this was written.
+ * It takes the transport button's frame and fill so the row reads as one
+ * control group, at the same height, stretched to a pill for its two words.
+ */
+function VersionButton({ step, onSelect }: { step: VersionStep; onSelect: () => void }): React.JSX.Element {
+  return (
+    <Focusable
+      ring={false}
+      onSelect={onSelect}
+      style={styles.versionButton}
+      focusedStyle={styles.controlButtonFocused}
+    >
+      <Text style={styles.versionQuality}>{qualityLabel(step.quality)}</Text>
+      <Text style={styles.versionHow}>{versionHowLabel(step)}</Text>
     </Focusable>
   );
 }
@@ -220,6 +264,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#080809d6',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /** `.media-control-button`'s frame, as a pill; see `VersionButton`. */
+  versionButton: {
+    height: rem(3.25),
+    paddingHorizontal: rem(1.1),
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: '#48484f',
+    backgroundColor: '#080809d6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rem(0.45),
+  },
+  versionQuality: {
+    color: colour.heading,
+    fontSize: type.body,
+    fontWeight: font.weightSemibold,
+  },
+  versionHow: {
+    color: colour.textDim,
+    fontSize: type.small,
+  },
+  /** The same size and colour as `.player-option-note`. */
+  versionNote: {
+    marginTop: rem(0.6),
+    color: colour.textFaint,
+    fontSize: type.faint,
   },
   /** `:focus-visible { background: #160004e8; border-color: #620014 }`. */
   controlButtonFocused: {

@@ -6,20 +6,24 @@ import type {
   PlaybackSession,
   PlaybackInstructionReport,
   PlaybackUpdate,
+  PlaybackVersions,
+  VersionStep,
 } from '@machafoundation/core';
 import { Focusable } from '../../components/Focusable';
 import { colour, focusFrame, px, radius, rem, type, vh } from '../../styles/theme';
+import { ceilingText, qualityLabel, versionHowLabel } from '../../text/viewerText';
 import {
   assumptionNote,
   audioProcessingNote,
   instructionNote,
   MODE_LABELS,
   noteIsWarning,
+  playingVersion,
   streamLabel,
 } from './playbackOptions';
 
 /**
- * Playback options — mode, quality, audio, subtitles, source.
+ * Playback options — mode, quality, audio, subtitles, version.
  *
  * The web client's `PlayerOptions`, re-laid for a remote. Same groups in the
  * same order and the same rules behind them (`playbackOptions.ts`), but the
@@ -54,22 +58,29 @@ export function PlayerOptions({
   session,
   pendingPreferences,
   instruction,
+  versions,
   onApply,
+  onPlayVersion,
   onDismiss,
 }: {
   session: PlaybackSession;
   pendingPreferences?: PlaybackPreferencesUpdate;
   instruction?: PlaybackInstructionReport;
+  versions?: PlaybackVersions;
   onApply: (update: PlaybackUpdate) => void;
+  /** A version picked here, which core plays as the viewer's choice. */
+  onPlayVersion: (step: VersionStep) => void;
   /** Down from the last row, which is how the panel is left without Back. */
   onDismiss: () => void;
 }): React.JSX.Element {
   const hasQuality = session.options.canChangeQuality;
   const hasAudio = session.options.audioStreams.length > 0;
   const hasSubtitles = session.options.subtitleStreams.length > 0;
-  const hasSource = session.options.canSwitchMedia && session.options.mediaIds.length > 1;
-  const lastGroup = hasSource
-    ? 'source'
+  // The detail page's rule: shown only when there is a choice.
+  const steps = versions && versions.steps.length > 1 ? versions.steps : [];
+  const hasVersions = steps.length > 0;
+  const lastGroup = hasVersions
+    ? 'version'
     : hasSubtitles
       ? 'subtitles'
       : hasAudio
@@ -176,17 +187,27 @@ export function PlayerOptions({
           </Group>
         ) : null}
 
-        {session.options.canSwitchMedia && session.options.mediaIds.length > 1 ? (
-          <Group label="Source" exitDown={lastGroup === 'source' ? onDismiss : undefined}>
-            {session.options.mediaIds.map((mediaId, index) => (
-              <Option
-                key={mediaId}
-                label={`Source ${index + 1}`}
-                selected={session.mediaId === mediaId}
-                onSelect={() => onApply({ mediaId })}
-              />
-            ))}
-          </Group>
+        {/*
+          Version replaces Source, which server 0.58.0 left empty: core maps
+          `media_ids` to `[]`, so the group never drew. The same set the detail
+          page offers (Tom, 2026-09-25), and a pick is the viewer's choice.
+        */}
+        {hasVersions ? (
+          <>
+            <Group label="Version" exitDown={lastGroup === 'version' ? onDismiss : undefined}>
+              {steps.map((step) => (
+                <Option
+                  key={step.quality}
+                  label={`${qualityLabel(step.quality)} · ${versionHowLabel(step)}`}
+                  selected={playingVersion(steps, session, pendingPreferences) === step}
+                  onSelect={() => onPlayVersion(step)}
+                />
+              ))}
+            </Group>
+            {versions?.limitedBy && !instruction?.chosenByViewer ? (
+              <Note text={ceilingText(versions.limitedBy)} />
+            ) : null}
+          </>
         ) : null}
       </ScrollView>
     </View>

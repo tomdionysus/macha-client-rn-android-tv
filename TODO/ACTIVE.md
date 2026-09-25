@@ -83,14 +83,26 @@ Read that first; this section is only what is open.
 5. **Next/previous:** from an episode past 0:30, press next then previous;
    it should resume where it was.
 6. **A track:** artwork, artist, "Album (Year)", "Track N" beneath.
-7. The rest of the viewer-text build not yet seen: Music albums, Sort By,
+7. **Per-quality Play**, never run: read `displayMode` off the set first
+   (Settings > Playback should say `Screen (2160p)` on `.133`; anything else
+   means `Display.getMode()` answered the UI, not the panel). Then a
+   multi-file item's buttons and their Direct/Remux/Transcode labels, a pick
+   from each place (detail row, player Version group), a capped transcode's
+   `maxHeight` in the session, and a 1080p ceiling set in Settings giving
+   the "as set in Settings" note on a 2160p item.
+8. The rest of the viewer-text build not yet seen: Music albums, Sort By,
    notices, an error screen.
 
 ### Open, in order
 
 1. **TV 0.7.1**, when core publishes (above).
-2. **Per-quality Play** ("Per-quality Play: the design" below): designed with core, **waiting on
-   core's API**. It replaces the player's Source group, which is dead under
+2. **Per-quality Play** ("Per-quality Play: the design" below): **built
+   against core `aa843ed`, not yet run on a set.** The detail row, the
+   player's Version group, Settings > Playback's ceiling
+   (`macha.quality-preference.v1`, core's `QualityPreference` shape), and a
+   native `displayMode` reading the panel's physical mode. The Quality group
+   (a bare `maxHeight` cap) still sits beside Version; whether both belong
+   in the panel is Tom's. It replaces the player's Source group, which is dead under
    0.58.0 (core maps `media_ids` to `[]`). The display class this TV states
    is the **panel's** (3840x2160, read natively), not the 1920x1080 UI.
 3. **§1.12, what remains:** Continue Watching is not per-account, and
@@ -111,12 +123,12 @@ a direct-play reap never reaches the player (P-1 below).
 
 - **Tom:** the core release and TV 0.7.1; whether series/season "links" on a
   TV card mean anything beyond Back.
-- **Core:** the per-quality API. The Mode-hint fixes (`a98061b`) are already
+- **Core:** nothing new; the per-quality API landed at `aa843ed`. The Mode-hint fixes (`a98061b`) are already
   in the link and reach `main` with the next core release.
 - **Web client:** its `.audio-player-*` CSS was uncommitted when the track
   view was ported. Re-check `AudioPresentation.tsx` against it once it lands.
 
-### Per-quality Play: the design (agreed with core 2026-09-25, not built)
+### Per-quality Play: the design (agreed with core 2026-09-25, built, unmeasured)
 
 Tom's rulings, relayed by core, the web client and the phone client:
 
