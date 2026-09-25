@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   checkPlatformSurface,
-  qualityClass,
+  displayQualityClass,
   type PlaybackCapabilities,
   type QualityClass,
 } from '@machafoundation/core';
@@ -69,10 +69,11 @@ export function SettingsScreen(): React.JSX.Element {
   const [trailEnabled, setTrailEnabled] = useState(failureTrailEnabled);
   // Seeded from storage once, as the trail is; only this control changes it.
   const [ceiling, setCeiling] = useState<QualityClass | undefined>(() => qualityPreferenceStore().get().wifi);
-  // The panel's class, which is the ceiling when none is set.
+  // The panel's class, which is the ceiling when none is set: core's screen
+  // rule, the one `qualityCeiling` applies, so the label names the real cap.
   const screenClass = useMemo(() => {
     const display = androidTvPlatform.display();
-    return display ? qualityClass(display.width, display.height) : undefined;
+    return display ? displayQualityClass(display.width, display.height) : undefined;
   }, []);
   // Probed once: the answer cannot change while the app is running.
   const surface = useMemo(() => checkPlatformSurface(), []);
