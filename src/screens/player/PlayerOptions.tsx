@@ -18,7 +18,6 @@ import {
   instructionNote,
   MODE_LABELS,
   noteIsWarning,
-  playingVersion,
   streamLabel,
 } from './playbackOptions';
 
@@ -199,7 +198,7 @@ export function PlayerOptions({
                 <Option
                   key={step.quality}
                   label={`${qualityLabel(step.quality)} · ${versionHowLabel(step)}`}
-                  selected={playingVersion(steps, session, pendingPreferences) === step}
+                  selected={instruction?.quality === step.quality}
                   onSelect={() => onPlayVersion(step)}
                 />
               ))}

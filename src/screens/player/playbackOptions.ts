@@ -2,11 +2,8 @@ import type {
   PlaybackDecisionReason,
   PlaybackInstructionReport,
   PlaybackMode,
-  PlaybackPreferencesUpdate,
-  PlaybackSession,
   PlaybackStreamInfo,
   PlaybackTransform,
-  VersionStep,
 } from '@machafoundation/core';
 
 /**
@@ -149,25 +146,3 @@ export function audioProcessingNote(
   return transform === 'copy' ? 'Server processing: copy' : 'Server processing: omitted';
 }
 
-/**
- * The version on screen, for the options panel to mark; undefined when what
- * is playing is none of them (a mode or cap picked by hand in between).
- *
- * Core reports the versions but not which one is playing, so it is read off
- * the session: the file, and whether a height cap is on. A file step plays
- * its file uncapped; a transcode step plays a larger file capped to its class,
- * so two steps can share a file and differ only in the cap. A change still in
- * flight counts as made, as the other groups count it.
- */
-export function playingVersion(
-  steps: readonly VersionStep[],
-  session: PlaybackSession,
-  pending?: PlaybackPreferencesUpdate,
-): VersionStep | undefined {
-  const mediaId = pending?.mediaId ?? session.mediaId;
-  const maxHeight = pending?.maxHeight !== undefined ? pending.maxHeight : session.preferences.maxHeight;
-  return steps.find((step) =>
-    step.mediaId === mediaId &&
-    (step.source === 'transcode' ? maxHeight === step.maxHeight : maxHeight === null || maxHeight === undefined),
-  );
-}

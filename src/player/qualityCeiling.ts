@@ -1,6 +1,6 @@
 import { qualityCeiling, type QualityCeiling } from '@machafoundation/core';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
-import { qualityPreference } from '../state/qualityPreference';
+import { qualityPreferenceStore } from '../state/qualityPreference';
 
 /**
  * The cap on automatic play on this television, and why.
@@ -13,9 +13,9 @@ import { qualityPreference } from '../state/qualityPreference';
  */
 export function deviceQualityCeiling(): QualityCeiling | undefined {
   const display = androidTvPlatform.display();
-  const preference = qualityPreference();
+  const preference = qualityPreferenceStore().get();
   return qualityCeiling({
     ...(display ? { display } : {}),
-    ...(preference ? { preference } : {}),
+    preference,
   });
 }

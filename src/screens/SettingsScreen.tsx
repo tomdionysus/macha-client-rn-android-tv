@@ -19,11 +19,7 @@ import { Focusable } from '../components/Focusable';
 import { Button } from '../components/Button';
 import { TvTextInput } from '../components/TvTextInput';
 import { failureTrailEnabled, setFailureTrailEnabled } from '../diagnostics/failureTrailSetting';
-import {
-  QUALITY_CEILING_CHOICES,
-  qualityPreference,
-  setQualityPreference,
-} from '../state/qualityPreference';
+import { QUALITY_CEILING_CHOICES, qualityPreferenceStore } from '../state/qualityPreference';
 import { PageTitle } from '../components/Status';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { colour, font, pageGutter, radius, rem, type } from '../styles/theme';
@@ -72,7 +68,7 @@ export function SettingsScreen(): React.JSX.Element {
   // control, so there is nothing to subscribe to.
   const [trailEnabled, setTrailEnabled] = useState(failureTrailEnabled);
   // Seeded from storage once, as the trail is; only this control changes it.
-  const [ceiling, setCeiling] = useState<QualityClass | undefined>(() => qualityPreference()?.wifi);
+  const [ceiling, setCeiling] = useState<QualityClass | undefined>(() => qualityPreferenceStore().get().wifi);
   // The panel's class, which is the ceiling when none is set.
   const screenClass = useMemo(() => {
     const display = androidTvPlatform.display();
@@ -255,7 +251,7 @@ export function SettingsScreen(): React.JSX.Element {
                 <Focusable
                   key={choice ?? 'screen'}
                   onSelect={() => {
-                    setQualityPreference(choice);
+                    qualityPreferenceStore().set('wifi', choice);
                     setCeiling(choice);
                   }}
                   onFocusChange={(focused) => focused && revealRow('quality')}
