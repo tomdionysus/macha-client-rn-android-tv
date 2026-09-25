@@ -189,6 +189,10 @@ Tom's rulings, relayed by core, the web client and the phone client:
   character per call.
 - **Hermes keeps property names, not local variable names**: to prove a bundle
   carries a change, grep for a new property or string, never a local.
+- **Hermes stores a string with any non-ASCII character as UTF-16**, so a
+  plain grep misses it: "Waiting for the node to start the stream — Ns"
+  (an em dash) read as absent on 2026-09-25 and was there. Search for
+  `text.encode('utf-16-le')` in the extracted bundle instead.
 - **This shell's `grep` skips files it thinks are binary** (logcat captures
   included) — use `grep -a`. **zsh reads `===` and `$VAR:s…`** as syntax;
   avoid both in commands.
