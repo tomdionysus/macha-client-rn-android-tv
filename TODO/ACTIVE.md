@@ -23,9 +23,12 @@ Read that first; this section is only what is open.
   0.58.0.) **The fix is a core release carrying `0bce895` onward, then TV
   0.7.1. Tom's call; core has put its release to him.** The phone's 0.9.0 is
   in the same state.
-- **`develop` is 17 commits ahead of origin, unpushed; the push is Tom's.**
-  It links `file:../macha-ts`, last checked at core `a50ef64`, which
-  includes the 0.58.0 fix `de86392`. Typecheck, 311 tests and export pass.
+- **Server 0.58.3** (`834d9f2`) is on fi-1 and gbni-1, per core
+  2026-09-25 (asserted, not read off a node here). An ingest fix only;
+  nothing changes on the wire, so nothing above changes.
+- **`develop` is 26 commits ahead of origin, unpushed; the push is Tom's.**
+  It links `file:../macha-ts`, last checked at core `3a5dc56`, which
+  includes the 0.58.0 fix `de86392`. Typecheck, 314 tests and export pass.
 - **Releasing 0.7.1:** repeat 0.7.0's procedure (`COMPLETED.md` top, and
   `git show 73cf87d`). Put `^<core version>` in `package.json`, then run
   `npm install @machafoundation/core@^<v>` **by name**: a plain `npm install`
