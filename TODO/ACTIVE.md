@@ -782,8 +782,10 @@ All measured on the set, all by D-pad over `adb`. The three fixed on
   at 0, and a transcode is PATCHed back to seek 0. Reproduced against core
   `3a5dc56` and `edfce82` dist with a fake player
   (`scratchpad/resume-repro.mjs` in the 2026-09-25 session). The TV half is
-  fixed (`ExpoVideoAdapter.emit` reports nothing without a source); the
-  coordinator half is core's, reported. **To confirm on the set:** resume a
+  fixed (`ExpoVideoAdapter.emit` reports nothing without a source, `a1e01c0`);
+  the coordinator half is fixed in core `d93c9d8` (it ignores the player
+  until a source is presented), and the repro keeps 30:00 in all four cases
+  against that dist. **To confirm on the set:** resume a
   Continue Watching entry several times, both a direct-play and a
   transcoded title, and read `initial-generation-ready` and
   `source-presented` in the trail.
