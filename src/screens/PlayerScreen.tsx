@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, Text, View } from 'react-native';
 import {
   describePlaybackSession,
+  offeredModes,
   type Episode,
   type MediaSummary,
   type PlaybackCoordinatorSnapshot,
@@ -33,6 +34,8 @@ import { useMacha } from '../app/MachaProvider';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
+import { usePlaybackFacts } from '../app/usePlaybackFacts';
+import { qualityPreferenceStore } from '../state/qualityPreference';
 import { px, colour, disabledOpacity, font, pageGutter, radius, rem, type } from '../styles/theme';
 import {
   compactEpisodeLabel,
@@ -108,6 +111,22 @@ export function PlayerScreen({
   chromeVisibleRef.current = chromeVisible;
   const [optionsOpen, setOptionsOpen] = useState(false);
   const volume = usePlayerVolume(runtime, useMacha().volume);
+  /**
+   * The modes this set can play the file on screen, from core's
+   * `offeredModes` (Tom, 2026-09-25: offer only what the device plays, with
+   * a setting to offer everything). Per file, because a switch of version
+   * changes what the device can do with it.
+   */
+  const facts = usePlaybackFacts(media.id);
+  const playingMediaId = playback?.session?.mediaId;
+  const modesOffered = useMemo(() => {
+    const file = facts?.files.find((candidate) => candidate.mediaId === playingMediaId);
+    if (!facts || !file) return undefined;
+    return offeredModes(file.profile, facts.capabilities, {
+      operations: file.operations,
+      offerAll: qualityPreferenceStore().get().offerAll ?? false,
+    });
+  }, [facts, playingMediaId]);
   const [scrubPosition, setScrubPosition] = useState<number | undefined>();
   /**
    * Read at the moment a failure lands, not subscribed to.
@@ -626,6 +645,7 @@ export function PlayerScreen({
               pendingPreferences={playback.pendingPreferences}
               instruction={playback.instruction}
               versions={playback.versions}
+              offeredModes={modesOffered}
               onApply={(update) => {
                 runtime.update(update);
                 showChrome();

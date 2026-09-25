@@ -108,7 +108,14 @@ Read that first; this section is only what is open.
    player's Version group (marked from core's `instruction.quality`),
    Settings > Playback's ceiling (core's `QualityPreferenceStore`, key
    `macha.qualityPreference.v1`, shared with every client), and a
-   native `displayMode` reading the panel's physical mode. The Quality group
+   native `displayMode` reading the panel's physical mode. **Offer only what
+   the set plays** (Tom 2026-09-25, core `edfce82`): the versions and the
+   player's modes are core's `playbackVersions`/`offeredModes` verdicts, with
+   Settings > Playback's "Offer versions this television cannot play"
+   (`QualityPreference.offerAll`, off by default) to widen them. **Read the
+   set's decoder limit first** (Settings > Hardware decoding > Decoder
+   limit): it now caps direct play, so anything under 3840x2160 on `.133`
+   costs 4K its direct play. The Quality group
    (a bare `maxHeight` cap) still sits beside Version; whether both belong
    in the panel is Tom's. It replaces the player's Source group, which is dead under
    0.58.0 (core maps `media_ids` to `[]`). The display class this TV states

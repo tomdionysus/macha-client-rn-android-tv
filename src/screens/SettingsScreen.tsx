@@ -69,6 +69,7 @@ export function SettingsScreen(): React.JSX.Element {
   const [trailEnabled, setTrailEnabled] = useState(failureTrailEnabled);
   // Seeded from storage once, as the trail is; only this control changes it.
   const [ceiling, setCeiling] = useState<QualityClass | undefined>(() => qualityPreferenceStore().get().wifi);
+  const [offerAll, setOfferAll] = useState(() => qualityPreferenceStore().get().offerAll ?? false);
   // The panel's class, which is the ceiling when none is set: core's screen
   // rule, the one `qualityCeiling` applies, so the label names the real cap.
   const screenClass = useMemo(() => {
@@ -269,6 +270,32 @@ export function SettingsScreen(): React.JSX.Element {
           <Text style={styles.note}>
             Applies to this television only, from the next thing played. Play and Resume choose the
             best version at or below it; the quality buttons beside them play what they say.
+          </Text>
+          {/*
+            Tom, 2026-09-25: offer only what the device plays, on every client,
+            and a setting on every client to turn that off. Off by default.
+          */}
+          <Focusable
+            onSelect={() => {
+              const next = !offerAll;
+              qualityPreferenceStore().setOfferAll(next);
+              setOfferAll(next);
+            }}
+            onFocusChange={(focused) => focused && revealRow('quality')}
+            style={styles.toggle}
+            focusedStyle={styles.toggleFocused}
+          >
+            <View style={styles.toggleRow}>
+              <Text style={styles.value}>Offer versions this television cannot play</Text>
+              <Text style={[styles.toggleState, offerAll && styles.toggleStateOn]}>
+                {offerAll ? 'On' : 'Off'}
+              </Text>
+            </View>
+          </Focusable>
+          <Text style={styles.note}>
+            Off, the quality buttons and the player's modes offer only what this television's
+            decoders can play. On, they offer everything and say what may not play. Automatic
+            play stays within the television either way.
           </Text>
         </View>
 

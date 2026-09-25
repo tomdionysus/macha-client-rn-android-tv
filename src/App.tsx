@@ -25,6 +25,7 @@ import { orphanedSessions } from './state/liveSessions';
 import { playbackLog } from './diagnostics/playbackLog';
 import { androidTvPlatform } from './platform/AndroidTvPlatform';
 import { deviceQualityCeiling } from './player/qualityCeiling';
+import { qualityPreferenceStore } from './state/qualityPreference';
 import { TopBar, type NavItem } from './components/TopBar';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { Loading } from './components/Status';
@@ -223,6 +224,10 @@ function Shell(): React.JSX.Element {
       // Read at each start, so a ceiling changed in Settings applies to the
       // next play. Caps automatic play only; a version the viewer picks is not.
       qualityCeiling: deviceQualityCeiling,
+      // Tom, 2026-09-25: offer only what this set plays, with a setting to
+      // offer everything. Read with the versions; automatic play stays within
+      // the device either way.
+      offerAll: () => qualityPreferenceStore().get().offerAll ?? false,
     }),
     [services.playbackFactsApi],
   );

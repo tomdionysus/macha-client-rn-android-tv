@@ -1,4 +1,5 @@
 import type {
+  OfferedMode,
   PlaybackDecisionReason,
   PlaybackInstructionReport,
   PlaybackMode,
@@ -147,3 +148,39 @@ export function audioProcessingNote(
   return transform === 'copy' ? 'Server processing: copy' : 'Server processing: omitted';
 }
 
+
+/** A mode the panel offers, and what the device says against it if anything. */
+export interface ModeChoice {
+  mode: PlaybackMode;
+  objections: PlaybackDecisionReason[];
+}
+
+/**
+ * The modes to offer: the node's, less those this set cannot play.
+ *
+ * Tom, 2026-09-25: limit to the device's capabilities, with a setting to turn
+ * the limit off. Core's `offeredModes` decides per mode for the file playing;
+ * with the setting on it offers every mode and still says why the device
+ * objects, which `modeObjectionNote` shows. Without facts there is nothing to
+ * reason from, so every mode the node offers stays, as before this rule.
+ */
+export function modeChoices(
+  serverModes: readonly PlaybackMode[],
+  offered: readonly OfferedMode[] | undefined,
+): ModeChoice[] {
+  if (!offered) return serverModes.map((mode) => ({ mode, objections: [] }));
+  return serverModes.flatMap((mode) => {
+    const verdict = offered.find((entry) => entry.mode === mode);
+    if (!verdict) return [{ mode, objections: [] }];
+    return verdict.offered ? [{ mode, objections: verdict.reasons }] : [];
+  });
+}
+
+/** Why a mode offered only because the viewer asked for everything may not play. */
+export function modeObjectionNote(choices: readonly ModeChoice[]): string | undefined {
+  const objected = choices.filter((choice) => choice.objections.length > 0);
+  if (objected.length === 0) return undefined;
+  return objected
+    .map((choice) => `${MODE_LABELS[choice.mode]}: ${choice.objections.map((reason) => REASON_TEXT[reason] ?? reason).join('; ')}.`)
+    .join(' ');
+}

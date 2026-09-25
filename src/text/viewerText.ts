@@ -194,6 +194,8 @@ export function ceilingText(ceiling: QualityCeiling): string {
       return `Automatic play stops at ${quality}, as set in Settings.`;
     case 'ceiling-cellular':
       return `Automatic play stops at ${quality} on mobile data.`;
+    case 'ceiling-device':
+      return `Automatic play stops at ${quality}, the largest picture this television decodes.`;
     default:
       return `Automatic play stops at ${quality}.`;
   }

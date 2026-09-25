@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type {
+  OfferedMode,
   PlaybackMode,
   PlaybackPreferencesUpdate,
   PlaybackSession,
@@ -17,6 +18,8 @@ import {
   audioProcessingNote,
   instructionNote,
   MODE_LABELS,
+  modeChoices,
+  modeObjectionNote,
   noteIsWarning,
   streamLabel,
 } from './playbackOptions';
@@ -58,6 +61,7 @@ export function PlayerOptions({
   pendingPreferences,
   instruction,
   versions,
+  offeredModes,
   onApply,
   onPlayVersion,
   onDismiss,
@@ -66,6 +70,8 @@ export function PlayerOptions({
   pendingPreferences?: PlaybackPreferencesUpdate;
   instruction?: PlaybackInstructionReport;
   versions?: PlaybackVersions;
+  /** Core's verdict per mode for the file playing; undefined without facts. */
+  offeredModes?: readonly OfferedMode[];
   onApply: (update: PlaybackUpdate) => void;
   /** A version picked here, which core plays as the viewer's choice. */
   onPlayVersion: (step: VersionStep) => void;
@@ -113,6 +119,8 @@ export function PlayerOptions({
   const chosenByViewer = effective.mode !== undefined && effective.mode !== 'choose';
   const applyPreferences = (update: PlaybackPreferencesUpdate) => onApply({ preferences: update });
 
+  const modes = modeChoices(session.options.modes, offeredModes);
+  const objections = modeObjectionNote(modes);
   const note = instructionNote(instruction);
   const assumed = assumptionNote(instruction);
 
@@ -121,7 +129,7 @@ export function PlayerOptions({
       <ScrollView contentContainerStyle={styles.groups} scrollEnabled={false}>
         <Group label="Mode" exitDown={lastGroup === 'mode' ? onDismiss : undefined}>
           <Option label="Auto" selected={!chosenByViewer} onSelect={() => applyMode('choose')} defaultFocus />
-          {session.options.modes.map((candidate) => (
+          {modes.map(({ mode: candidate }) => (
             <Option
               key={candidate}
               label={MODE_LABELS[candidate] ?? candidate}
@@ -130,6 +138,8 @@ export function PlayerOptions({
             />
           ))}
         </Group>
+
+        {objections ? <Note text={objections} warning /> : null}
 
         {note ? <Note text={note} warning={noteIsWarning(instruction)} /> : null}
         {assumed ? <Note text={assumed} warning /> : null}

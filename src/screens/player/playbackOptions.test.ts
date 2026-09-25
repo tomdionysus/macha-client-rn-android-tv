@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PlaybackInstructionReport, PlaybackStreamInfo } from '@machafoundation/core';
 import {
   assumptionNote,
+  modeChoices,
+  modeObjectionNote,
   audioProcessingNote,
   instructionNote,
   noteIsWarning,
@@ -141,3 +143,38 @@ describe('reporting what the server is doing to the audio', () => {
   });
 });
 
+
+describe('the modes offered', () => {
+  const all = ['direct', 'remux', 'transcode'] as const;
+
+  it('drops a mode this set cannot play', () => {
+    const offered = [
+      { mode: 'direct', offered: false, reasons: ['video-size-exceeds-client'] },
+      { mode: 'remux', offered: true, reasons: [] },
+      { mode: 'transcode', offered: true, reasons: [] },
+    ] as const;
+    expect(modeChoices(all, offered as never).map((choice) => choice.mode)).toEqual(['remux', 'transcode']);
+  });
+
+  it('keeps a mode offered despite an objection, and says why', () => {
+    // The offer-everything setting: core offers it and still gives the reason.
+    const offered = [
+      { mode: 'direct', offered: true, reasons: ['video-size-exceeds-client'] },
+      { mode: 'remux', offered: true, reasons: [] },
+      { mode: 'transcode', offered: true, reasons: [] },
+    ] as const;
+    const choices = modeChoices(all, offered as never);
+    expect(choices.map((choice) => choice.mode)).toEqual(['direct', 'remux', 'transcode']);
+    expect(modeObjectionNote(choices)).toBe('Direct: the picture is larger than this device decodes.');
+  });
+
+  it('never offers a mode the node does not', () => {
+    const offered = all.map((mode) => ({ mode, offered: true, reasons: [] }));
+    expect(modeChoices(['transcode'], offered as never).map((choice) => choice.mode)).toEqual(['transcode']);
+  });
+
+  it("offers the node's modes when there are no facts to reason from", () => {
+    expect(modeChoices(all, undefined).map((choice) => choice.mode)).toEqual([...all]);
+    expect(modeObjectionNote(modeChoices(all, undefined))).toBeUndefined();
+  });
+});

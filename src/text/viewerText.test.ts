@@ -239,5 +239,8 @@ describe('versions', () => {
     expect(ceilingText({ quality: 1080, reason: 'ceiling-preference' })).toBe(
       'Automatic play stops at 1080p, as set in Settings.',
     );
+    expect(ceilingText({ quality: 1080, reason: 'ceiling-device' })).toBe(
+      'Automatic play stops at 1080p, the largest picture this television decodes.',
+    );
   });
 });
