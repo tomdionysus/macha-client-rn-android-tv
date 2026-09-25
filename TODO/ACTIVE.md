@@ -69,6 +69,50 @@ Read that first; this section is only what is open.
   foundation.macha.client.tv/.MainActivity`. `monkey … 1` also injects one
   random event.
 
+### Measured on `.133`, 2026-09-25 afternoon (build `9a117d14…`, core `42cebd6`, server 0.60.0)
+
+Driven over adb; every line below was read off the set or its trail.
+
+- **Resume from Continue Watching works in direct play.** *Shindig* resumed
+  at 23:24: `requestedPositionMs: 1404050`, `source-presented` at the same,
+  playing on (23:24 → 24:22). A transcoded resume was not tried.
+- **0.60.0's slot release, both ways, on fi-1:** direct → "720p · Transcode"
+  (`version-chosen`, PATCH `mode: transcode, maxHeight: 720`, updated and
+  presented, 27:41 → 27:44); back to "1080p · Direct" (PATCH
+  `maxHeight: null`, core's stale-cap fix holding); into transcode again,
+  **reacquired** (updated, presented at 29:32). No `resource_limit`, since nobody
+  else held the slot; the refusal sentence is still unseen.
+- **The served container is FMP4, not MPEG-TS.** Both a Version pick and a
+  plain Mode → Transcode PATCHed `container: "fmp4"`, and the stream line
+  reads `FMP4`. Core said a capped transcode would be this client's segment
+  container, MPEG-TS; the TV states no container preference. Sent to core.
+- **Settings > Playback reads "Screen (2160p)"**, so `displayMode` reads the
+  panel (3840x2160 active mode), not the 1920x1080 UI.
+- **The decoder limit could not be read on screen** (below): from the loaded
+  codec variant (`ro.media.xml_variant.codecs` `_4k_2`, RTD2875P), ten
+  decoders declare 4096x2176, so the app should claim class 2160 and 4K
+  keeps direct play. **Asserted from the XML, not from the app's own call.**
+  The claim is one maximum across all decoders, so a codec whose own decoder
+  stops at 1920x1088 (VP8 here) is still claimed 4K.
+- **Seen working:** the Version group (marked from `instruction.quality`),
+  the spinner mid-screen while a switched generation buffered, the × on a
+  Continue Watching card (Up reaches it, Down returns, OK removed *The
+  Train Job* and focus landed on the remaining card), Back from the player
+  onto the season with the episode focused.
+- **Screenshots never show video**: `screencap` omits the hardware video
+  plane, so a playing picture captures black. Read position off the chrome.
+
+**Found, to fix here:**
+
+1. **Settings' Hardware decoding and Platform surface cannot be reached.**
+   Nothing below Diagnostics is focusable, so the page never scrolls to
+   them, on a device with no other way to scroll.
+2. **Returning to the app on Settings opened the endpoints keyboard** by
+   itself (`am start` brought the task to the front). Back dismissed it
+   without typing.
+3. **A selected chip in Settings draws dim red text on grey** ("Screen
+   (2160p)", the Diagnostics "On"), hard to read focused or not.
+
 ### The next sitting, in order
 
 1. ~~Install, restore the screen timeout~~ — done 2026-09-25 15:44.
