@@ -106,7 +106,9 @@ Driven over adb; every line below was read off the set or its trail.
 - **Screenshots never show video**: `screencap` omits the hardware video
   plane, so a playing picture captures black. Read position off the chrome.
 
-**Found, to fix here:**
+**Found, and fixed in `develop` but not yet seen on the set** (the set went
+offline before the build `9be437b0…` could be installed; install it and
+repeat each):
 
 1. **Settings' Hardware decoding and Platform surface cannot be reached.**
    Nothing below Diagnostics is focusable, so the page never scrolls to
