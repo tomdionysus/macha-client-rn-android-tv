@@ -47,10 +47,10 @@ Read that first; this section is only what is open.
   restored it.
 - **Installed:** a develop build from about `76c4487` (md5 not recorded),
   against core from before `0bce895`, so **it cannot play against 0.58.0
-  either.** **Ready to install:** develop `5220dbd` against core `aa843ed`,
-  md5 `9defae32ba6dab83aa7dd1a51549e929` in `android/app/build/outputs`
+  either.** **Ready to install:** develop `c8dbef1` against core `3a5dc56`,
+  md5 `9e9fef9e8bf869f8c8214e5d7ce47263` in `android/app/build/outputs`
   (`versionCode 700`, `armeabi-v7a`, leanback; the bundle carries
-  `macha.quality-preference.v1`).
+  `macha.qualityPreference.v1`).
   Rebuild if develop has moved since.
 - **Signed in as `tvtest`.** Configured endpoints: `http://10.35.1.50:7438`
   (fi-1) and `http://10.44.1.50:7438` (macnessa). Remembered:
@@ -64,7 +64,7 @@ Read that first; this section is only what is open.
 
 ### The next sitting, in order
 
-1. Install `9defae32…` (read back `versionCode` and md5), then restore the
+1. Install `9e9fef9e…` (read back `versionCode` and md5), then restore the
    screen timeout.
 2. **Core's 0.58.0 exercises** (send core any error envelope verbatim, with
    its code and the node):
@@ -90,7 +90,9 @@ Read that first; this section is only what is open.
    means `Display.getMode()` answered the UI, not the panel). Then a
    multi-file item's buttons and their Direct/Remux/Transcode labels, a pick
    from each place (detail row, player Version group), a capped transcode's
-   `maxHeight` in the session, and a 1080p ceiling set in Settings giving
+   `maxHeight` in the session, then a file step after it (core `edef8bf`
+   sends `maxHeight: null`, so the cap must clear), and a 1080p ceiling set
+   in Settings giving
    the "as set in Settings" note on a 2160p item.
 8. The rest of the viewer-text build not yet seen: Music albums, Sort By,
    notices, an error screen.
@@ -99,9 +101,10 @@ Read that first; this section is only what is open.
 
 1. **TV 0.7.1**, when core publishes (above).
 2. **Per-quality Play** ("Per-quality Play: the design" below): **built
-   against core `aa843ed`, not yet run on a set.** The detail row, the
-   player's Version group, Settings > Playback's ceiling
-   (`macha.quality-preference.v1`, core's `QualityPreference` shape), and a
+   against core `3a5dc56`, not yet run on a set.** The detail row, the
+   player's Version group (marked from core's `instruction.quality`),
+   Settings > Playback's ceiling (core's `QualityPreferenceStore`, key
+   `macha.qualityPreference.v1`, shared with every client), and a
    native `displayMode` reading the panel's physical mode. The Quality group
    (a bare `maxHeight` cap) still sits beside Version; whether both belong
    in the panel is Tom's. It replaces the player's Source group, which is dead under
@@ -125,7 +128,7 @@ a direct-play reap never reaches the player (P-1 below).
 
 - **Tom:** the core release and TV 0.7.1; whether series/season "links" on a
   TV card mean anything beyond Back.
-- **Core:** nothing new; the per-quality API landed at `aa843ed`. The Mode-hint fixes (`a98061b`) are already
+- **Core:** nothing new; the per-quality API landed at `aa843ed`, the store and `instruction.quality` at `edef8bf`. The Mode-hint fixes (`a98061b`) are already
   in the link and reach `main` with the next core release.
 - **Web client:** its `.audio-player-*` CSS was uncommitted when the track
   view was ported. Re-check `AudioPresentation.tsx` against it once it lands.
