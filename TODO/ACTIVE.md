@@ -102,7 +102,11 @@ Driven over adb; every line below was read off the set or its trail.
   stops at 1920x1088 (VP8 here) is still claimed 4K. **Core, 2026-09-25: no
   per-codec limits for now**; such a file fails direct decode and the decode
   fallback transcodes it once. If a real title hits it, send core the file
-  and the trail.
+  and the trail. **Core added per-codec limits after all (`d6fa069`)**, and
+  the TV states them (`videoCodecMaxSize`, from the same `MediaCodecList`
+  walk, only codecs below the overall maximum). **To read on the set:**
+  Settings > Hardware decoding > Codec limits, build `99d41d26…`; the vendor
+  XML predicts `vp8`, and the software decoders may lift that.
 - **Seen working:** the Version group (marked from `instruction.quality`),
   the spinner mid-screen while a switched generation buffered, the × on a
   Continue Watching card (Up reaches it, Down returns, OK removed *The
