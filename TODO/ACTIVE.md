@@ -159,7 +159,27 @@ written by 0.7.x develop builds since 0.58.0 went unwritten**, including the
 id, the mode, the resolution, the subtitle settings, and everything needed to
 resume as if you had never left.** Core's store and resume path; sent to core.
 
-### Resume as you left it — built 2026-09-27 on core `89a9d0c`, not yet seen on the set
+### Core's checklist on `.133`, 2026-09-27 evening (build `4c6e3674`, core `e964514`, fi-1, server 0.64.1)
+
+Measured, sent to core verbatim. **Resume as left: pass** (720p file, direct,
+subtitles on, 10:59). **Automatic resume: pass** (same file, 3:59). **Transcode
+resume: fail, a PATCH loop**: every ~1.5 s `session-update {seekMs:
+1560055.99, preferences: {subtitleStream: 2}}` → `session-updated` →
+`generation-update-ready` (reason `seek`), "Preparing new stream…", no
+picture; core's. **Version switch across files refused**: 2K from the 720p
+file PATCHed the 4K file with no audio stream, and fi-1 answered `400
+choice_required` ("this media has 8 audio streams: name one with
+preferences.audio_stream"), reproduced by curl; the TV said "That change
+could not be applied."; core's. **Codec limits**: h263 720×576, mpeg4
+1344×1088, mpeg2 1920×1088, vp8 1920×1088, all hardware; overall 4096×2176.
+
+**Driving stopped when someone else started watching:** a capture showed
+*Follow the Anger* S04E08 at 46:38 in a new app instance, and a Stop meant
+for the loop went to that player. **Check `media_session` for a live
+position between every key**, not only before a sitting: the set can be
+picked up mid-sitting.
+
+### Resume as you left it — built 2026-09-27 on core `89a9d0c`, measured the same evening (above)
 
 Continue Watching now saves the item, the file and the resume state (mode
 and whether the viewer chose it, version cap, audio, subtitles) through
