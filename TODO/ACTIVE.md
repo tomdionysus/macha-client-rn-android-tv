@@ -138,6 +138,29 @@ Driven over adb; every line below was read off the set or its trail.
 3. **Selected Settings chips were dim red on grey.** Now the web client's
    pressed pill (`851b38b`): "Screen (2160p)" reads in heading colour.
 
+### The Martian in 4K left the player with no explanation — open, not reproduced
+
+Tom, 2026-09-27 ~13:10: pressing 4K on *The Martian*, the player said it was
+waiting for the stream to start for a while, then returned to the detail
+page with nothing said. **Not reproduced**: the same press at ~13:20, with
+Diagnostics on, started (fi-1, `mode: transcode` with video copied, TrueHD
+7.1 to AAC 7.1, FMP4; `first-fragment`, `source-presented` 836.9 s) and
+played, buffering heavily (0:51 after a minute: 47 Mbps). **What is known:**
+the app did not die (one process from 13:08, per `ActivityManager`); only
+Back (twice: the first hides the chrome), Stop and the close button leave the
+player, and nothing in `App` or `PlayerScreen` pops it on a lifecycle change;
+the set's logcat holds no app or codec lines at all, so it cannot say more.
+**Next time:** keep Diagnostics on and read the failure screen or the trail
+before anything else; if it exits, note whether a key was pressed. **The set
+was left with Diagnostics On** (it went offline before it could be turned
+off): switch it off, or tell Tom the trail over the picture is that.
+
+### Synopsis below the poster — built 2026-09-27, not yet seen on the set
+
+Tom: on the TV, the description below the poster. Set across the page under
+the poster row (`synopsisBelow`), not in a poster-width column. Unseen: the
+set went offline before the build could be installed.
+
 ### Media info, as the web client shows it — measured 2026-09-27
 
 Tom's rulings the same day, relayed by the phone and by core: copy the web
