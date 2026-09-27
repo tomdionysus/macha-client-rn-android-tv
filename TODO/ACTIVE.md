@@ -137,6 +137,15 @@ Driven over adb; every line below was read off the set or its trail.
 3. **Selected Settings chips were dim red on grey.** Now the web client's
    pressed pill (`851b38b`): "Screen (2160p)" reads in heading colour.
 
+### File pills under a title — built 2026-09-27, not yet seen on the set
+
+Tom: a title with several files says so, as small pills under the title,
+"Direct: 4K, 1080p, 720p". One pill per way this set plays the files, from
+core's `versions.files` (`src/screens/fileSummary.ts`), labelled by height to
+match the quality buttons. Build `6d3e4400…`. **To see on the set:** a
+multi-file item's detail page shows the pills between the year and the
+synopsis, and a single-file item shows none.
+
 ### Next episode on end — built 2026-09-25, not yet seen on the set
 
 Tom: when an episode ends, play the next if one exists, across seasons.
