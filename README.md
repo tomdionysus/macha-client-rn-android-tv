@@ -35,7 +35,6 @@ clients are televisions, which is the distinction most easily got wrong:
 | [`macha-client`](https://github.com/tomdionysus/macha-client) | React web client; also the **Samsung/Tizen** TV app | web + Samsung |
 | [`macha-client-rn`](https://github.com/tomdionysus/macha-client-rn) | React Native **phone** app | iOS/Android handsets |
 | [**`macha-client-rn-tv`**](https://github.com/tomdionysus/macha-client-rn-android-tv) | **this** — React Native **Android TV** | the TCL set |
-| [`macha-site`](https://github.com/tomdionysus/macha-site) | The public landing and documentation site; ships no client code | the front door |
 
 This is not the phone app, and the phone app's screens are not a reference for
 it. This targets the 10-foot UI only — no touch, no gestures, no phone layouts —
