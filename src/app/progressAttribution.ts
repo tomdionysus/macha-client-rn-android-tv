@@ -17,6 +17,23 @@ export function attributableProgress(
   media: MediaSummary | undefined,
 ): PlaybackProgress | undefined {
   if (!snapshot || !media || !(snapshot.event.durationMs > 0)) return undefined;
-  if (snapshot.session?.mediaId !== media.id) return undefined;
+  if (!sessionIsFor(snapshot.session, media)) return undefined;
   return progressFor(media, snapshot.event.positionMs, snapshot.event.durationMs);
+}
+
+/**
+ * Whether the session is playing this item.
+ *
+ * **Since server 0.58.0 a session names the file it plays**, `mediaId:
+ * "macha:…"`, and the item separately as `itemId`. This compared `mediaId`
+ * with the item's id, which a file id never equals, so nothing was recorded:
+ * measured on `.133` 2026-09-27, *The Martian* played to 1:24 and closed never
+ * reached Continue Watching. The item the session names decides; failing
+ * that, the session's file being one of the item's; and the old comparison is
+ * kept for a node that names neither.
+ */
+function sessionIsFor(session: PlaybackCoordinatorSnapshot['session'], media: MediaSummary): boolean {
+  if (!session) return false;
+  if (session.itemId !== undefined) return session.itemId === media.id;
+  return session.mediaId === media.id || media.mediaIds?.includes(session.mediaId) === true;
 }
