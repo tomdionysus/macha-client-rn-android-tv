@@ -5,7 +5,7 @@ _v0.8.0_
 The Macha client for **Android TV** — React Native, leanback, D-pad only.
 
 It reproduces the appearance and D-pad behaviour of the WebView TV interface in
-[`macha-client`](../macha-client), though not yet all of its screens — nine of
+[`macha-client`](https://github.com/tomdionysus/macha-client), though not yet all of its screens — nine of
 that client's twenty-eight routes, with a tenth only half-built. There is no
 music, search, status or endpoint editing here yet; ingest and the sponsor page
 are deliberately not planned for a television.
@@ -25,15 +25,17 @@ logic those screens would sit on.
 
 ## Where this sits
 
-Macha has four clients over one core. Two of them are televisions, which is the
-distinction most easily got wrong:
+Macha is a server cluster with four clients over one shared core. Two of the
+clients are televisions, which is the distinction most easily got wrong:
 
 | Repo | What it is | Owns |
 | --- | --- | --- |
-| `macha-ts` | `@machafoundation/core` — API, cluster routing, playback coordination, client state | the shared brain |
-| `macha-client` | React web client; also the **Samsung/Tizen** TV app | web + Samsung |
-| `macha-client-rn` | React Native **phone** app | iOS/Android handsets |
-| **`macha-client-rn-tv`** | **this** — React Native **Android TV** | the TCL set |
+| [`macha`](https://github.com/tomdionysus/macha) | The server — a C++20 distributed filesystem (MachaDFS) and media server; every node is an equal peer, serving media directly or through FFmpeg remux/transcode | the cluster |
+| [`macha-ts`](https://github.com/tomdionysus/macha-core-npm) | `@machafoundation/core` — API, cluster routing, playback coordination, client state | the shared brain |
+| [`macha-client`](https://github.com/tomdionysus/macha-client) | React web client; also the **Samsung/Tizen** TV app | web + Samsung |
+| [`macha-client-rn`](https://github.com/tomdionysus/macha-client-rn) | React Native **phone** app | iOS/Android handsets |
+| [**`macha-client-rn-tv`**](https://github.com/tomdionysus/macha-client-rn-android-tv) | **this** — React Native **Android TV** | the TCL set |
+| [`macha-site`](https://github.com/tomdionysus/macha-site) | The public landing and documentation site; ships no client code | the front door |
 
 This is not the phone app, and the phone app's screens are not a reference for
 it. This targets the 10-foot UI only — no touch, no gestures, no phone layouts —
