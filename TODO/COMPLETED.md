@@ -1,5 +1,272 @@
 # Completed
 
+## 2026-09-25 to 2026-09-27 — per-quality Play, resume as left, media lines, and the week's sittings on `.133`
+
+**Measured on `.133` where it says so; everything else is asserted from source
+and tests.** The records below were moved here from `ACTIVE.md` §0 at the
+2026-09-27 clear, as they were written at the time.
+
+### The week in one line each
+
+- **Per-quality Play** on core's `playbackVersions`: detail buttons, the
+  player's Quality row (versions and caps merged into one, Tom), the
+  Settings ceiling and offer-everything switch, `displayMode` reading the
+  panel (3840x2160), per-codec decoder limits from hardware decoders
+  (h263 720×576, mpeg4 1344×1088, mpeg2 and vp8 1920×1088, overall
+  4096×2176), all measured.
+- **Continue Watching** had recorded nothing since server 0.58.0 (file id
+  compared with item id); fixed `0726d94`, then **resume as left** on core
+  `89a9d0c`/`7bdc219`/`7a79d49`: same file, mode, cap, audio and subtitles,
+  measured passing in direct and in transcode.
+- **Resume at zero** (idle 250 ms ticks overwrote the start position before
+  presentation): TV `a1e01c0` plus core `d93c9d8`.
+- **Media lines** as the web client (core's `technicalSummary`,
+  `fileSummaries`), the file pills built that morning and removed, `S04E08`
+  everywhere, the synopsis below the poster, Back to the Home card opened,
+  next episode on end, the spinner, the × on Continue Watching cards,
+  Settings' lower sections reachable, the keyboard no longer raised on
+  return, readable selected chips.
+- **Found in core via the set:** the transcode-resume PATCH loop (rounding,
+  `7bdc219`), the cross-file version switch naming no audio
+  (`choice_required`, fixed `7bdc219`), forced vs full subtitles on a switch
+  (`7a79d49`).
+- **Mistakes:** a Stop meant for a test went to somebody's episode (check
+  the set between key bursts); a local copy of the web formatter written an
+  hour before core took it (ask core first); a wrong "Shindig moved to
+  24:25" (nothing was being written).
+
+### Server releases announced this week (asserted from the server and core sessions)
+
+- **Server 0.64.0** (protocol 22, cluster torrents) is live on fi-1 and
+  gbni-1 since 2026-09-27, per the server session (asserted): status and
+  playback unchanged; the one new value outside torrents is `error.scope:
+  "cluster"`, on torrent 503s only. Nothing for the TV. (0.63.0 before it
+  added a torrent 409 and a `threads` array in status, also nothing here.)
+- **Server 0.62.3** (`f3bf8d7`) went live on both nodes at 15:42Z
+  2026-09-25, covering 0.62.0–0.62.2, per core (asserted): torrent and
+  repair internals only, nothing on the wire, nothing for the TV.
+- **Server 0.61.0** (`acd74ef`) went live on both nodes at 13:35Z
+  2026-09-25, per core (asserted): torrent jobs only, nothing for the TV.
+- **Server 0.60.0** (`7c1d210`) went live on both nodes at 12:42Z
+  2026-09-25, per core (asserted): a PATCH out of transcode releases the
+  slot, so a switch back can be refused `429 resource_limit`, which the TV
+  words (`2b15bb2`). **To test on the set:** direct play, switch to
+  Transcode in the options, and with the slot free it should work.
+- **Server 0.59.0** (`1f37a41`) was on fi-1 and gbni-1 (gbni-1 is
+  macnessa, Tom 2026-09-25: core's name for it) since 11:30Z 2026-09-25,
+  per core (asserted, not read off a node here). Scheduling only (replica
+  repair keeps a 95:5 share under load); 0.58.3 before it was an ingest
+  fix. Nothing changes on the wire, so nothing above changes.
+
+### Measured on `.133`, 2026-09-25 afternoon (build `9a117d14…`, core `42cebd6`, server 0.60.0)
+
+Driven over adb; every line below was read off the set or its trail.
+
+- **Resume from Continue Watching works in direct play.** *Shindig* resumed
+  at 23:24: `requestedPositionMs: 1404050`, `source-presented` at the same,
+  playing on (23:24 → 24:22). A transcoded resume was not tried.
+- **0.60.0's slot release, both ways, on fi-1:** direct → "720p · Transcode"
+  (`version-chosen`, PATCH `mode: transcode, maxHeight: 720`, updated and
+  presented, 27:41 → 27:44); back to "1080p · Direct" (PATCH
+  `maxHeight: null`, core's stale-cap fix holding); into transcode again,
+  **reacquired** (updated, presented at 29:32). No `resource_limit`, since nobody
+  else held the slot; the refusal sentence is still unseen.
+- **The served container is FMP4, and that is correct.** Both a Version
+  pick and a plain Mode → Transcode PATCHed `container: "fmp4"`. Core
+  confirmed it: `segmentContainer` picks fMP4 whenever `hlsFmp4` is true,
+  and MPEG-TS only for a host that states `preferSegmentContainer: 'mpegts'`
+  because fMP4 is broken on its device (the 2017 Samsung, the web client's
+  host). Its earlier "mpegts on the TV" was a mix-up. **State nothing here
+  unless fMP4 is measured failing on this set**, and then as policy with the
+  evidence.
+- **Settings > Playback reads "Screen (2160p)"**, so `displayMode` reads the
+  panel (3840x2160 active mode), not the 1920x1080 UI.
+- **The decoder limit, first read from the codec XML** (then measured, below): from the loaded
+  codec variant (`ro.media.xml_variant.codecs` `_4k_2`, RTD2875P), ten
+  decoders declare 4096x2176, so the app should claim class 2160 and 4K
+  keeps direct play. **Asserted from the XML, not from the app's own call.**
+  The claim is one maximum across all decoders, so a codec whose own decoder
+  stops at 1920x1088 (VP8 here) is still claimed 4K. **Core, 2026-09-25: no
+  per-codec limits for now**; such a file fails direct decode and the decode
+  fallback transcodes it once. If a real title hits it, send core the file
+  and the trail. **Core added per-codec limits after all (`d6fa069`)**, and
+  the TV states them (`videoCodecMaxSize`, from the same `MediaCodecList`
+  walk, only codecs below the overall maximum). **To read on the set:**
+  Settings > Hardware decoding > Codec limits and Software only, build
+  `13cdb5cf…`. Limits now come from **hardware decoders, software only where
+  a codec has none** (a software decoder's declared size is what it accepts,
+  not what the CPU plays in real time). The vendor XML predicts `vp8
+  1920×1088`. **Also re-read Decoder limit**: it was `4096×2176` with software
+  counted and should be unchanged. Report both, and which decoder kind, to
+  core.
+- **Seen working:** the Version group (marked from `instruction.quality`),
+  the spinner mid-screen while a switched generation buffered, the × on a
+  Continue Watching card (Up reaches it, Down returns, OK removed *The
+  Train Job* and focus landed on the remaining card), Back from the player
+  onto the season with the episode focused.
+- **Screenshots never show video**: `screencap` omits the hardware video
+  plane, so a playing picture captures black. Read position off the chrome.
+
+**Found, fixed, and seen fixed on the set** (build `9be437b0…`, installed
+17:04:52, md5 read back):
+
+1. **Settings' lower sections were unreachable.** Hardware decoding and
+   Platform surface are now focus stops (`851b38b`): Down from Diagnostics
+   lands on each with the ring and scrolls it into view. **Measured through
+   it: Decoder limit `4096×2176`**, from the app's own call, so the set is
+   class 2160 and 4K keeps direct play.
+2. **Returning to the app opened the endpoints keyboard.** With
+   `stateAlwaysHidden` (`19d4056`, `0x13` in the APK) it does not:
+   `mInputShown=false`, tried with the page at the top and scrolled down. The
+   field still takes native focus (a caret shows), but OK on TV Shows then
+   opened TV Shows, not the keyboard.
+3. **Selected Settings chips were dim red on grey.** Now the web client's
+   pressed pill (`851b38b`): "Screen (2160p)" reads in heading colour.
+
+### Continue Watching recorded nothing since server 0.58.0 — fixed, measured 2026-09-27
+
+A session names its file (`mediaId: "macha:…"`) and the item separately
+(`itemId`) since 0.58.0, and `attributableProgress` compared the file id with
+the item id, so no position was ever written: *The Martian*, played to 1:24
+and closed, never reached the rail. `0726d94` matches on `itemId`, then on the
+file being one of the item's. **Measured on `.133`** (build `eb7d476c…`,
+installed 16:55:06): played to 0:49, Stop, and the detail page gained its
+restart button and Home's rail put *The Martian* first. **So any resume point
+written by 0.7.x develop builds since 0.58.0 went unwritten**, including the
+*Shindig* entry thought to have moved to 24:25 on 2026-09-27 (it did not).
+
+**Tom, 2026-09-27: Continue Watching should store the item id and the media
+id, the mode, the resolution, the subtitle settings, and everything needed to
+resume as if you had never left.** Core's store and resume path; sent to core.
+
+### Core's checklist on `.133`, 2026-09-27 evening (build `4c6e3674`, core `e964514`, fi-1, server 0.64.1)
+
+Measured, sent to core verbatim. **Resume as left: pass** (720p file, direct,
+subtitles on, 10:59). **Automatic resume: pass** (same file, 3:59). **Transcode
+resume: fail, a PATCH loop**: every ~1.5 s `session-update {seekMs:
+1560055.99, preferences: {subtitleStream: 2}}` → `session-updated` →
+`generation-update-ready` (reason `seek`), "Preparing new stream…", no
+picture; core's. **Version switch across files refused**: 2K from the 720p
+file PATCHed the 4K file with no audio stream, and fi-1 answered `400
+choice_required` ("this media has 8 audio streams: name one with
+preferences.audio_stream"), reproduced by curl; the TV said "That change
+could not be applied."; core's. **Codec limits**: h263 720×576, mpeg4
+1344×1088, mpeg2 1920×1088, vp8 1920×1088, all hardware; overall 4096×2176.
+
+**Driving stopped when someone else started watching:** a capture showed
+*Follow the Anger* S04E08 at 46:38 in a new app instance, and a Stop meant
+for the loop went to that player. **Check `media_session` for a live
+position between every key**, not only before a sitting: the set can be
+picked up mid-sitting.
+
+### Resume as you left it — built 2026-09-27 on core `89a9d0c`, measured the same evening (above)
+
+Continue Watching now saves the item, the file and the resume state (mode
+and whether the viewer chose it, version cap, audio, subtitles) through
+`progressFor(..., snapshot)`, and every resume goes through
+`src/app/startPreferences.ts`: a picked version as picked, a resume as left,
+a play from the start fresh. Build `a80c02e4…` (TV `6ab11c3`). **To see on
+the set:** play *The Martian*, pick 720p in the player's Version group and
+English subtitles, play past 30 s, Stop; resume from Home's rail. It should
+come back on the same file at 720p with subtitles on. Then Restart on the
+detail page: a fresh automatic start (1080p direct, subtitles off).
+
+### Synopsis below the poster — built 2026-09-27, not yet seen on the set
+
+Tom: on the TV, the description below the poster. Set across the page under
+the poster row (`synopsisBelow`), not in a poster-width column. Unseen: the
+set went offline before the build could be installed.
+
+### Media info, as the web client shows it — measured 2026-09-27
+
+Tom's rulings the same day, relayed by the phone and by core: copy the web
+style, formatted for the device, music included; the technical details are
+core's (`technicalSummary`, `fileSummaries`, `qualityLabel`, core `5622020`),
+the layout is the client's. So under the title, one line per file, identical
+files combined (`src/app/useFileLines.ts`, with the duplicate-report TODO), a
+track's line in the audio player, quality buttons named 4K/2K/1080p/720p with
+no Direct/Transcode, and the web client's `qualityLimitText` as the cap
+sentence. **The file pills built that morning are gone**, with the partial
+sentence (the detail page still reads `factsReport`).
+
+**Measured on `.133`** (build `ed6af6c8…`, TV `a9abe72`): *The Martian*
+shows four lines, `2h 31m · 3840×2160 · HEVC · TRUEHD · 47.4 Mbps`, `1m ·
+1280×534 · H.264 · AAC · 1.5 Mbps`, `2h 31m · 1280×534 · H.264 · AAC · 1.3
+Mbps`, `2h 31m · 1920×1080 · HEVC · E-AC-3 · 3.1 Mbps`, and buttons 4K, 2K,
+1080p, 720p. The catalogue now lists four files for it (two that morning);
+the `1m` one looks like a trailer filed with the film. **A track's line in
+the player is not yet seen.**
+
+### Back to the card opened, on Home — measured 2026-09-27
+
+Tom: Back should return to the card opened. Home's rails now give their
+cards rail-scoped ids (`mediaFocusId(id, rail)`); measured on `.133`: open
+*Arrival* from Home's Movies row, Back, focus is on *Arrival*.
+
+### Next episode on end — built 2026-09-25, not yet seen on the set
+
+Tom: when an episode ends, play the next if one exists, across seasons.
+`src/app/autoAdvance.ts` (core's `episodeNeighbours`, which crosses seasons;
+the same as the next button). **To see on the set:** seek to the last
+minute of a season's last episode (*Firefly* has one season, so a show with
+two), let it end, and the next season's first episode should start from its
+own resume point, with the ended one gone from Continue Watching. Then the
+last episode of a show: the player should stay where it ends. **Not decided:**
+what a film, or a show's last episode, should do at its end (the web client
+returns to where play began and stops). Ask Tom.
+
+### Per-quality Play: the design (agreed with core 2026-09-25, built, unmeasured)
+
+Tom's rulings, relayed by core, the web client and the phone client:
+
+- **The generic Play stays and means "decide for me".** Beside it goes one
+  play button per available quality, each playing a specific file or a
+  capped transcode. The same set appears in the player's options during play.
+- **Cap down, never up.** Offer each class at or below the best file's, down
+  to 720p. A class with its own file plays that file; one without is a capped
+  transcode from a better file. Nothing above the best file is offered.
+  Where the best file is below 720p, its own class is shown (core's classes:
+  2160, 1440, 1080, 720, 576, 480, 360). Classify by width as well as height
+  (a 1080p scope film is about 1920x800).
+- **A quality ceiling in Settings** (720p, 1080p, 1440p "2K", 4K), **per
+  device**. Label by height; "2K" is ambiguous. With no setting, automatic
+  play caps at the display's class. **On this TV that is the panel's
+  physical mode, 3840x2160 on `.133`** (`Display.getMode()`), not React
+  Native's 1920x1080. An explicit pick is never capped. Core gives a reason
+  code when the cap limits the choice, and we word it.
+- **Not from measured bandwidth.** No default is derived from it: a ceiling
+  that moves by itself would change what a viewer chose.
+- **Capability does not hide a version.** A version this set can't decode
+  directly can still be transcoded, so show how it would play. A capability
+  claim is a prediction, not proof (the MPEG-4 AVI).
+- **On the TV:** the detail page gets one row, Play first (default focus)
+  and then the quality buttons, moved with D-pad Left/Right, shown only when
+  there is more than one option. The player's options panel gets a group in
+  place of Source.
+- **Core's side** (proposed, awaiting the commit): `playbackVersions(files,
+  capabilities, preference)` for the detail page, including transcode rows;
+  `snapshot.versions` during play; `play({ media, mediaId |
+  transcodeCeiling })` and `update(...)` as a viewer choice that no fallback
+  overrides; and a per-device preference store with a `maxHeight`. **Every
+  word is ours.**
+
+### The Martian in 4K left the player with no explanation — open, not reproduced
+
+Tom, 2026-09-27 ~13:10: pressing 4K on *The Martian*, the player said it was
+waiting for the stream to start for a while, then returned to the detail
+page with nothing said. **Not reproduced**: the same press at ~13:20, with
+Diagnostics on, started (fi-1, `mode: transcode` with video copied, TrueHD
+7.1 to AAC 7.1, FMP4; `first-fragment`, `source-presented` 836.9 s) and
+played, buffering heavily (0:51 after a minute: 47 Mbps). **What is known:**
+the app did not die (one process from 13:08, per `ActivityManager`); only
+Back (twice: the first hides the chrome), Stop and the close button leave the
+player, and nothing in `App` or `PlayerScreen` pops it on a lifecycle change;
+the set's logcat holds no app or codec lines at all, so it cannot say more.
+**Next time:** keep Diagnostics on and read the failure screen or the trail
+before anything else; if it exits, note whether a key was pressed. **Diagnostics
+was left on and switched off again at the 16:55 sitting.
+
+
 ## 2026-09-24 to 2026-09-25 — 0.7.0, the restart fallback, the decode fallback, focus, and the server that stopped choosing
 
 **Measured on `.133` where it says so; everything else is asserted from source
