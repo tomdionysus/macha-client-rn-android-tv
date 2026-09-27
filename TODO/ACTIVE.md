@@ -15,8 +15,10 @@ section is only what is open, in the order to do it.
 ### First thing: release TV 0.8.0 on core 0.20.0
 
 **Tom has called core 0.20.0** (the Macha Client Core session cuts it; Tom
-publishes). The candidate was `29fa878` at the last word, and it may move: take
-the version and commit core names when it says **"on npm"**. Do nothing to
+publishes). The candidate is **`ae82922`** (dist `f7fd989fe6e8`); the TV
+answered **GO** against it on 2026-09-27 (typecheck clean, 344 tests, export).
+It may still move: take the version and commit core names when it says
+**"on npm"**. Do nothing to
 `main` before that message. Core's own steps for this client, in its words:
 merge develop into main; on main set `@machafoundation/core` to `^0.20.0` from
 the registry in place of `file:../macha-ts`, install, run the full checks;
@@ -90,7 +92,10 @@ The procedure, as 0.7.0's (`git show 73cf87d`, and `COMPLETED.md`):
 ### Open, in order
 
 1. **The release** (above).
-2. **The Quality row marks nothing after some starts.** On a resumed
+2. ~~**The Quality row marks nothing after some starts.**~~ Fixed in core
+   `ae82922` (an uncapped transcode marks its file's own class; *The
+   Martian*'s 720p file marks 720). **Check it in the 0.8.0 smoke test.**
+   The finding: On a resumed
    transcode of *The Martian*'s 720p file with no cap, none of 4K / 2K /
    1080p / 720p / 480p / 360p was highlighted (measured 2026-09-27 20:50):
    `instruction.quality` matches no step for an uncapped transcode of a
