@@ -83,11 +83,6 @@ export function DetailScreen({
               {line}
             </Text>
           ))}
-          {media.synopsis ? (
-            <Text style={styles.synopsis} numberOfLines={6}>
-              {media.synopsis}
-            </Text>
-          ) : null}
 
           {/*
             `.play-actions.detail-play-controls` — **round icon buttons, not
@@ -124,6 +119,18 @@ export function DetailScreen({
           ) : null}
         </View>
       </View>
+
+      {/*
+        The synopsis below the poster, across the page (Tom, 2026-09-27, for
+        the TV). A TV divergence from the web client, which keeps it in the
+        copy column: at ten feet the column beside the poster is short, and
+        the title, file lines and buttons read better together without it.
+      */}
+      {media.synopsis ? (
+        <Text style={styles.synopsisBelow} numberOfLines={6}>
+          {media.synopsis}
+        </Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -257,9 +264,11 @@ const styles = StyleSheet.create({
     letterSpacing: rem(0.95) * 0.025,
   },
   // `.synopsis { max-width: 70ch; line-height: 1.65; font-size: clamp(1rem,1.35vw,1.25rem) }`
-  synopsis: {
-    marginTop: rem(1),
-    maxWidth: rem(46),
+  /** `.synopsis`'s type, set below the poster row at the page gutter. */
+  synopsisBelow: {
+    marginTop: rem(1.4),
+    marginHorizontal: pageGutter,
+    maxWidth: rem(60),
     lineHeight: type.synopsis * 1.65,
     fontSize: type.synopsis,
     color: colour.bodyBright,
