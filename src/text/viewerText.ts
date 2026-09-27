@@ -12,9 +12,9 @@ import {
   type PlaybackNotice,
   type PlaybackStatusDescription,
   type PlaybackStreamInfo,
+  qualityLabel,
   type QualityCeiling,
   type QualityClass,
-  type VersionStep,
   type SearchCategoryKey,
   type ServerStatus,
   type CatalogueStatus,
@@ -172,71 +172,32 @@ export function startWaitText(elapsedMs: number): string {
 // ── Versions and the quality ceiling ───────────────────────────────────────
 
 /**
- * A quality, by its height. Tom, 2026-09-25: label by height, because "2K" is
- * ambiguous; 2160p rather than "4K" for the same reason.
+ * Quality names ("4K", "2K", "1080p") are core's `qualityLabel`, as are every
+ * file's technical facts (`technicalSummary`): Tom, 2026-09-27, "Format,
+ * codec, bitrate etc details are non i18n and technical. They are core's
+ * responsibility ... The client should still 'format' them, in terms of
+ * layout." Re-exported here so the screens take all their words from one
+ * module. The sentence below is this client's, and it is the web client's
+ * `qualityLimitText` word for word, by Tom's ruling that the clients match.
  */
-export function qualityLabel(quality: QualityClass): string {
-  return `${quality}p`;
-}
+export { qualityLabel };
 
-const VERSION_HOW: Record<VersionStep['instruction']['mode'], string> = {
-  direct: 'Direct',
-  remux: 'Remux',
-  transcode: 'Transcode',
-};
-
-/**
- * How a version would play on this set. Tom: capability does not hide a
- * version, so each shows how it would play instead. A capped transcode is a
- * transcode whatever the file underneath could do.
- */
-export function versionHowLabel(step: VersionStep): string {
-  return step.source === 'transcode' ? VERSION_HOW.transcode : VERSION_HOW[step.instruction.mode];
-}
-
-/**
- * Why automatic play did not take a larger file, from core's reason code.
- * Tom: "with context to the user as to why".
- */
+/** Why Play will not choose the largest file (Tom: capped "with context to the user as to why"). */
 export function ceilingText(ceiling: QualityCeiling): string {
-  const quality = qualityLabel(ceiling.quality);
-  switch (ceiling.reason) {
-    case 'ceiling-display':
-      return `Automatic play stops at ${quality}, this screen's resolution.`;
-    case 'ceiling-preference':
-      return `Automatic play stops at ${quality}, as set in Settings.`;
-    case 'ceiling-cellular':
-      return `Automatic play stops at ${quality} on mobile data.`;
-    case 'ceiling-device':
-      return `Automatic play stops at ${quality}, the largest picture this television decodes.`;
-    default:
-      return `Automatic play stops at ${quality}.`;
-  }
+  const label = qualityLabel(ceiling.quality);
+  if (ceiling.reason === 'ceiling-display') return `Play chooses up to ${label}, the most this screen shows. Pick a quality to play another.`;
+  if (ceiling.reason === 'ceiling-device') return `Play chooses up to ${label}, the most this device plays. Pick a quality to play another.`;
+  if (ceiling.reason === 'ceiling-cellular') return `Play chooses up to ${label} on mobile data. Pick a quality to play another.`;
+  return `Play chooses up to ${label}, as set in Settings. Pick a quality to play another.`;
 }
 
 /**
- * A pill under a title: how this set plays some of its files, and their
- * qualities. "Direct: 2160p, 1080p". Tom's example read "4K"; heights, by his
- * earlier ruling, match the quality buttons beside it.
+ * A file's line, laid out: core's summary parts, in core's order, joined with
+ * the separator every client uses. The layout is the client's; the facts and
+ * their labels are core's (`technicalSummary`).
  */
-export function fileGroupLabel(mode: VersionStep['instruction']['mode'], qualities: readonly QualityClass[]): string {
-  return `${VERSION_HOW[mode]}: ${qualities.map(qualityLabel).join(', ')}`;
-}
-
-/**
- * Under a title's file pills when the server could not read some of its
- * files, from core's `factsReport(...).unavailable` (core 5a16534). The list
- * above it is then partial, and a viewer comparing versions should know. The
- * node's `source_unsupported` is a format; anything else (a probe failure or
- * timeout, a missing file) is a file that could not be read this time.
- */
-export function partialFilesText(unavailable: readonly { reason: string }[]): string | undefined {
-  if (unavailable.length === 0) return undefined;
-  const count = unavailable.length === 1 ? 'One file' : `${unavailable.length} files`;
-  const unsupported = unavailable.every((file) => file.reason === 'source_unsupported');
-  return unsupported
-    ? `${count} of this title can't be played by the server, so ${unavailable.length === 1 ? "it isn't" : "they aren't"} listed.`
-    : `${count} of this title couldn't be read just now, so ${unavailable.length === 1 ? "it isn't" : "they aren't"} listed.`;
+export function fileLine(parts: readonly string[]): string {
+  return parts.join(' · ');
 }
 
 /** The Settings choice that leaves the ceiling to the screen. */

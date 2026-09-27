@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaybackStatusDescription, VersionStep } from '@machafoundation/core';
+import type { PlaybackStatusDescription } from '@machafoundation/core';
 import {
   alphabetKeyLabel,
   ceilingText,
-  fileGroupLabel,
-  partialFilesText,
+  fileLine,
   qualityLabel,
-  versionHowLabel,
   errorText,
   categoryLabel,
   episodeLabel,
@@ -226,57 +224,28 @@ describe('streamLines', () => {
   });
 });
 
-describe('versions', () => {
-  it('labels a quality by its height, never "4K" or "2K"', () => {
-    expect(qualityLabel(2160)).toBe('2160p');
-    expect(qualityLabel(1440)).toBe('1440p');
+describe('versions, as the web client words them', () => {
+  it('names 2160 4K and 1440 2K, and every other class by its height', () => {
+    expect(qualityLabel(2160)).toBe('4K');
+    expect(qualityLabel(1440)).toBe('2K');
+    expect(qualityLabel(1080)).toBe('1080p');
   });
 
-  it('says how a version would play, and a capped transcode is a transcode', () => {
-    const step = (mode: string, source: VersionStep['source']) =>
-      ({ quality: 1080, source, instruction: { mode } }) as unknown as VersionStep;
-    expect(versionHowLabel(step('direct', 'file'))).toBe('Direct');
-    expect(versionHowLabel(step('remux', 'file'))).toBe('Remux');
-    expect(versionHowLabel(step('direct', 'transcode'))).toBe('Transcode');
-  });
-
-  it('gives the reason automatic play was capped', () => {
+  it("gives the web client's reason automatic play was capped", () => {
     expect(ceilingText({ quality: 2160, reason: 'ceiling-display' })).toBe(
-      "Automatic play stops at 2160p, this screen's resolution.",
+      'Play chooses up to 4K, the most this screen shows. Pick a quality to play another.',
     );
     expect(ceilingText({ quality: 1080, reason: 'ceiling-preference' })).toBe(
-      'Automatic play stops at 1080p, as set in Settings.',
+      'Play chooses up to 1080p, as set in Settings. Pick a quality to play another.',
     );
-    expect(ceilingText({ quality: 1080, reason: 'ceiling-device' })).toBe(
-      'Automatic play stops at 1080p, the largest picture this television decodes.',
+    expect(ceilingText({ quality: 2160, reason: 'ceiling-device' })).toBe(
+      'Play chooses up to 4K, the most this device plays. Pick a quality to play another.',
     );
   });
 });
 
-describe('the file pills under a title', () => {
-  it('names how the files play and their heights', () => {
-    expect(fileGroupLabel('direct', [2160, 1080, 720])).toBe('Direct: 2160p, 1080p, 720p');
-    expect(fileGroupLabel('transcode', [2160])).toBe('Transcode: 2160p');
-  });
-});
-
-describe('a partial file list', () => {
-  it('says nothing when every file answered', () => {
-    expect(partialFilesText([])).toBeUndefined();
-  });
-
-  it('says a file could not be read, which is most reasons', () => {
-    expect(partialFilesText([{ reason: 'probe_timeout' }])).toBe(
-      "One file of this title couldn't be read just now, so it isn't listed.",
-    );
-    expect(partialFilesText([{ reason: 'probe_timeout' }, { reason: 'not_found' }])).toBe(
-      "2 files of this title couldn't be read just now, so they aren't listed.",
-    );
-  });
-
-  it('says so differently when the server cannot play the format', () => {
-    expect(partialFilesText([{ reason: 'source_unsupported' }])).toBe(
-      "One file of this title can't be played by the server, so it isn't listed.",
-    );
+describe("a file's line", () => {
+  it("joins core's parts in core's order with the clients' separator", () => {
+    expect(fileLine(['2h 31m', '3840×2160', 'HEVC', 'TRUEHD', '47.4 Mbps'])).toBe('2h 31m · 3840×2160 · HEVC · TRUEHD · 47.4 Mbps');
   });
 });

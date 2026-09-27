@@ -5,8 +5,8 @@ import { usePlaybackVersions } from '../app/usePlaybackVersions';
 import { Focusable } from '../components/Focusable';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { clamp, colour, font, pageGutter, px, radius, rem, type, vw } from '../styles/theme';
-import { ceilingText, fileGroupLabel, partialFilesText, qualityLabel, versionHowLabel } from '../text/viewerText';
-import { fileGroups } from './fileSummary';
+import { useFileLines } from '../app/useFileLines';
+import { ceilingText, qualityLabel } from '../text/viewerText';
 
 /**
  * Movie detail, from `.detail` / `.movie-detail-layout` in base.css.
@@ -33,11 +33,10 @@ export function DetailScreen({
   const poster = media.artwork?.poster ?? media.artwork?.thumbnail;
   const backdrop = media.artwork?.backdrop;
   const canResume = resumePositionMs > 0;
-  const { versions, unavailable } = usePlaybackVersions(media);
-  const partial = partialFilesText(unavailable);
+  const { versions } = usePlaybackVersions(media);
+  const lines = useFileLines(media);
   // Tom, 2026-09-25: the quality buttons show only when there is a choice.
   const steps = versions && versions.steps.length > 1 ? versions.steps : [];
-  const files = fileGroups(versions?.files);
 
   return (
     <ScrollView contentContainerStyle={styles.page} scrollEnabled={false}>
@@ -74,20 +73,16 @@ export function DetailScreen({
           </Text>
           {media.year ? <Text style={styles.subtitle}>{media.year}</Text> : null}
           {/*
-            Several files, said under the title (Tom, 2026-09-27): one pill per
-            way this set plays them. Information, not controls; the quality
-            buttons below are what a viewer presses.
+            One line per file, under the title and above the synopsis: the web
+            client's `.media-profile-summary`, by Tom's ruling that every
+            client matches it (2026-09-27). It replaced the pills built here
+            the same morning.
           */}
-          {files.length > 0 ? (
-            <View style={styles.filePills}>
-              {files.map((group) => (
-                <Text key={group.mode} style={styles.filePill}>
-                  {fileGroupLabel(group.mode, group.qualities)}
-                </Text>
-              ))}
-            </View>
-          ) : null}
-          {partial ? <Text style={styles.versionNote}>{partial}</Text> : null}
+          {lines.map((line) => (
+            <Text key={line} style={styles.fileLine}>
+              {line}
+            </Text>
+          ))}
           {media.synopsis ? (
             <Text style={styles.synopsis} numberOfLines={6}>
               {media.synopsis}
@@ -163,7 +158,8 @@ function ControlButton({
 }
 
 /**
- * One version: its quality, and how this set would play it.
+ * One version, labelled by its quality alone, as the web client's
+ * `.media-quality-button` is (Tom, 2026-09-27: match the web client).
  *
  * No web rule to port yet; no client had drawn these when this was written.
  * It takes the transport button's frame and fill so the row reads as one
@@ -178,7 +174,6 @@ function VersionButton({ step, onSelect }: { step: VersionStep; onSelect: () => 
       focusedStyle={styles.controlButtonFocused}
     >
       <Text style={styles.versionQuality}>{qualityLabel(step.quality)}</Text>
-      <Text style={styles.versionHow}>{versionHowLabel(step)}</Text>
     </Focusable>
   );
 }
@@ -254,28 +249,12 @@ const styles = StyleSheet.create({
     color: colour.textDim,
     fontSize: type.subtitle,
   },
-  /** The file pills' row, under the year. */
-  filePills: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: rem(0.4),
-    marginTop: rem(0.7),
-  },
-  /**
-   * A small pill, in the player options' shape
-   * (`.player-option-group button { border: 1px solid #3a3a40; border-radius:
-   * 999px; padding: .42rem .7rem; color: #bcbcc2; font-size: .82rem }`), without
-   * a fill, since nothing here is pressed.
-   */
-  filePill: {
-    paddingHorizontal: rem(0.7),
-    paddingVertical: rem(0.3),
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colour.inputBorder,
-    color: colour.optionText,
-    fontSize: type.small,
-    overflow: 'hidden',
+  /** `.media-profile-summary { color: var(--text-dim); font-size: .95rem; letter-spacing: .025em }`. */
+  fileLine: {
+    marginTop: rem(0.4),
+    color: colour.textDim,
+    fontSize: rem(0.95),
+    letterSpacing: rem(0.95) * 0.025,
   },
   // `.synopsis { max-width: 70ch; line-height: 1.65; font-size: clamp(1rem,1.35vw,1.25rem) }`
   synopsis: {
@@ -322,10 +301,6 @@ const styles = StyleSheet.create({
     color: colour.heading,
     fontSize: type.body,
     fontWeight: font.weightSemibold,
-  },
-  versionHow: {
-    color: colour.textDim,
-    fontSize: type.small,
   },
   /** The same size and colour as `.player-option-note`. */
   versionNote: {

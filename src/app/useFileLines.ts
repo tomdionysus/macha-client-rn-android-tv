@@ -1,0 +1,31 @@
+import { fileSummaries, type CatalogueMediaProfile, type MediaSummary } from '@machafoundation/core';
+import { useAsync } from '../hooks/useAsync';
+import { fileLine } from '../text/viewerText';
+import { useMacha } from './MachaProvider';
+
+/**
+ * Each of an item's files as one line, identical files combined: the web
+ * client's detail page (`macha-client` e31635a), by Tom's ruling that every
+ * client matches it (2026-09-27). The facts, their labels and the combining
+ * are core's (`fileSummaries`, core 5622020); the line is laid out here.
+ *
+ * TODO: files core combines are very likely one media stored twice (each
+ * summary carries its `mediaIds`). Report them to the server as likely
+ * duplicates once it has a route for that, rather than only hiding the repeat.
+ *
+ * From each file's catalogue profile, as the web reads them: only the
+ * immutable `macha:` ids have one, and a file whose profile cannot be read is
+ * left out rather than failing the others. Empty while loading.
+ */
+export function useFileLines(media: MediaSummary): string[] {
+  const { services } = useMacha();
+  const ids = media.mediaIds.filter((mediaId) => mediaId.startsWith('macha:'));
+  const { value } = useAsync(async (signal) => {
+    const api = services.mediaApi;
+    if (!api.mediaProfile) return [];
+    const profiles = await Promise.all(ids.map((mediaId) => api.mediaProfile!(mediaId, signal).catch(() => undefined)));
+    const read = profiles.filter((profile): profile is CatalogueMediaProfile => profile !== undefined);
+    return fileSummaries(read).map(({ summary }) => fileLine(summary.parts));
+  }, [services.mediaApi, ids.join(' ')]);
+  return value ?? [];
+}

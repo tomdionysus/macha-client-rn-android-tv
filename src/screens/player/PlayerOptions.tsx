@@ -12,7 +12,7 @@ import type {
 } from '@machafoundation/core';
 import { Focusable } from '../../components/Focusable';
 import { colour, focusFrame, px, radius, rem, type, vh } from '../../styles/theme';
-import { ceilingText, qualityLabel, versionHowLabel } from '../../text/viewerText';
+import { ceilingText, qualityLabel } from '../../text/viewerText';
 import {
   assumptionNote,
   audioProcessingNote,
@@ -207,7 +207,7 @@ export function PlayerOptions({
               {steps.map((step) => (
                 <Option
                   key={step.quality}
-                  label={`${qualityLabel(step.quality)} · ${versionHowLabel(step)}`}
+                  label={qualityLabel(step.quality)}
                   selected={instruction?.quality === step.quality}
                   onSelect={() => onPlayVersion(step)}
                 />

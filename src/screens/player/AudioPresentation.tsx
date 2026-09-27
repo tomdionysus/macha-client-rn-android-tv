@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@machafoundation/core';
 import { LazyArtwork } from '../../components/LazyArtwork';
 import { useMacha } from '../../app/MachaProvider';
+import { useFileLines } from '../../app/useFileLines';
 import { trackFacts } from '../../text/viewerText';
 import { colour, font, rem, vh, vw } from '../../styles/theme';
 
@@ -20,6 +21,10 @@ export function AudioPresentation({ track }: { track: MediaSummary }): React.JSX
   const { services } = useMacha();
   const artwork = track.artwork?.poster ?? track.artwork?.thumbnail;
   const facts = trackFacts(track);
+  // Its format, "3:45 · FLAC · 24-bit · 96 kHz · Stereo · 2,304 kbps", where
+  // the track plays: Tom ruled music in on 2026-09-27, and the phone shows it
+  // under the same lines in its player.
+  const lines = useFileLines(track);
   return (
     <View style={styles.fill} pointerEvents="none">
       <View style={styles.art}>
@@ -31,11 +36,16 @@ export function AudioPresentation({ track }: { track: MediaSummary }): React.JSX
           </View>
         )}
       </View>
-      {facts.artist || facts.album || facts.track ? (
+      {facts.artist || facts.album || facts.track || lines.length > 0 ? (
         <View style={styles.facts}>
           {facts.artist ? <Text style={styles.artist} numberOfLines={1}>{facts.artist}</Text> : null}
           {facts.album ? <Text style={styles.album} numberOfLines={1}>{facts.album}</Text> : null}
           {facts.track ? <Text style={styles.trackLine} numberOfLines={1}>{facts.track.toUpperCase()}</Text> : null}
+          {lines.map((line) => (
+            <Text key={line} style={styles.formatLine} numberOfLines={1}>
+              {line}
+            </Text>
+          ))}
         </View>
       ) : null}
     </View>
@@ -84,5 +94,16 @@ const styles = StyleSheet.create({
     color: colour.textFaint,
     fontSize: rem(0.85),
     letterSpacing: rem(0.85) * 0.06,
+  },
+  /**
+   * The format line: the detail page's `.media-profile-summary` (text-dim,
+   * .95rem), a step below the album so the facts still lead.
+   */
+  formatLine: {
+    fontFamily: font.family,
+    marginTop: rem(0.45),
+    color: colour.textDim,
+    fontSize: rem(0.95),
+    letterSpacing: rem(0.95) * 0.025,
   },
 });
