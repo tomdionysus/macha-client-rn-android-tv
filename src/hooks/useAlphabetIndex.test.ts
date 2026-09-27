@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sortMediaByIndexedTitle, type MediaSummary } from '@machafoundation/core';
-import { firstMediaIdByKey, mediaFocusId } from './useAlphabetIndex';
+import { firstMediaIdByKey, isMediaFocusId, mediaFocusId } from './useAlphabetIndex';
 import { tvFocus } from './tvFocus';
 
 /**
@@ -86,5 +86,18 @@ describe('jumping to a letter', () => {
     const everyM = sorted.filter((item) => buckets.get('M') !== undefined
       && item.title.replace(/^the\s+/i, '').toUpperCase().startsWith('M'));
     expect(firstUnderM?.id).toBe(everyM[0]?.id);
+  });
+});
+
+describe('a card in one of several rails', () => {
+  it('has an id of its own in each rail, so Back can return to the one opened', () => {
+    // Home can show one title in Continue Watching and in Movies: one id
+    // for both would leave the registry holding only one of them.
+    expect(mediaFocusId('m1', 'continue')).not.toBe(mediaFocusId('m1', 'movies'));
+    expect(mediaFocusId('m1', 'movies')).not.toBe(mediaFocusId('m1'));
+  });
+
+  it('is still a media card, which is what the focus memory keeps', () => {
+    expect(isMediaFocusId(mediaFocusId('m1', 'movies'))).toBe(true);
   });
 });

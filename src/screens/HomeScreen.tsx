@@ -69,6 +69,7 @@ export function HomeScreen({
       <View onLayout={measureRow('continue')}>
         <MediaRow
           title="Continue Watching"
+          rail="continue"
           items={progressItems}
           onSelect={onResume}
           onRemove={onRemoveFromContinueWatching}
@@ -80,6 +81,7 @@ export function HomeScreen({
       <View onLayout={measureRow('movies')}>
         <MediaRow
           title="Movies"
+          rail="movies"
           items={newestCatalogueFirst(home.value.movies).slice(0, 14)}
           onSelect={onOpen}
           defaultFocusFirst={progressItems.length === 0}
@@ -89,6 +91,7 @@ export function HomeScreen({
       <View onLayout={measureRow('shows')}>
         <MediaRow
           title="TV Shows"
+          rail="shows"
           items={newestCatalogueFirst(home.value.shows).slice(0, 14)}
           onSelect={onOpen}
           onRowFocus={() => revealRow('shows')}
@@ -97,6 +100,7 @@ export function HomeScreen({
       <View onLayout={measureRow('music')}>
         <MediaRow
           title="Music"
+          rail="music"
           items={newestCatalogueFirst(home.value.albums).slice(0, 14)}
           onSelect={onOpen}
           onRowFocus={() => revealRow('music')}

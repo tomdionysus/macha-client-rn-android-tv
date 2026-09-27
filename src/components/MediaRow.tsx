@@ -23,6 +23,7 @@ export function MediaRow({
   onRowFocus,
   addressable,
   onRemove,
+  rail,
 }: {
   title?: string;
   items: MediaSummary[];
@@ -39,6 +40,11 @@ export function MediaRow({
   addressable?: boolean;
   /** Each card gets a remove button calling this: Continue Watching's. */
   onRemove?: (media: MediaSummary) => void;
+  /**
+   * Give each card an id scoped to this row, so Back returns to it. For a
+   * screen that can show one title in two rows (Home); see `mediaFocusId`.
+   */
+  rail?: string;
 }): React.JSX.Element | null {
   const scroller = useRef<ScrollView | null>(null);
   const viewportWidth = useRef(0);
@@ -93,6 +99,7 @@ export function MediaRow({
             onSelect={() => onSelect(media)}
             defaultFocus={defaultFocusFirst && index === 0}
             addressable={addressable}
+            rail={rail}
             progress={progressFor?.(media)}
             {...(onRemove ? { onRemove: () => onRemove(media) } : {})}
             onExtent={(box) => cards.current.set(index, { offset: box.x, length: box.width })}

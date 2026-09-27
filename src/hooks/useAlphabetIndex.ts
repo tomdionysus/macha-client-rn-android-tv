@@ -27,9 +27,16 @@ import { tvFocus } from './tvFocus';
  * be able to select a specific card by name.
  */
 
-/** The focus-registry id for a media card. One place, so the strip and the grid agree. */
-export function mediaFocusId(mediaId: string): string {
-  return `media:${mediaId}`;
+/**
+ * The focus-registry id for a media card. One place, so the strip and the grid agree.
+ *
+ * `rail` names the row, for a screen that can show one title in two of them:
+ * Home's Continue Watching and Movies, say. Each copy then has an id of its
+ * own, so Back can return to the one opened (Tom, 2026-09-27: "it's more
+ * intuitive") where one shared id would keep only one of them.
+ */
+export function mediaFocusId(mediaId: string, rail?: string): string {
+  return rail ? `media:${rail}:${mediaId}` : `media:${mediaId}`;
 }
 
 /**

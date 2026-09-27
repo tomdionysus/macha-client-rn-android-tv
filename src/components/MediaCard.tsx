@@ -27,6 +27,7 @@ export function MediaCard({
   addressable = false,
   squareInPosterHeight = false,
   onRemove,
+  rail,
 }: {
   media: MediaSummary;
   onSelect?: () => void;
@@ -58,6 +59,12 @@ export function MediaCard({
    * the web client, whose focus weights this client's scorer reproduces.
    */
   onRemove?: () => void;
+  /**
+   * The row this card sits in, on a screen that can show a title in two rows.
+   * Makes the card addressable under an id of its own for that row; see
+   * `mediaFocusId`.
+   */
+  rail?: string;
 }): React.JSX.Element {
   const { services } = useMacha();
   const mediaApi = services.mediaApi;
@@ -67,7 +74,7 @@ export function MediaCard({
   // The remove button's focus pairing; see `CardCloseButton`.
   const [cardFocused, setCardFocused] = useState(false);
   const [closeFocused, setCloseFocused] = useState(false);
-  const cardId = addressable ? mediaFocusId(media.id) : onRemove ? `card:${media.id}` : undefined;
+  const cardId = addressable || rail ? mediaFocusId(media.id, rail) : onRemove ? `card:${media.id}` : undefined;
   const closeId = `remove:${media.id}`;
 
   const card = (
