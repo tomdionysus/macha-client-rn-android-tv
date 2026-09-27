@@ -143,6 +143,22 @@ Driven over adb; every line below was read off the set or its trail.
 3. **Selected Settings chips were dim red on grey.** Now the web client's
    pressed pill (`851b38b`): "Screen (2160p)" reads in heading colour.
 
+### Continue Watching recorded nothing since server 0.58.0 — fixed, measured 2026-09-27
+
+A session names its file (`mediaId: "macha:…"`) and the item separately
+(`itemId`) since 0.58.0, and `attributableProgress` compared the file id with
+the item id, so no position was ever written: *The Martian*, played to 1:24
+and closed, never reached the rail. `0726d94` matches on `itemId`, then on the
+file being one of the item's. **Measured on `.133`** (build `eb7d476c…`,
+installed 16:55:06): played to 0:49, Stop, and the detail page gained its
+restart button and Home's rail put *The Martian* first. **So any resume point
+written by 0.7.x develop builds since 0.58.0 went unwritten**, including the
+*Shindig* entry thought to have moved to 24:25 on 2026-09-27 (it did not).
+
+**Tom, 2026-09-27: Continue Watching should store the item id and the media
+id, the mode, the resolution, the subtitle settings, and everything needed to
+resume as if you had never left.** Core's store and resume path; sent to core.
+
 ### The Martian in 4K left the player with no explanation — open, not reproduced
 
 Tom, 2026-09-27 ~13:10: pressing 4K on *The Martian*, the player said it was
@@ -156,9 +172,8 @@ Back (twice: the first hides the chrome), Stop and the close button leave the
 player, and nothing in `App` or `PlayerScreen` pops it on a lifecycle change;
 the set's logcat holds no app or codec lines at all, so it cannot say more.
 **Next time:** keep Diagnostics on and read the failure screen or the trail
-before anything else; if it exits, note whether a key was pressed. **The set
-was left with Diagnostics On** (it went offline before it could be turned
-off): switch it off, or tell Tom the trail over the picture is that.
+before anything else; if it exits, note whether a key was pressed. **Diagnostics
+was left on and switched off again at the 16:55 sitting.
 
 ### Synopsis below the poster — built 2026-09-27, not yet seen on the set
 
