@@ -55,10 +55,11 @@ Read that first; this section is only what is open.
 ### The set
 
 - **`10.35.1.133` is on (2026-09-25 afternoon).** The screen timeout is
-  restored to `600000` (it read `1800000`). **Installed 21:11:55:** develop `9528d48` against core `d6fa069`, md5
-  `0caca3a2b591c5c579877679f39c2ef6`, read back off the set, `versionCode
-  700`: next episode on end, per-codec decoder limits (hardware first), and
-  the three Settings fixes. Not launched. The panel runs `3840x2160` at 60 Hz
+  restored to `600000` (it read `1800000`). **Installed 2026-09-27 12:43:13:** develop `6668ebd` against core
+  `5a16534`, md5 `726e43612a1dc0f52fcbfc598bef6099`, read back off the set,
+  and launched for Tom: file pills, factsReport with the partial-list
+  sentence, Back to the Home card opened, next episode on end, per-codec
+  decoder limits. The panel runs `3840x2160` at 60 Hz
   (active mode 1, `dumpsys display`), and Settings > Playback reads
   `Screen (2160p)`, measured.
 - **Signed in as `tvtest`.** Configured endpoints: `http://10.35.1.50:7438`
@@ -152,6 +153,12 @@ three *Lord of the Rings*, *Trailer* with three, and others).
 Seen on the way, not a fault: Back from a detail page opened from Home
 lands on Home's default card, not the one opened, because Home's rails are
 not `addressable` (one title can sit in two of them).
+
+### Back to the card opened, on Home — measured 2026-09-27
+
+Tom: Back should return to the card opened. Home's rails now give their
+cards rail-scoped ids (`mediaFocusId(id, rail)`); measured on `.133`: open
+*Arrival* from Home's Movies row, Back, focus is on *Arrival*.
 
 ### Next episode on end — built 2026-09-25, not yet seen on the set
 
