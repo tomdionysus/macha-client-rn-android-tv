@@ -4,6 +4,7 @@ import {
   alphabetKeyLabel,
   ceilingText,
   fileGroupLabel,
+  partialFilesText,
   qualityLabel,
   versionHowLabel,
   errorText,
@@ -256,5 +257,26 @@ describe('the file pills under a title', () => {
   it('names how the files play and their heights', () => {
     expect(fileGroupLabel('direct', [2160, 1080, 720])).toBe('Direct: 2160p, 1080p, 720p');
     expect(fileGroupLabel('transcode', [2160])).toBe('Transcode: 2160p');
+  });
+});
+
+describe('a partial file list', () => {
+  it('says nothing when every file answered', () => {
+    expect(partialFilesText([])).toBeUndefined();
+  });
+
+  it('says a file could not be read, which is most reasons', () => {
+    expect(partialFilesText([{ reason: 'probe_timeout' }])).toBe(
+      "One file of this title couldn't be read just now, so it isn't listed.",
+    );
+    expect(partialFilesText([{ reason: 'probe_timeout' }, { reason: 'not_found' }])).toBe(
+      "2 files of this title couldn't be read just now, so they aren't listed.",
+    );
+  });
+
+  it('says so differently when the server cannot play the format', () => {
+    expect(partialFilesText([{ reason: 'source_unsupported' }])).toBe(
+      "One file of this title can't be played by the server, so it isn't listed.",
+    );
   });
 });

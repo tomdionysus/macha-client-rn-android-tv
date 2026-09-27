@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { playbackVersions, type MediaSummary, type PlaybackVersions } from '@machafoundation/core';
+import { playbackVersions, type MediaSummary, type PlaybackVersions, type UnavailableMedia } from '@machafoundation/core';
 import { deviceQualityCeiling } from '../player/qualityCeiling';
 import { qualityPreferenceStore } from '../state/qualityPreference';
 import { usePlaybackFacts } from './usePlaybackFacts';
@@ -17,15 +17,21 @@ import { usePlaybackFacts } from './usePlaybackFacts';
  * Undefined while loading and where the facts do not answer: then there are
  * no buttons, and the generic Play is still there, meaning "decide for me".
  */
-export function usePlaybackVersions(media: MediaSummary): PlaybackVersions | undefined {
+export function usePlaybackVersions(media: MediaSummary): {
+  versions?: PlaybackVersions;
+  /** Files no node could read, which `versions` therefore leaves out. */
+  unavailable: readonly UnavailableMedia[];
+} {
   const facts = usePlaybackFacts(media.id);
   return useMemo(() => {
-    if (!facts) return undefined;
+    if (!facts) return { unavailable: [] };
+    if (facts.files.length === 0) return { unavailable: facts.unavailable };
     const ceiling = deviceQualityCeiling();
-    return playbackVersions(facts.files, facts.capabilities, {
+    const versions = playbackVersions(facts.files, facts.capabilities, {
       mediaIds: media.mediaIds,
       offerAll: qualityPreferenceStore().get().offerAll ?? false,
       ...(ceiling ? { ceiling } : {}),
     });
+    return { versions, unavailable: facts.unavailable };
   }, [facts, media.mediaIds]);
 }

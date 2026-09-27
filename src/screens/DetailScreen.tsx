@@ -5,7 +5,7 @@ import { usePlaybackVersions } from '../app/usePlaybackVersions';
 import { Focusable } from '../components/Focusable';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { clamp, colour, font, pageGutter, px, radius, rem, type, vw } from '../styles/theme';
-import { ceilingText, fileGroupLabel, qualityLabel, versionHowLabel } from '../text/viewerText';
+import { ceilingText, fileGroupLabel, partialFilesText, qualityLabel, versionHowLabel } from '../text/viewerText';
 import { fileGroups } from './fileSummary';
 
 /**
@@ -33,7 +33,8 @@ export function DetailScreen({
   const poster = media.artwork?.poster ?? media.artwork?.thumbnail;
   const backdrop = media.artwork?.backdrop;
   const canResume = resumePositionMs > 0;
-  const versions = usePlaybackVersions(media);
+  const { versions, unavailable } = usePlaybackVersions(media);
+  const partial = partialFilesText(unavailable);
   // Tom, 2026-09-25: the quality buttons show only when there is a choice.
   const steps = versions && versions.steps.length > 1 ? versions.steps : [];
   const files = fileGroups(versions?.files);
@@ -86,6 +87,7 @@ export function DetailScreen({
               ))}
             </View>
           ) : null}
+          {partial ? <Text style={styles.versionNote}>{partial}</Text> : null}
           {media.synopsis ? (
             <Text style={styles.synopsis} numberOfLines={6}>
               {media.synopsis}

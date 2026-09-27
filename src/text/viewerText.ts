@@ -223,6 +223,22 @@ export function fileGroupLabel(mode: VersionStep['instruction']['mode'], qualiti
   return `${VERSION_HOW[mode]}: ${qualities.map(qualityLabel).join(', ')}`;
 }
 
+/**
+ * Under a title's file pills when the server could not read some of its
+ * files, from core's `factsReport(...).unavailable` (core 5a16534). The list
+ * above it is then partial, and a viewer comparing versions should know. The
+ * node's `source_unsupported` is a format; anything else (a probe failure or
+ * timeout, a missing file) is a file that could not be read this time.
+ */
+export function partialFilesText(unavailable: readonly { reason: string }[]): string | undefined {
+  if (unavailable.length === 0) return undefined;
+  const count = unavailable.length === 1 ? 'One file' : `${unavailable.length} files`;
+  const unsupported = unavailable.every((file) => file.reason === 'source_unsupported');
+  return unsupported
+    ? `${count} of this title can't be played by the server, so ${unavailable.length === 1 ? "it isn't" : "they aren't"} listed.`
+    : `${count} of this title couldn't be read just now, so ${unavailable.length === 1 ? "it isn't" : "they aren't"} listed.`;
+}
+
 /** The Settings choice that leaves the ceiling to the screen. */
 export function automaticCeilingLabel(display: QualityClass | undefined): string {
   return display ? `Screen (${qualityLabel(display)})` : 'Screen';
