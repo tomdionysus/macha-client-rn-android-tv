@@ -18,7 +18,9 @@ export function attributableProgress(
 ): PlaybackProgress | undefined {
   if (!snapshot || !media || !(snapshot.event.durationMs > 0)) return undefined;
   if (!sessionIsFor(snapshot.session, media)) return undefined;
-  return progressFor(media, snapshot.event.positionMs, snapshot.event.durationMs);
+  // With the snapshot, core records the file and how it was playing (core
+  // 89a9d0c: Tom's "resume as if you'd never left").
+  return progressFor(media, snapshot.event.positionMs, snapshot.event.durationMs, snapshot);
 }
 
 /**

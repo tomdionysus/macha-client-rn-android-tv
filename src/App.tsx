@@ -3,7 +3,6 @@ import { Image } from 'expo-image';
 import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
 import {
   sessionManager,
-  versionPreferences,
   type Episode,
   type MediaSummary,
   type PlaybackProgress,
@@ -21,6 +20,7 @@ import { libraryTrail, type KnownAncestry } from './app/libraryTrail';
 import { SIGN_OUT_REVOKE_FAILED } from './text/viewerText';
 import { useEpisodeNeighbours } from './app/useEpisodeNeighbours';
 import { episodeToPlayOnEnd } from './app/autoAdvance';
+import { startPreferences } from './app/startPreferences';
 import { attributableProgress } from './app/progressAttribution';
 import { orphanedSessions } from './state/liveSessions';
 import { playbackLog } from './diagnostics/playbackLog';
@@ -412,7 +412,7 @@ function Shell(): React.JSX.Element {
       const start = () =>
         void runtime.play(
           { media, startPositionMs, returnTo: 'detail' },
-          version ? versionPreferences(version) : undefined,
+          startPreferences(startPositionMs, continueWatching.entryFor(media.id), version),
         );
       // An episode goes on its library trail, so Back arrives at its season
       // (Tom, 2026-09-23). Everything else keeps the detail-beneath rule below.
@@ -434,7 +434,7 @@ function Shell(): React.JSX.Element {
       });
       start();
     },
-    [runtime, placeOnTrail],
+    [runtime, placeOnTrail, continueWatching],
   );
 
   const playingMedia = route.name === 'player' ? route.media : undefined;
@@ -550,7 +550,7 @@ function Shell(): React.JSX.Element {
       season={route.media}
       onPlayEpisode={(episode) => play(episode, continueWatching.positionFor(episode.id))}
       progressFor={(mediaId) => {
-        const entry = progress.find((item) => item.mediaId === mediaId);
+        const entry = progress.find((item) => item.itemId === mediaId);
         return entry && entry.durationMs > 0 ? entry.positionMs / entry.durationMs : undefined;
       }}
     />

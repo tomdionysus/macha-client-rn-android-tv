@@ -8,7 +8,7 @@ function snapshot(sessionMediaId: string | undefined, positionMs: number): Playb
   return {
     intent: { positionMs, paused: false },
     event: { positionMs, durationMs: 2_600_000 },
-    session: sessionMediaId ? { mediaId: sessionMediaId } : undefined,
+    session: sessionMediaId ? { mediaId: sessionMediaId, preferences: { mode: 'direct', maxHeight: null, maxBitrate: null, audioStream: 1, subtitleStream: null, audioLanguage: '', subtitleLanguage: '' } } : undefined,
     starting: false,
     preparingSource: false,
   } as unknown as PlaybackCoordinatorSnapshot;
@@ -47,13 +47,16 @@ describe('a session that names its file', () => {
     ({
       intent: { positionMs: 84_000, paused: false },
       event: { positionMs: 84_000, durationMs: 9_080_000 },
-      session: { mediaId, ...(itemId ? { itemId } : {}) },
+      session: { mediaId, ...(itemId ? { itemId } : {}), preferences: { mode: 'direct', maxHeight: null, maxBitrate: null, audioStream: 1, subtitleStream: null, audioLanguage: '', subtitleLanguage: '' } },
       starting: false,
       preparingSource: false,
     }) as unknown as PlaybackCoordinatorSnapshot;
 
-  it("records it under the item the session names", () => {
-    expect(attributableProgress(session('macha:hd', 'tmdb:movie:286217'), film)?.positionMs).toBe(84_000);
+  it("records it under the item the session names, with the file it played", () => {
+    const progress = attributableProgress(session('macha:hd', 'tmdb:movie:286217'), film);
+    expect(progress?.positionMs).toBe(84_000);
+    expect(progress?.itemId).toBe('tmdb:movie:286217');
+    expect(progress?.fileMediaId).toBe('macha:hd');
   });
 
   it("records it when the session's file is one of the item's, with no item named", () => {

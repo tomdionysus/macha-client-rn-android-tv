@@ -114,7 +114,7 @@ export function useContinueWatchingWriter(
       // it stores nothing below 30 s of position. Read the outcome rather than
       // re-deriving the rule, so its floor can move without this moving.
       const stored = continueWatching.update(progress);
-      const landed = stored.some((entry) => entry.mediaId === progress.mediaId);
+      const landed = stored.some((entry) => entry.itemId === progress.itemId);
       watermark.current = nextWatermark(watermark.current, current.paused, now, landed);
     };
 

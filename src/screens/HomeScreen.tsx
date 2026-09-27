@@ -46,7 +46,7 @@ export function HomeScreen({
   // (`MediaCard`'s `cardLines`, from the stored `playbackContext`), so entries
   // saved before Tom's ruling read the same as new ones.
   const progressItems = continueWatching.flatMap((entry) => (entry.media ? [entry.media] : []));
-  const progressById = new Map(continueWatching.map((entry) => [entry.mediaId, entry]));
+  const progressById = new Map(continueWatching.map((entry) => [entry.itemId, entry]));
 
   const progressFor = (media: MediaSummary): number | undefined => {
     const entry = progressById.get(media.id);
