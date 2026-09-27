@@ -138,21 +138,25 @@ Driven over adb; every line below was read off the set or its trail.
 3. **Selected Settings chips were dim red on grey.** Now the web client's
    pressed pill (`851b38b`): "Screen (2160p)" reads in heading colour.
 
-### File pills under a title — built 2026-09-27, seen on the set the same day
+### Media info, as the web client shows it — measured 2026-09-27
 
-Tom: a title with several files says so, as small pills under the title,
-"Direct: 4K, 1080p, 720p". One pill per way this set plays the files, from
-core's `versions.files` (`src/screens/fileSummary.ts`), labelled by height to
-match the quality buttons. Build `6d3e4400…`, installed 2026-09-27 11:37:32.
-**Measured on `.133`:** *Arrival* (two files) shows "Direct: 720p" and
-"Transcode: 1080p" under 2016, agreeing with its buttons "1080p Transcode"
-and "720p Direct"; *The Martian* (one file) shows none. The server's
-catalogue lists 14 movies with several files (*Arrival*, *GoldenEye*, the
-three *Lord of the Rings*, *Trailer* with three, and others).
+Tom's rulings the same day, relayed by the phone and by core: copy the web
+style, formatted for the device, music included; the technical details are
+core's (`technicalSummary`, `fileSummaries`, `qualityLabel`, core `5622020`),
+the layout is the client's. So under the title, one line per file, identical
+files combined (`src/app/useFileLines.ts`, with the duplicate-report TODO), a
+track's line in the audio player, quality buttons named 4K/2K/1080p/720p with
+no Direct/Transcode, and the web client's `qualityLimitText` as the cap
+sentence. **The file pills built that morning are gone**, with the partial
+sentence (the detail page still reads `factsReport`).
 
-Seen on the way, not a fault: Back from a detail page opened from Home
-lands on Home's default card, not the one opened, because Home's rails are
-not `addressable` (one title can sit in two of them).
+**Measured on `.133`** (build `ed6af6c8…`, TV `a9abe72`): *The Martian*
+shows four lines, `2h 31m · 3840×2160 · HEVC · TRUEHD · 47.4 Mbps`, `1m ·
+1280×534 · H.264 · AAC · 1.5 Mbps`, `2h 31m · 1280×534 · H.264 · AAC · 1.3
+Mbps`, `2h 31m · 1920×1080 · HEVC · E-AC-3 · 3.1 Mbps`, and buttons 4K, 2K,
+1080p, 720p. The catalogue now lists four files for it (two that morning);
+the `1m` one looks like a trailer filed with the film. **A track's line in
+the player is not yet seen.**
 
 ### Back to the card opened, on Home — measured 2026-09-27
 
