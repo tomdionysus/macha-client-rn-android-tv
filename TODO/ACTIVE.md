@@ -23,7 +23,12 @@ Read that first; this section is only what is open.
   0.58.0.) **The fix is a core release carrying `0bce895` onward, then TV
   0.7.1. Tom's call; core has put its release to him.** The phone's 0.9.0 is
   in the same state.
-- **Server 0.62.3** (`f3bf8d7`) is live on both nodes since 15:42Z
+- **Server 0.64.0** (protocol 22, cluster torrents) is live on fi-1 and
+  gbni-1 since 2026-09-27, per the server session (asserted): status and
+  playback unchanged; the one new value outside torrents is `error.scope:
+  "cluster"`, on torrent 503s only. Nothing for the TV. (0.63.0 before it
+  added a torrent 409 and a `threads` array in status, also nothing here.)
+- **Server 0.62.3** (`f3bf8d7`) went live on both nodes at 15:42Z
   2026-09-25, covering 0.62.0–0.62.2, per core (asserted): torrent and
   repair internals only, nothing on the wire, nothing for the TV.
 - **Server 0.61.0** (`acd74ef`) went live on both nodes at 13:35Z
