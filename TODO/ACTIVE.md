@@ -137,14 +137,21 @@ Driven over adb; every line below was read off the set or its trail.
 3. **Selected Settings chips were dim red on grey.** Now the web client's
    pressed pill (`851b38b`): "Screen (2160p)" reads in heading colour.
 
-### File pills under a title — built 2026-09-27, not yet seen on the set
+### File pills under a title — built 2026-09-27, seen on the set the same day
 
 Tom: a title with several files says so, as small pills under the title,
 "Direct: 4K, 1080p, 720p". One pill per way this set plays the files, from
 core's `versions.files` (`src/screens/fileSummary.ts`), labelled by height to
-match the quality buttons. Build `6d3e4400…`. **To see on the set:** a
-multi-file item's detail page shows the pills between the year and the
-synopsis, and a single-file item shows none.
+match the quality buttons. Build `6d3e4400…`, installed 2026-09-27 11:37:32.
+**Measured on `.133`:** *Arrival* (two files) shows "Direct: 720p" and
+"Transcode: 1080p" under 2016, agreeing with its buttons "1080p Transcode"
+and "720p Direct"; *The Martian* (one file) shows none. The server's
+catalogue lists 14 movies with several files (*Arrival*, *GoldenEye*, the
+three *Lord of the Rings*, *Trailer* with three, and others).
+
+Seen on the way, not a fault: Back from a detail page opened from Home
+lands on Home's default card, not the one opened, because Home's rails are
+not `addressable` (one title can sit in two of them).
 
 ### Next episode on end — built 2026-09-25, not yet seen on the set
 
