@@ -5,6 +5,7 @@ import type {
   PlaybackMode,
   PlaybackStreamInfo,
   PlaybackTransform,
+  VersionStep,
 } from '@machafoundation/core';
 
 /**
@@ -183,4 +184,36 @@ export function modeObjectionNote(choices: readonly ModeChoice[]): string | unde
   return objected
     .map((choice) => `${MODE_LABELS[choice.mode]}: ${choice.objections.map((reason) => REASON_TEXT[reason] ?? reason).join('; ')}.`)
     .join(' ');
+}
+
+/** One choice in the player's single Quality row. */
+export type QualityChoice =
+  | { kind: 'version'; step: VersionStep }
+  | { kind: 'cap'; height: number }
+  | { kind: 'original' };
+
+/**
+ * The player's one Quality row. Tom, 2026-09-27: "The Quality and Version
+ * controls are duplicated. These should all be one line called 'Quality'."
+ *
+ * With several versions, the versions (4K, 2K, 1080p, 720p: a file, or a
+ * capped transcode of a larger one), then any smaller cap the node offers
+ * below the smallest version (480p, 360p). "Original" goes: a version already
+ * plays a file at its own size, and picking one clears any cap. With one
+ * version or none, the node's caps as before, Original first. Caps only while
+ * the node can change quality (a transcode); versions whatever the mode.
+ */
+export function qualityChoices(
+  steps: readonly VersionStep[],
+  qualityHeights: readonly number[],
+  canChangeQuality: boolean,
+): QualityChoice[] {
+  const versions: QualityChoice[] = steps.length > 1 ? steps.map((step) => ({ kind: 'version', step })) : [];
+  if (versions.length > 0) {
+    const smallest = Math.min(...steps.map((step) => step.quality));
+    const below = canChangeQuality ? qualityHeights.filter((height) => height < smallest) : [];
+    return [...versions, ...below.map((height): QualityChoice => ({ kind: 'cap', height }))];
+  }
+  if (!canChangeQuality) return [];
+  return [{ kind: 'original' }, ...qualityHeights.map((height): QualityChoice => ({ kind: 'cap', height }))];
 }

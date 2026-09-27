@@ -21,11 +21,12 @@ import {
   modeChoices,
   modeObjectionNote,
   noteIsWarning,
+  qualityChoices,
   streamLabel,
 } from './playbackOptions';
 
 /**
- * Playback options — mode, quality, audio, subtitles, version.
+ * Playback options — mode, quality, audio, subtitles.
  *
  * The web client's `PlayerOptions`, re-laid for a remote. Same groups in the
  * same order and the same rules behind them (`playbackOptions.ts`), but the
@@ -78,21 +79,22 @@ export function PlayerOptions({
   /** Down from the last row, which is how the panel is left without Back. */
   onDismiss: () => void;
 }): React.JSX.Element {
-  const hasQuality = session.options.canChangeQuality;
+  // One row for versions and caps together (Tom, 2026-09-27); see `qualityChoices`.
+  const qualityRow = qualityChoices(
+    versions?.steps ?? [],
+    session.options.qualityHeights,
+    session.options.canChangeQuality,
+  );
+  const hasQuality = qualityRow.length > 0;
   const hasAudio = session.options.audioStreams.length > 0;
   const hasSubtitles = session.options.subtitleStreams.length > 0;
-  // The detail page's rule: shown only when there is a choice.
-  const steps = versions && versions.steps.length > 1 ? versions.steps : [];
-  const hasVersions = steps.length > 0;
-  const lastGroup = hasVersions
-    ? 'version'
-    : hasSubtitles
-      ? 'subtitles'
-      : hasAudio
-        ? 'audio'
-        : hasQuality
-          ? 'quality'
-          : 'mode';
+  const lastGroup = hasSubtitles
+    ? 'subtitles'
+    : hasAudio
+      ? 'audio'
+      : hasQuality
+        ? 'quality'
+        : 'mode';
 
   const effective = { ...session.preferences, ...pendingPreferences };
   const selectedAudio = pendingPreferences?.audioStream ?? session.selected.audioStream;
@@ -144,22 +146,45 @@ export function PlayerOptions({
         {note ? <Note text={note} warning={noteIsWarning(instruction)} /> : null}
         {assumed ? <Note text={assumed} warning /> : null}
 
-        {session.options.canChangeQuality ? (
-          <Group label="Quality" exitDown={lastGroup === 'quality' ? onDismiss : undefined}>
-            <Option
-              label="Original"
-              selected={effective.maxHeight === null && effective.maxBitrate === null}
-              onSelect={() => applyPreferences({ maxHeight: null, maxBitrate: null })}
-            />
-            {session.options.qualityHeights.map((height) => (
-              <Option
-                key={height}
-                label={`${height}p`}
-                selected={effective.maxHeight === height}
-                onSelect={() => applyPreferences({ maxHeight: height })}
-              />
-            ))}
-          </Group>
+        {/*
+          One Quality row: the item's versions (the detail page's buttons),
+          then any smaller cap the node offers. Tom, 2026-09-27: "The Quality
+          and Version controls are duplicated. These should all be one line
+          called 'Quality'." It also takes Source's old job, which server
+          0.58.0 left empty.
+        */}
+        {hasQuality ? (
+          <>
+            <Group label="Quality" exitDown={lastGroup === 'quality' ? onDismiss : undefined}>
+              {qualityRow.map((choice) =>
+                choice.kind === 'version' ? (
+                  <Option
+                    key={`v${choice.step.quality}`}
+                    label={qualityLabel(choice.step.quality)}
+                    selected={instruction?.quality === choice.step.quality}
+                    onSelect={() => onPlayVersion(choice.step)}
+                  />
+                ) : choice.kind === 'cap' ? (
+                  <Option
+                    key={`c${choice.height}`}
+                    label={`${choice.height}p`}
+                    selected={effective.maxHeight === choice.height}
+                    onSelect={() => applyPreferences({ maxHeight: choice.height })}
+                  />
+                ) : (
+                  <Option
+                    key="original"
+                    label="Original"
+                    selected={effective.maxHeight === null && effective.maxBitrate === null}
+                    onSelect={() => applyPreferences({ maxHeight: null, maxBitrate: null })}
+                  />
+                ),
+              )}
+            </Group>
+            {versions?.limitedBy && !instruction?.chosenByViewer ? (
+              <Note text={ceilingText(versions.limitedBy)} />
+            ) : null}
+          </>
         ) : null}
 
         {session.options.audioStreams.length > 0 ? (
@@ -196,28 +221,6 @@ export function PlayerOptions({
           </Group>
         ) : null}
 
-        {/*
-          Version replaces Source, which server 0.58.0 left empty: core maps
-          `media_ids` to `[]`, so the group never drew. The same set the detail
-          page offers (Tom, 2026-09-25), and a pick is the viewer's choice.
-        */}
-        {hasVersions ? (
-          <>
-            <Group label="Version" exitDown={lastGroup === 'version' ? onDismiss : undefined}>
-              {steps.map((step) => (
-                <Option
-                  key={step.quality}
-                  label={qualityLabel(step.quality)}
-                  selected={instruction?.quality === step.quality}
-                  onSelect={() => onPlayVersion(step)}
-                />
-              ))}
-            </Group>
-            {versions?.limitedBy && !instruction?.chosenByViewer ? (
-              <Note text={ceilingText(versions.limitedBy)} />
-            ) : null}
-          </>
-        ) : null}
       </ScrollView>
     </View>
   );

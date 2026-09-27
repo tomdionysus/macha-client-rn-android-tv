@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaybackInstructionReport, PlaybackStreamInfo } from '@machafoundation/core';
+import type { PlaybackInstructionReport, PlaybackStreamInfo, VersionStep } from '@machafoundation/core';
 import {
   assumptionNote,
   modeChoices,
   modeObjectionNote,
+  qualityChoices,
   audioProcessingNote,
   instructionNote,
   noteIsWarning,
@@ -176,5 +177,27 @@ describe('the modes offered', () => {
   it("offers the node's modes when there are no facts to reason from", () => {
     expect(modeChoices(all, undefined).map((choice) => choice.mode)).toEqual([...all]);
     expect(modeObjectionNote(modeChoices(all, undefined))).toBeUndefined();
+  });
+});
+
+describe('the one Quality row', () => {
+  const step = (quality: number) => ({ quality, source: 'file', instruction: { mode: 'direct' } }) as unknown as VersionStep;
+  const steps = [step(2160), step(1440), step(1080), step(720)];
+  const label = (choice: ReturnType<typeof qualityChoices>[number]) =>
+    choice.kind === 'version' ? `v${choice.step.quality}` : choice.kind === 'cap' ? `c${choice.height}` : 'original';
+
+  it('offers the versions, then the caps below the smallest, and no Original', () => {
+    expect(qualityChoices(steps, [1440, 1080, 720, 480, 360], true).map(label)).toEqual([
+      'v2160', 'v1440', 'v1080', 'v720', 'c480', 'c360',
+    ]);
+  });
+
+  it('offers the versions alone while the node cannot change quality (direct)', () => {
+    expect(qualityChoices(steps, [480, 360], false).map(label)).toEqual(['v2160', 'v1440', 'v1080', 'v720']);
+  });
+
+  it('keeps Original and the caps for an item with one version', () => {
+    expect(qualityChoices([step(1080)], [720, 480], true).map(label)).toEqual(['original', 'c720', 'c480']);
+    expect(qualityChoices([], [720], false)).toEqual([]);
   });
 });
