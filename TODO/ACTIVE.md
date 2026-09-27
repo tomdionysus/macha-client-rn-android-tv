@@ -159,6 +159,18 @@ written by 0.7.x develop builds since 0.58.0 went unwritten**, including the
 id, the mode, the resolution, the subtitle settings, and everything needed to
 resume as if you had never left.** Core's store and resume path; sent to core.
 
+### Resume as you left it — built 2026-09-27 on core `89a9d0c`, not yet seen on the set
+
+Continue Watching now saves the item, the file and the resume state (mode
+and whether the viewer chose it, version cap, audio, subtitles) through
+`progressFor(..., snapshot)`, and every resume goes through
+`src/app/startPreferences.ts`: a picked version as picked, a resume as left,
+a play from the start fresh. Build `a80c02e4…` (TV `6ab11c3`). **To see on
+the set:** play *The Martian*, pick 720p in the player's Version group and
+English subtitles, play past 30 s, Stop; resume from Home's rail. It should
+come back on the same file at 720p with subtitles on. Then Restart on the
+detail page: a fresh automatic start (1080p direct, subtitles off).
+
 ### The Martian in 4K left the player with no explanation — open, not reproduced
 
 Tom, 2026-09-27 ~13:10: pressing 4K on *The Martian*, the player said it was
