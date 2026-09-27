@@ -3,6 +3,7 @@ import type { PlaybackStatusDescription, VersionStep } from '@machafoundation/co
 import {
   alphabetKeyLabel,
   ceilingText,
+  fileGroupLabel,
   qualityLabel,
   versionHowLabel,
   errorText,
@@ -248,5 +249,12 @@ describe('versions', () => {
     expect(ceilingText({ quality: 1080, reason: 'ceiling-device' })).toBe(
       'Automatic play stops at 1080p, the largest picture this television decodes.',
     );
+  });
+});
+
+describe('the file pills under a title', () => {
+  it('names how the files play and their heights', () => {
+    expect(fileGroupLabel('direct', [2160, 1080, 720])).toBe('Direct: 2160p, 1080p, 720p');
+    expect(fileGroupLabel('transcode', [2160])).toBe('Transcode: 2160p');
   });
 });

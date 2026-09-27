@@ -5,7 +5,8 @@ import { usePlaybackVersions } from '../app/usePlaybackVersions';
 import { Focusable } from '../components/Focusable';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { clamp, colour, font, pageGutter, px, radius, rem, type, vw } from '../styles/theme';
-import { ceilingText, qualityLabel, versionHowLabel } from '../text/viewerText';
+import { ceilingText, fileGroupLabel, qualityLabel, versionHowLabel } from '../text/viewerText';
+import { fileGroups } from './fileSummary';
 
 /**
  * Movie detail, from `.detail` / `.movie-detail-layout` in base.css.
@@ -35,6 +36,7 @@ export function DetailScreen({
   const versions = usePlaybackVersions(media);
   // Tom, 2026-09-25: the quality buttons show only when there is a choice.
   const steps = versions && versions.steps.length > 1 ? versions.steps : [];
+  const files = fileGroups(versions?.files);
 
   return (
     <ScrollView contentContainerStyle={styles.page} scrollEnabled={false}>
@@ -70,6 +72,20 @@ export function DetailScreen({
             {media.title}
           </Text>
           {media.year ? <Text style={styles.subtitle}>{media.year}</Text> : null}
+          {/*
+            Several files, said under the title (Tom, 2026-09-27): one pill per
+            way this set plays them. Information, not controls; the quality
+            buttons below are what a viewer presses.
+          */}
+          {files.length > 0 ? (
+            <View style={styles.filePills}>
+              {files.map((group) => (
+                <Text key={group.mode} style={styles.filePill}>
+                  {fileGroupLabel(group.mode, group.qualities)}
+                </Text>
+              ))}
+            </View>
+          ) : null}
           {media.synopsis ? (
             <Text style={styles.synopsis} numberOfLines={6}>
               {media.synopsis}
@@ -235,6 +251,29 @@ const styles = StyleSheet.create({
   subtitle: {
     color: colour.textDim,
     fontSize: type.subtitle,
+  },
+  /** The file pills' row, under the year. */
+  filePills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: rem(0.4),
+    marginTop: rem(0.7),
+  },
+  /**
+   * A small pill, in the player options' shape
+   * (`.player-option-group button { border: 1px solid #3a3a40; border-radius:
+   * 999px; padding: .42rem .7rem; color: #bcbcc2; font-size: .82rem }`), without
+   * a fill, since nothing here is pressed.
+   */
+  filePill: {
+    paddingHorizontal: rem(0.7),
+    paddingVertical: rem(0.3),
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colour.inputBorder,
+    color: colour.optionText,
+    fontSize: type.small,
+    overflow: 'hidden',
   },
   // `.synopsis { max-width: 70ch; line-height: 1.65; font-size: clamp(1rem,1.35vw,1.25rem) }`
   synopsis: {

@@ -214,6 +214,15 @@ export function ceilingText(ceiling: QualityCeiling): string {
   }
 }
 
+/**
+ * A pill under a title: how this set plays some of its files, and their
+ * qualities. "Direct: 2160p, 1080p". Tom's example read "4K"; heights, by his
+ * earlier ruling, match the quality buttons beside it.
+ */
+export function fileGroupLabel(mode: VersionStep['instruction']['mode'], qualities: readonly QualityClass[]): string {
+  return `${VERSION_HOW[mode]}: ${qualities.map(qualityLabel).join(', ')}`;
+}
+
 /** The Settings choice that leaves the ceiling to the screen. */
 export function automaticCeilingLabel(display: QualityClass | undefined): string {
   return display ? `Screen (${qualityLabel(display)})` : 'Screen';
