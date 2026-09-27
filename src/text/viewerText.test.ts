@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaybackStatusDescription } from '@machafoundation/core';
+import type { PlaybackStatusDescription, TechnicalSummary } from '@machafoundation/core';
 import {
   alphabetKeyLabel,
   ceilingText,
@@ -249,6 +249,7 @@ describe('versions, as the web client words them', () => {
 
 describe("a file's line", () => {
   it("joins core's parts in core's order with the clients' separator", () => {
-    expect(fileLine(['2h 31m', '3840×2160', 'HEVC', 'TRUEHD', '47.4 Mbps'])).toBe('2h 31m · 3840×2160 · HEVC · TRUEHD · 47.4 Mbps');
+    const summary = { kind: 'video', parts: ['2h 31m', '3840×2160 (4K)', 'HEVC', 'TRUEHD', '7.1', '47.4 Mbps'] } as unknown as TechnicalSummary;
+    expect(fileLine(summary)).toBe('2h 31m · 3840×2160 (4K) · HEVC · TRUEHD · 7.1 · 47.4 Mbps');
   });
 });

@@ -14,6 +14,7 @@ import {
   type PlaybackStreamInfo,
   qualityLabel,
   type QualityCeiling,
+  type TechnicalSummary,
   type QualityClass,
   type SearchCategoryKey,
   type ServerStatus,
@@ -188,12 +189,15 @@ export function ceilingText(ceiling: QualityCeiling): string {
 }
 
 /**
- * A file's line, laid out: core's summary parts, in core's order, joined with
- * the separator every client uses. The layout is the client's; the facts and
- * their labels are core's (`technicalSummary`).
+ * A file's line: core's summary parts, in core's order, joined with the
+ * separator every client uses. The facts, their labels, the class after the
+ * resolution ("3840×2160 (4K)"), the channels after the codec ("TRUEHD · 7.1")
+ * and the files' order (largest picture first) are core's (`technicalSummary`,
+ * `fileSummaries`, core 29fa878, from Tom's ask of 2026-09-27); the layout is
+ * the client's.
  */
-export function fileLine(parts: readonly string[]): string {
-  return parts.join(' · ');
+export function fileLine(summary: TechnicalSummary): string {
+  return summary.parts.join(' · ');
 }
 
 /** The Settings choice that leaves the ceiling to the screen. */

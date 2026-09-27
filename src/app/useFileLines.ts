@@ -25,7 +25,8 @@ export function useFileLines(media: MediaSummary): string[] {
     if (!api.mediaProfile) return [];
     const profiles = await Promise.all(ids.map((mediaId) => api.mediaProfile!(mediaId, signal).catch(() => undefined)));
     const read = profiles.filter((profile): profile is CatalogueMediaProfile => profile !== undefined);
-    return fileSummaries(read).map(({ summary }) => fileLine(summary.parts));
+    // Core orders them largest picture first.
+    return fileSummaries(read).map(({ summary }) => fileLine(summary));
   }, [services.mediaApi, ids.join(' ')]);
   return value ?? [];
 }
