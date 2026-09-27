@@ -60,21 +60,17 @@ export function categoryLabel(key: SearchCategoryKey): string {
 // ── Media lines ────────────────────────────────────────────────────────────
 
 /**
- * "Season 3 Episode 2", or "Episode 2" with no season. Tom's wording for an
- * episode named away from its season (search, Continue Watching).
+ * An episode's mark: "S04E08", or "Episode 8" with no season (the web client's
+ * `episodeCode`). Tom, 2026-09-27: "it should be S04E08 in all cases", on
+ * the season page, the player, and the Continue Watching and search cards,
+ * which had read "Season 4 Episode 8" and "4×08".
  */
 export function episodeLabel(item: Pick<MediaSummary, 'seasonNumber' | 'episodeNumber'>): string | undefined {
   const { seasonNumber, episodeNumber } = item;
   if (typeof episodeNumber !== 'number') return undefined;
-  return typeof seasonNumber === 'number' ? `Season ${seasonNumber} Episode ${episodeNumber}` : `Episode ${episodeNumber}`;
-}
-
-/** "S01E02" — the compact form, for where the season is already on screen. */
-export function compactEpisodeLabel(item: Pick<MediaSummary, 'seasonNumber' | 'episodeNumber'>): string | undefined {
-  const { seasonNumber, episodeNumber } = item;
-  if (typeof episodeNumber !== 'number') return undefined;
-  const episode = `E${String(episodeNumber).padStart(2, '0')}`;
-  return typeof seasonNumber === 'number' ? `S${String(seasonNumber).padStart(2, '0')}${episode}` : episode;
+  if (typeof seasonNumber !== 'number') return `Episode ${episodeNumber}`;
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `S${pad(seasonNumber)}E${pad(episodeNumber)}`;
 }
 
 /** "Track 9", or "Disc 2 · Track 3" on any disc after the first. */

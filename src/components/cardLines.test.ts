@@ -5,12 +5,12 @@ import { cardLines } from './cardLines';
 const music = { album: { id: 'al', title: 'Homogenic', year: 1997 }, artist: { id: 'ar', title: 'Björk' } };
 
 describe('cardLines', () => {
-  it('names an episode by its series, then "Season x Episode y", never SxxEyy', () => {
+  it('names an episode by its series, then S01E03 (Tom, 2026-09-27: "in all cases")', () => {
     const episode: MediaSummary = {
       id: 'e', kind: 'episode', title: 'Our Mrs. Reynolds', mediaIds: [], seasonNumber: 1, episodeNumber: 3,
       playbackContext: { series: { id: 's', title: 'Firefly' }, season: { id: 'x', title: 'Season 1', seasonNumber: 1 } },
     };
-    expect(cardLines(episode)).toEqual(['Firefly', 'Season 1 Episode 3']);
+    expect(cardLines(episode)).toEqual(['Firefly', 'S01E03']);
   });
 
   it('gives a search track "Artist - Album (year)", then its own position', () => {

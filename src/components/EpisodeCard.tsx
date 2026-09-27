@@ -4,6 +4,7 @@ import type { Episode } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { px, colour, focusFrame, font, layout, radius, rem, type } from '../styles/theme';
+import { episodeLabel } from '../text/viewerText';
 
 /**
  * One episode in the rail, from `.episode-card` / `.episode-still` in base.css.
@@ -63,7 +64,7 @@ export function EpisodeCard({
                 {episode.title}
               </Text>
               <Text style={styles.number}>
-                {episode.seasonNumber}×{String(episode.episodeNumber).padStart(2, '0')}
+                {episodeLabel(episode)}
               </Text>
             </View>
             {episode.synopsis ? (

@@ -38,7 +38,7 @@ import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
 import { px, colour, disabledOpacity, font, pageGutter, radius, rem, type } from '../styles/theme';
 import {
-  compactEpisodeLabel,
+  episodeLabel,
   errorText,
   formatPlaybackTime,
   playbackNoticeText,
@@ -592,9 +592,9 @@ export function PlayerScreen({
               <Text style={styles.title} numberOfLines={1}>
                 {media.title}
               </Text>
-              {media.kind === 'episode' && compactEpisodeLabel(media) ? (
+              {media.kind === 'episode' && episodeLabel(media) ? (
                 <Text style={styles.subtitle} numberOfLines={1}>
-                  {compactEpisodeLabel(media)}
+                  {episodeLabel(media)}
                 </Text>
               ) : null}
             </View>

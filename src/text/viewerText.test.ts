@@ -32,7 +32,10 @@ describe('viewer text', () => {
   });
 
   it('names episodes and tracks', () => {
-    expect(episodeLabel({ seasonNumber: 3, episodeNumber: 2 })).toBe('Season 3 Episode 2');
+    // Tom, 2026-09-27: "S04E08 in all cases".
+    expect(episodeLabel({ seasonNumber: 3, episodeNumber: 2 })).toBe('S03E02');
+    expect(episodeLabel({ seasonNumber: 4, episodeNumber: 8 })).toBe('S04E08');
+    // No season: the web client's `episodeCode` form.
     expect(episodeLabel({ episodeNumber: 4 })).toBe('Episode 4');
     expect(trackNumberLabel({ trackNumber: 9 })).toBe('Track 9');
     expect(trackNumberLabel({ discNumber: 2, trackNumber: 3 })).toBe('Disc 2 · Track 3');

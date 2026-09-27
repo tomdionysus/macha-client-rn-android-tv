@@ -42,7 +42,7 @@ export function HomeScreen({
     );
   }
 
-  // An episode card names its series and "Season x Episode y" on two lines
+  // An episode card names its series and its S04E08 mark on two lines
   // (`MediaCard`'s `cardLines`, from the stored `playbackContext`), so entries
   // saved before Tom's ruling read the same as new ones.
   const progressItems = continueWatching.flatMap((entry) => (entry.media ? [entry.media] : []));
