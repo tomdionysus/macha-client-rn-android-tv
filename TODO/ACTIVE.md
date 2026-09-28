@@ -150,6 +150,17 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
      to ready): three pipelines on a 4-core Pi. Those four refusals are the
      likely lead-in to the failover at 16:09:10-ish, but the client trail
      that would confirm it was not captured.
+   - **The line that names a failover's cause** (core, 2026-09-28):
+     `playback.coordinator source-failover-start`, whose `error` is the
+     player failure that began it (a stall, a fragment 404, a decode error).
+     `cluster failed-session-closed` is only the old session's close that
+     follows, and `cluster.health preemptive-endpoint-swap` is the health
+     monitor moving work to the lower-latency node. **Capture
+     `source-failover-start` above all**; it scrolled off the overlay here.
+     The web client saw the same shape on 0.69.0: a 4K HEVC source neither
+     node serves at real speed fails over back and forth indefinitely. Core
+     has taken the fix to Tom as a behaviour decision. Core `ce31561` makes a
+     failover's replacement start report `startProgress` like any other start.
    - **To tell node from link next time**, read `stream.production`
      `{produced_ms, producing_ms, produced_age_ms, producer_parked}` on the
      session payload: `produced_ms / producing_ms` below 1.0 means the node
