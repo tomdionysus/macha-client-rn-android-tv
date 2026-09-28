@@ -18,6 +18,7 @@ import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
 import { BufferingOverlay } from './player/BufferingOverlay';
 import { bufferingDelayMs, showsBuffering, startWaitNotice } from './player/bufferingIndicator';
+import { nodeName } from './player/nodeName';
 import { useElapsedMs } from '../hooks/useElapsedMs';
 import { AudioPresentation } from './player/AudioPresentation';
 import {
@@ -412,7 +413,10 @@ export function PlayerScreen({
    * defaulted when absent — this is the one place a container the client asked
    * for and did not get can show, and a default would read as an answer.
    */
-  const streamStatus = describePlaybackSession(playback?.session, event?.streamOrigin);
+  // The node by its host, never the whole URL (`nodeName`), here where the
+  // description is built, so every line that reads `endpoint` gets the name.
+  const described = describePlaybackSession(playback?.session, event?.streamOrigin);
+  const streamStatus = described && { ...described, endpoint: nodeName(described.endpoint) };
 
   /**
    * The session the node issued, shown only with Diagnostics on.
