@@ -6,7 +6,7 @@ import { Focusable } from '../components/Focusable';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { clamp, colour, font, pageGutter, px, radius, rem, type, vw } from '../styles/theme';
 import { useFileLines } from '../app/useFileLines';
-import { ceilingText, qualityLabel } from '../text/viewerText';
+import { qualityChoiceText, qualityLabel } from '../text/viewerText';
 
 /**
  * Movie detail, from `.detail` / `.movie-detail-layout` in base.css.
@@ -114,8 +114,8 @@ export function DetailScreen({
               />
             ))}
           </View>
-          {steps.length > 0 && versions?.limitedBy ? (
-            <Text style={styles.versionNote}>{ceilingText(versions.limitedBy)}</Text>
+          {steps.length > 0 && versions && qualityChoiceText(versions) ? (
+            <Text style={styles.versionNote}>{qualityChoiceText(versions)}</Text>
           ) : null}
         </View>
       </View>

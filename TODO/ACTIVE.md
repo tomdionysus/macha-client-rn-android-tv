@@ -192,7 +192,10 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    { video, audio }, reasons }`, set only where automatic play chose a smaller
    file than the largest within the ceiling because that one would convert
    (*The Martian* here: 2160, audio only, `audio-codec-not-playable`).
-   **Waiting on the web client's wording**, which it will send for both.
+   **Built 2026-09-28** as the web client's `qualityChoiceText` (f512cdc),
+   one sentence from every fact, replacing `ceilingText`, on the detail
+   page and in the player's options (the web shows it on the detail page
+   only). Unit-tested; not yet seen on the set.
 8. **Music: Tom's decision first**, whether the TV has it at all (§4.6). The
    web and phone clients have per-track lines, and Tom ruled music "yes" for
    media info; that is not the same as building the seven music routes.

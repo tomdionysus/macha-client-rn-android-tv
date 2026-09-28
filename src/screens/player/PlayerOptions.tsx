@@ -12,7 +12,7 @@ import type {
 } from '@machafoundation/core';
 import { Focusable } from '../../components/Focusable';
 import { colour, focusFrame, px, radius, rem, type, vh } from '../../styles/theme';
-import { ceilingText, qualityLabel } from '../../text/viewerText';
+import { qualityChoiceText, qualityLabel } from '../../text/viewerText';
 import {
   assumptionNote,
   audioProcessingNote,
@@ -181,8 +181,8 @@ export function PlayerOptions({
                 ),
               )}
             </Group>
-            {versions?.limitedBy && !instruction?.chosenByViewer ? (
-              <Note text={ceilingText(versions.limitedBy)} />
+            {versions && !instruction?.chosenByViewer && qualityChoiceText(versions) ? (
+              <Note text={qualityChoiceText(versions)!} />
             ) : null}
           </>
         ) : null}

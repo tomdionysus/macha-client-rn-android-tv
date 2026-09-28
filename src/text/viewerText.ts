@@ -15,6 +15,7 @@ import {
   type PlaybackStatusDescription,
   type PlaybackStreamInfo,
   qualityLabel,
+  type PlaybackVersions,
   type QualityCeiling,
   type TechnicalSummary,
   type QualityClass,
@@ -229,18 +230,49 @@ export function preparingStreamText(progress: PlaybackStartProgress | undefined,
  * codec, bitrate etc details are non i18n and technical. They are core's
  * responsibility ... The client should still 'format' them, in terms of
  * layout." Re-exported here so the screens take all their words from one
- * module. The sentence below is this client's, and it is the web client's
- * `qualityLimitText` word for word, by Tom's ruling that the clients match.
+ * module. The sentence below is this client's.
  */
 export { qualityLabel };
 
-/** Why Play will not choose the largest file (Tom: capped "with context to the user as to why"). */
-export function ceilingText(ceiling: QualityCeiling): string {
-  const label = qualityLabel(ceiling.quality);
-  if (ceiling.reason === 'ceiling-display') return `Play chooses up to ${label}, the most this screen shows. Pick a quality to play another.`;
-  if (ceiling.reason === 'ceiling-device') return `Play chooses up to ${label}, the most this device plays. Pick a quality to play another.`;
-  if (ceiling.reason === 'ceiling-cellular') return `Play chooses up to ${label} on mobile data. Pick a quality to play another.`;
-  return `Play chooses up to ${label}, as set in Settings. Pick a quality to play another.`;
+/**
+ * Why Play chooses the file it does, as one sentence built from every fact
+ * core gives (`PlaybackVersions`): the file chosen, a larger one passed over
+ * because it would need converting (`passedOver`, core 03b0bdb), and a ceiling
+ * that kept a larger one out (`limitedBy`, with its reason). Tom: automatic
+ * play is capped "with context to the user as to why", and the facts are
+ * parsed into one sentence rather than a line each.
+ *
+ * The web client's `qualityChoiceText` (`macha-client/src/text/viewerText.ts`,
+ * f512cdc) word for word, by Tom's ruling that every client shows the same.
+ * "Which plays without converting" is said only when a larger file was passed
+ * over for needing it, since only then is it the reason. Undefined when Play
+ * is choosing the largest file there is, which needs no explaining.
+ */
+export function qualityChoiceText(
+  versions: Pick<PlaybackVersions, 'files' | 'automatic' | 'limitedBy' | 'passedOver'>,
+): string | undefined {
+  const { automatic, limitedBy, passedOver } = versions;
+  if (!automatic) return undefined;
+  const clauses: string[] = [];
+  const { video, audio } = passedOver?.converts ?? { video: false, audio: false };
+  const converted = video && audio ? 'its video and audio' : video ? 'its video' : audio ? 'its audio' : undefined;
+  if (passedOver && converted) clauses.push(`${qualityLabel(passedOver.quality)} needs ${converted} converted`);
+  const above = limitedBy
+    ? Math.max(...versions.files.map((file) => file.quality).filter((quality) => quality > limitedBy.quality))
+    : Number.NEGATIVE_INFINITY;
+  if (limitedBy && Number.isFinite(above)) {
+    const larger = qualityLabel(above as QualityCeiling['quality']);
+    clauses.push(
+      limitedBy.reason === 'ceiling-display' ? `${larger} is more than this screen shows`
+      : limitedBy.reason === 'ceiling-device' ? `${larger} is more than this device plays`
+      : limitedBy.reason === 'ceiling-cellular' ? `${larger} is more than Play uses on mobile data`
+      : `${larger} is more than the most set in Settings`,
+    );
+  }
+  if (clauses.length === 0) return undefined;
+  const plays = automatic.instruction.video !== 'transcode' && automatic.instruction.audio !== 'transcode';
+  const chosen = `Play chooses ${qualityLabel(automatic.quality)}${passedOver && converted && plays ? ', which plays without converting' : ''}.`;
+  return `${chosen} ${clauses.join(', and ')}. Pick a quality to play another.`;
 }
 
 /**
