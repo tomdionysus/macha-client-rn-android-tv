@@ -13,6 +13,7 @@ import { usePlaybackRuntime } from './app/usePlaybackRuntime';
 import { useContinueWatchingWriter } from './app/useContinueWatchingWriter';
 import { backAction, TOP_LEVEL } from './app/backAction';
 import { exitAfterFlush } from './app/appExit';
+import { routeFocus } from './app/routeFocus';
 import { flushStorage, hydrateStorage } from './state/storage';
 import { EXIT_FLUSH_BUDGET_MS } from './player/timingBudgets';
 import { syncDiagnosticsLevel } from './diagnostics/failureTrailSetting';
@@ -162,6 +163,8 @@ function Shell(): React.JSX.Element {
    */
   const focusMemory = useRef<(string | undefined)[]>([]);
   const focusToRestore = useRef<string | undefined>(undefined);
+  /** Set when the top bar chose the next screen, so focus stays on its button (`routeFocus`). */
+  const chosenFromNav = useRef(false);
 
   const push = useCallback(
     (next: Route) => {
@@ -364,7 +367,17 @@ function Shell(): React.JSX.Element {
   useEffect(() => {
     const remembered = focusToRestore.current;
     focusToRestore.current = undefined;
-    if (!isMediaFocusId(remembered)) {
+    const fromNav = chosenFromNav.current;
+    chosenFromNav.current = false;
+    const action = routeFocus({ fromNav, remembered });
+    if (action === 'keep') {
+      // Re-selecting what is already selected makes it the viewer's choice
+      // rather than the fallback's, so the new screen's default card cannot
+      // take it when it registers.
+      tvFocus.select(tvFocus.selected());
+      return;
+    }
+    if (action === 'default') {
       tvFocus.focusDefault();
       return;
     }
@@ -649,7 +662,13 @@ function Shell(): React.JSX.Element {
         // season reached from Continue Watching sits on the TV Shows trail,
         // and the bar should say so.
         active={TOP_LEVEL.has(route.name) ? route.name : TOP_LEVEL.has(stack[0]?.name ?? '') ? stack[0]!.name : 'home'}
-        onSelect={(key) => replaceTop({ name: key } as Route)}
+        onSelect={(key) => {
+          // Only where the screen changes: an unchanged route runs no effect
+          // to spend the flag, and a stale one would hold focus on the bar at
+          // the next, unrelated change.
+          if (key !== route.name) chosenFromNav.current = true;
+          replaceTop({ name: key } as Route);
+        }}
         username={session?.username}
         // Only where there is an account to leave. An unnamed session is one
         // nobody chose to be, so signing out of it would do nothing a viewer
