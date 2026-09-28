@@ -109,7 +109,37 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    `preparingStreamText` and the `start_no_progress` sentence in
    `src/text/viewerText.ts`, the stage in `startWaitNotice`. Unit-tested only;
    **not seen on the set** until 0.69.0 is deployed to a node, and the web
-   client's copy is itself unseen live. The TV keeps the old file playing and says "That change could
+   client's copy is itself unseen live.
+
+   **Measured on `.133`, 2026-09-28 ~19:10 local** (develop `a85a1a9`+`160474c`
+   on core `ec608c3`, APK md5 `de3689947278734e0c3090250bd169da`, versionCode
+   800 like the release; server 0.69.0 on both nodes, Diagnostics on).
+   *The Martian* resumed as a 720p transcode on fi-1, then Quality 4K in the
+   player: a change with a seek, **the case that used to 503**.
+   - **The change line showed, once a second:** "Starting the new stream on
+     http://10.35.1.50:7438: 0%" (1-2 s), 20% (3 s), 48% (6 s), 75% (7-8 s),
+     then the old stream's lines at 9 s, then the new one at 10 s. No planning
+     or preroll stage was ever on screen. The node is named as the full
+     endpoint URL, as the web client's line does.
+   - **The switch succeeded:** trail `session-update` 297.5 s,
+     `session-updated` 312.5 s (15.0 s), first fragment 312.8 s. The new
+     stream is VIDEO COPY HEVC 3840×2160 47.4 Mb/s with TrueHD 7.1 transcoded
+     to AAC 7.1 512 kb/s, fMP4.
+   - **But it did not keep up:** the buffer grew about 0.6x real time
+     (10.7 s to 21.9 s of media in 18 s), with repeated rebuffers.
+   - **Then the client's first observed failover:** at 340.5 s
+     `cluster failed-session-closed` on fi-1 (`attempts: 1`), a new session
+     on gbni-1 (`10.44.1.50`) at 346.0 s, `source-failover-ready`, first
+     fragment 348.6 s, presented at the same position (143629 ms). At 377.6 s
+     `cluster.health preemptive-endpoint-swap` moved routing back to fi-1
+     (550 ms against 22 ms). Playback on gbni-1 then stuttered, the media
+     session flipping between playing and buffering every ~100 ms, and was
+     stopped by hand.
+   - **Not known:** what closed the fi-1 session. The trail's earlier lines
+     scrolled off the eight-line overlay and logcat had rolled, so whether it
+     was the stall watchdog, a fragment timeout or the node is unread. The
+     next 4K run should capture the trail continuously (logcat is too noisy on
+     this set to hold it). The TV keeps the old file playing and says "That change could
    not be applied.", which the server and core call correct.
 4. **Not yet seen on the set:** next episode on end across a season (needs a
    show with two seasons; *Firefly* has one), and the `resource_limit`
