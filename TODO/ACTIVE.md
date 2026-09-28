@@ -52,9 +52,10 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 
 ### The set
 
-- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~20:45
-  2026-09-28:** develop `de3ae1c` on core `cdde96e` through the link (its dist built 20:05, before this build), md5
-  `ea1c90a24180b4bdf1e5f881c003e002`, read back off the set; versionCode 800,
+- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~21:05
+  2026-09-28:** develop (Back on Settings goes Home) on core `cdde96e`
+  through the link, md5 `268baadad3fa2df76008083e2144ecd7`, read back off
+  the set; Back from Settings measured landing on Home the same minute; versionCode 800,
   the same as the 0.8.0 release (`ef17b384…`). Measured the same evening:
   *The Martian*'s page shows "Play chooses 1080p, which plays without
   converting. 4K needs its audio converted. Pick a quality to play another.",
@@ -2465,7 +2466,7 @@ into the player rather than only the one that went through a detail screen
 (`App.tsx`'s `play`). The top-level question below is still open.
 
 **Settings answered, 2026-09-28.** Tom: "'Back' on settings should go to
-Home, not exit the app." Built in `src/app/backAction.ts`. The other
+Home, not exit the app." Built in `src/app/backAction.ts`, **seen on `.133`** (Settings, Back, Home). The other
 top-level sections (Movies, TV Shows, Music, Search, Status) still leave the
 app from their root; his ruling named Settings alone, so ask before
 extending it.
