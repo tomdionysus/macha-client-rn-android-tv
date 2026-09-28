@@ -413,10 +413,11 @@ export function PlayerScreen({
    * defaulted when absent — this is the one place a container the client asked
    * for and did not get can show, and a default would read as an answer.
    */
-  // The node by its host, never the whole URL (`nodeName`), here where the
-  // description is built, so every line that reads `endpoint` gets the name.
+  // The node by the cluster's name for it, else its host, never the whole URL
+  // (`nodeName`), here where the description is built, so every line that
+  // reads `endpoint` gets the name.
   const described = describePlaybackSession(playback?.session, event?.streamOrigin);
-  const streamStatus = described && { ...described, endpoint: nodeName(described.endpoint) };
+  const streamStatus = described && { ...described, endpoint: nodeName(described.endpoint, described.endpointName) };
 
   /**
    * The session the node issued, shown only with Diagnostics on.

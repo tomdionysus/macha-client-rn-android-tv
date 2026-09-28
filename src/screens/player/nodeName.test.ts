@@ -8,6 +8,14 @@ describe('what the player calls the node serving a stream', () => {
     expect(nodeName('https://macnessa.macha.network')).toBe('macnessa.macha.network');
   });
 
+  // Core 7819d37: the cluster's own name for the serving node, where known,
+  // shown before the address (Tom, 2026-09-28, via the web client).
+  it("prefers the cluster's name for the node, and falls back to the host", () => {
+    expect(nodeName('http://10.35.1.50:7438', 'corvus-fi-1')).toBe('corvus-fi-1');
+    expect(nodeName('http://10.35.1.50:7438', '')).toBe('10.35.1.50');
+    expect(nodeName(undefined, 'corvus-fi-1')).toBe('corvus-fi-1');
+  });
+
   it('shows an address it cannot parse as it is, and nothing for no address', () => {
     expect(nodeName('not a url')).toBe('not a url');
     expect(nodeName(undefined)).toBeUndefined();

@@ -11,11 +11,12 @@
  * (`Libraries/Blob/URL.js`) does not throw on an address it cannot read, it
  * answers an empty hostname, so an empty answer counts as unread too.
  *
- * **A stopgap.** Core is attaching the cluster's own name for each node (what
- * the Status screen shows, e.g. corvus-fi-1), and that replaces this, with the
- * host as its fallback.
+ * The cluster's own name for the node comes first where core knows it
+ * (`endpointName`, core 7819d37: "corvus-fi-1", what the Status screen
+ * shows); the host is its fallback.
  */
-export function nodeName(endpoint: string | undefined): string | undefined {
+export function nodeName(endpoint: string | undefined, clusterName?: string): string | undefined {
+  if (clusterName) return clusterName;
   if (!endpoint) return undefined;
   let host: string | undefined;
   try {
