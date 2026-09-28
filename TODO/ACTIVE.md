@@ -2464,6 +2464,12 @@ leaving arrives at **the media detail screen**, which now holds for every path
 into the player rather than only the one that went through a detail screen
 (`App.tsx`'s `play`). The top-level question below is still open.
 
+**Settings answered, 2026-09-28.** Tom: "'Back' on settings should go to
+Home, not exit the app." Built in `src/app/backAction.ts`. The other
+top-level sections (Movies, TV Shows, Music, Search, Status) still leave the
+app from their root; his ruling named Settings alone, so ask before
+extending it.
+
 
 It does today. That is conventional Android TV behaviour, so it may be
 correct — but combined with §1.0's requirement that Settings stay reachable

@@ -11,6 +11,7 @@ import {
 import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime } from './app/usePlaybackRuntime';
 import { useContinueWatchingWriter } from './app/useContinueWatchingWriter';
+import { backAction, TOP_LEVEL } from './app/backAction';
 import { hydrateStorage } from './state/storage';
 import { syncDiagnosticsLevel } from './diagnostics/failureTrailSetting';
 import { useTvNavigation } from './hooks/useTvNavigation';
@@ -87,7 +88,6 @@ type Route =
   | { name: 'season'; media: MediaSummary }
   | { name: 'player'; media: MediaSummary };
 
-const TOP_LEVEL = new Set(['home', 'movies', 'shows', 'music', 'search', 'status', 'settings']);
 
 /**
  * Which screen a catalogue item opens.
@@ -322,9 +322,12 @@ function Shell(): React.JSX.Element {
       return true;
     }
     // Back on a top-level screen is the platform's to handle — that is how a
-    // viewer leaves the app, and swallowing it would trap them in it.
-    if (stack.length === 1 && TOP_LEVEL.has(route.name)) return false;
-    pop();
+    // viewer leaves the app, and swallowing it would trap them in it — except
+    // on Settings, which goes Home (`backAction`).
+    const action = backAction(route.name, stack.length);
+    if (action === 'exit') return false;
+    if (action === 'home') setStack([{ name: 'home' }]);
+    else pop();
     return true;
   }, [route.name, stack.length, closePlayer, pop, confirmingSignOut, signingOut]);
 
