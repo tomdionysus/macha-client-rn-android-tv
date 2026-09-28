@@ -52,9 +52,11 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 
 ### The set
 
-- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed 17:29
-  2026-09-28:** release 0.8.0 (`main` `2ceb827`, registry core 0.20.0), md5
-  `ef17b38478e2219885f8f4853f8da4fe`, read back off the set. Diagnostics
+- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~19:45
+  2026-09-28:** develop `cd75d2a` on core `7819d37` through the link, md5
+  `f9a02ab23a00e05b81e3643e304550c3`, read back off the set; versionCode 800,
+  the same as the 0.8.0 release it replaced (`ef17b384…`). Diagnostics is
+  **On** from the 4K test. Diagnostics
   left **Off**, the app on Home, screen timeout `600000`.
 - Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1) and
   `http://10.44.1.50:7438` (gbni-1/macnessa); remembered
