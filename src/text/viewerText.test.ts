@@ -195,11 +195,23 @@ describe('startProgressText', () => {
     expect(startProgressText(progress({ stage: 'encoding', outputMediaMs: 3_000, firstFragmentMs: 2_000 }))).toBe('Starting the stream: 100%');
   });
 
-  it("keeps the status line's old sentence for a node that reports nothing, or for a start", () => {
+  it("keeps the status line's old sentence for a node that reports nothing", () => {
     expect(preparingStreamText(undefined, 'fi-1')).toBe('Preparing new stream on fi-1…');
     expect(preparingStreamText(undefined)).toBe('Preparing new stream…');
-    expect(preparingStreamText(progress({ kind: 'start', stage: 'encoding' }), 'fi-1')).toBe('Preparing new stream on fi-1…');
-    expect(preparingStreamText(progress({ kind: 'change', stage: 'encoding' }), 'fi-1')).toBe('Starting the new stream on fi-1…');
+  });
+
+  it('names the serving node through a change', () => {
+    expect(preparingStreamText(progress({ kind: 'change', stage: 'encoding', outputMediaMs: 600, firstFragmentMs: 2_000 }), 'fi-1'))
+      .toBe('Starting the new stream on fi-1: 30%');
+  });
+
+  // A failover arrives as a start, on a node the line cannot name: the
+  // endpoint it holds is the one being replaced. The web client's cases.
+  it('words a failover as a new stream and names no node', () => {
+    expect(preparingStreamText(progress({ kind: 'start', stage: 'planning' }), 'gbni-1')).toBe('Preparing new stream…');
+    expect(preparingStreamText(progress({ kind: 'start', stage: 'preroll', prerollDecodedMs: 1, prerollTotalMs: 2 }), 'gbni-1'))
+      .toBe('Finding the start point: 50%');
+    expect(preparingStreamText(progress({ kind: 'start', stage: 'encoding' }), 'gbni-1')).toBe('Starting the new stream…');
   });
 
   it('says nothing once the stage is over', () => {

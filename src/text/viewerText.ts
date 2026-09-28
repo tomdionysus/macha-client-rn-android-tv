@@ -207,11 +207,17 @@ export function startProgressText(progress: PlaybackStartProgress, node?: string
 }
 
 /**
- * The status line while the client moves to a new stream: the stage when the
- * node reports one, else the node that is doing the work.
+ * The status line while a new stream is prepared behind the one playing, the
+ * web client's `preparingStreamText` (`macha-client/src/screens/PlayerScreen.tsx`).
+ *
+ * A change (a seek, a mode or quality switch) is built on the node already
+ * serving, so that node is named. A failover arrives as a *start*, on a node
+ * this line cannot name: the endpoint it holds is the one being replaced. So a
+ * start is worded as a new stream with no node, and a node that reports no
+ * progress keeps the sentence it always had.
  */
 export function preparingStreamText(progress: PlaybackStartProgress | undefined, node?: string): string {
-  const staged = progress?.kind === 'change' ? startProgressText(progress, node, true) : undefined;
+  const staged = progress && startProgressText({ ...progress, kind: 'change' }, progress.kind === 'change' ? node : undefined, true);
   return staged ?? (node ? `Preparing new stream on ${node}…` : 'Preparing new stream…');
 }
 
