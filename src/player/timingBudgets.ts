@@ -183,3 +183,26 @@ export const REBUFFER_SPINNER_DELAY_MS = 3_000;
  * before the client gives that node up — the guarded relationship.
  */
 export const START_WAIT_NOTICE_MS = 5_000;
+
+/**
+ * How long Back from Home waits for queued storage writes before leaving
+ * anyway (`src/app/appExit.ts`).
+ *
+ * **Not calibrated against a measurement.** Nobody has timed an AsyncStorage
+ * write on either set, so this is a bound on a stuck write, not a figure the
+ * write is known to need: an ordinary queue of one or two small values is
+ * expected to drain far inside it (asserted, not measured). The relationship
+ * guarded is with `ANDROID_KEY_DISPATCH_TIMEOUT_MS`: a viewer who pressed Back
+ * and saw nothing happen for longer than Android lets an app ignore a key
+ * would reasonably take the app for hung.
+ */
+export const EXIT_FLUSH_BUDGET_MS = 2_000;
+
+/**
+ * Android's input-dispatch timeout, after which it reports an app as not
+ * responding to a key. The platform's figure (5 s in AOSP's
+ * `InputDispatcher`), asserted from its documentation and not read off either
+ * set. The exit wait is asynchronous and cannot itself trigger it; it is the
+ * yardstick for how long a press may go unanswered.
+ */
+export const ANDROID_KEY_DISPATCH_TIMEOUT_MS = 5_000;

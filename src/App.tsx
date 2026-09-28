@@ -12,7 +12,9 @@ import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime } from './app/usePlaybackRuntime';
 import { useContinueWatchingWriter } from './app/useContinueWatchingWriter';
 import { backAction, TOP_LEVEL } from './app/backAction';
-import { hydrateStorage } from './state/storage';
+import { exitAfterFlush } from './app/appExit';
+import { flushStorage, hydrateStorage } from './state/storage';
+import { EXIT_FLUSH_BUDGET_MS } from './player/timingBudgets';
 import { syncDiagnosticsLevel } from './diagnostics/failureTrailSetting';
 import { useTvNavigation } from './hooks/useTvNavigation';
 import { tvFocus } from './hooks/tvFocus';
@@ -321,12 +323,12 @@ function Shell(): React.JSX.Element {
       closePlayer();
       return true;
     }
-    // Back on a top-level screen is the platform's to handle — that is how a
-    // viewer leaves the app, and swallowing it would trap them in it — except
-    // on Settings, which goes Home (`backAction`).
+    // Only Home leaves the app, and only once storage has caught up
+    // (`backAction`, `exitAfterFlush`). The press is consumed either way: the
+    // exit is taken by us, after the flush, not by the platform before it.
     const action = backAction(route.name, stack.length);
-    if (action === 'exit') return false;
-    if (action === 'home') setStack([{ name: 'home' }]);
+    if (action === 'exit') void exitAfterFlush(flushStorage, () => BackHandler.exitApp(), EXIT_FLUSH_BUDGET_MS);
+    else if (action === 'home') setStack([{ name: 'home' }]);
     else pop();
     return true;
   }, [route.name, stack.length, closePlayer, pop, confirmingSignOut, signingOut]);

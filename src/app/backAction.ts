@@ -7,13 +7,13 @@ export type BackAction = 'pop' | 'home' | 'exit';
  * What Back does on a screen that is not the player (the player has its own
  * ladder, `PlayerScreen.tsx`).
  *
- * A level to go back to is always taken. On a top-level screen Back is the
- * platform's, and that is how a viewer leaves the app, with one exception:
- * **Settings goes Home** (Tom, 2026-09-28: "'Back' on settings should go to
- * Home, not exit the app"). The other sections still leave, as §3.5 of
- * `TODO/ACTIVE.md` records; Tom's ruling named Settings alone.
+ * A level to go back to is always taken. Otherwise every screen goes Home, and
+ * **only Home leaves the app** (Tom, 2026-09-28: "all should. In fact, only
+ * back from home exits the app"), with no confirmation; the exit waits for
+ * storage first (`appExit.ts`). A screen alone on the stack that is not a
+ * section goes Home too, since there is nothing to pop to.
  */
 export function backAction(route: string, depth: number): BackAction {
-  if (depth > 1 || !TOP_LEVEL.has(route)) return 'pop';
-  return route === 'settings' ? 'home' : 'exit';
+  if (depth > 1) return 'pop';
+  return route === 'home' ? 'exit' : 'home';
 }
