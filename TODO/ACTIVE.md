@@ -52,10 +52,9 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 
 ### The set
 
-- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~21:05
-  2026-09-28:** develop (Back on Settings goes Home) on core `cdde96e`
-  through the link, md5 `268baadad3fa2df76008083e2144ecd7`, read back off
-  the set; Back from Settings measured landing on Home the same minute; versionCode 800,
+- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~21:30
+  2026-09-28:** develop (only Home exits) on core `8614a09` through the
+  link, md5 `a64ba9c793cfcaefc5fe76f4fcf3a66c`, read back off the set; versionCode 800,
   the same as the 0.8.0 release (`ef17b384…`). Measured the same evening:
   *The Martian*'s page shows "Play chooses 1080p, which plays without
   converting. 4K needs its audio converted. Pick a quality to play another.",
@@ -2472,7 +2471,10 @@ watching etc is persisted before exit." Built in `src/app/backAction.ts`
 (every screen without a level to go back to goes Home; Home exits) and
 `src/app/appExit.ts` (the exit waits for `flushStorage`, bounded by
 `EXIT_FLUSH_BUDGET_MS`, 2 s, which is unmeasured and guarded against Android's 5 s
-key-dispatch timeout).
+key-dispatch timeout). **Seen on `.133`**, build md5
+`a64ba9c793cfcaefc5fe76f4fcf3a66c`: Movies, Back, Home; Home, Back, the
+launcher. That a pending write survives the exit is unit-tested, not
+measured.
 
 
 It does today. That is conventional Android TV behaviour, so it may be
