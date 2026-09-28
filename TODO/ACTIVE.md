@@ -52,12 +52,18 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 
 ### The set
 
-- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~20:20
-  2026-09-28:** develop `b5f83e2` on core `7819d37` through the link, md5
-  `82e71031cb2fc1399f05c52c7b7f73ab`, read back off the set; versionCode 800,
-  the same as the 0.8.0 release (`ef17b384…`). *The Martian*'s page shows
-  "Play chooses 1080p, which plays without converting. 4K needs its audio
-  converted. Pick a quality to play another." (measured, same evening). Diagnostics is
+- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~20:45
+  2026-09-28:** develop `de3ae1c` on core `fb96757` through the link, md5
+  `ea1c90a24180b4bdf1e5f881c003e002`, read back off the set; versionCode 800,
+  the same as the 0.8.0 release (`ef17b384…`). Measured the same evening:
+  *The Martian*'s page shows "Play chooses 1080p, which plays without
+  converting. 4K needs its audio converted. Pick a quality to play another.",
+  and Status names the nodes "Corvus GBNI-1" and "Corvus FI-1" (server
+  0.70.0). The too-slow-to-play failure, its Try again and Choose another
+  quality buttons, the stepped-down notice and the ", which the server can't
+  do fast enough" clause are unit-tested and **not seen**: the last needs a
+  node's `transcode_rates`, empty until a transcode of a minute or more
+  finishes on it. Diagnostics is
   **On** from the 4K test. Diagnostics
   left **Off**, the app on Home, screen timeout `600000`.
 - Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1) and
