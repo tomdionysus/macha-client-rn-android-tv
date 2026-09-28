@@ -52,10 +52,12 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 
 ### The set
 
-- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~19:45
-  2026-09-28:** develop `cd75d2a` on core `7819d37` through the link, md5
-  `f9a02ab23a00e05b81e3643e304550c3`, read back off the set; versionCode 800,
-  the same as the 0.8.0 release it replaced (`ef17b384…`). Diagnostics is
+- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~20:20
+  2026-09-28:** develop `b5f83e2` on core `7819d37` through the link, md5
+  `82e71031cb2fc1399f05c52c7b7f73ab`, read back off the set; versionCode 800,
+  the same as the 0.8.0 release (`ef17b384…`). *The Martian*'s page shows
+  "Play chooses 1080p, which plays without converting. 4K needs its audio
+  converted. Pick a quality to play another." (measured, same evening). Diagnostics is
   **On** from the 4K test. Diagnostics
   left **Off**, the app on Home, screen timeout `600000`.
 - Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1) and
@@ -195,7 +197,7 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    **Built 2026-09-28** as the web client's `qualityChoiceText` (f512cdc),
    one sentence from every fact, replacing `ceilingText`, on the detail
    page and in the player's options (the web shows it on the detail page
-   only). Unit-tested; not yet seen on the set.
+   only). **Seen on the set** on *The Martian*'s page, 2026-09-28.
 8. **Music: Tom's decision first**, whether the TV has it at all (§4.6). The
    web and phone clients have per-track lines, and Tom ruled music "yes" for
    media info; that is not the same as building the seven music routes.
