@@ -91,7 +91,10 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    decoded at ~0.33x). It is all core's to call; the TV answered "fits, via
    core", with five notes: core's elapsed budget, the player's timers, Stop
    during a pending PATCH, words staying ours, and the https long-poll's
-   idle timeout. **Build nothing here until core ships it.** The TV keeps the old file playing and says "That change could
+   idle timeout. The server's answers, the same day: deleting the session
+   also drops a pending replacement, so Stop or Back is one DELETE; notes 1
+   and 5 went to core, with `start_wait_max_ms` proposed at 25 s; stage and
+   counters are data only. **Build nothing here until core ships it.** The TV keeps the old file playing and says "That change could
    not be applied.", which the server and core call correct.
 4. **Not yet seen on the set:** next episode on end across a season (needs a
    show with two seasons; *Firefly* has one), and the `resource_limit`
