@@ -2,6 +2,7 @@ import {
   MachaClusterRouteError,
   MachaConnectionError,
   NOT_PLAYABLE_CODE,
+  START_NO_PROGRESS_CODE,
   playbackFailureCode,
   playbackFailureDetail,
   playbackFailureStatus,
@@ -270,14 +271,6 @@ export function alphabetKeyLabel(key: string): string {
  * HTTP status and the server's code, through core's accessors, so a reworded
  * log line can never change what a viewer reads.
  */
-/**
- * Core's own failure when a start that reports progress (server 0.69.0) stops
- * reporting any (`MachaPlaybackResolver.ts`, `00ff3eb`). **A local copy:** core
- * spells it inline and exports no constant, unlike `NOT_PLAYABLE_CODE`; asked
- * for one 2026-09-28, and this should import it once it exists.
- */
-const START_NO_PROGRESS_CODE = 'start_no_progress';
-
 export function errorText(error: unknown): string {
   if (error instanceof MachaClusterRouteError) {
     return error.unreachable
@@ -287,8 +280,9 @@ export function errorText(error: unknown): string {
   if (error instanceof MachaConnectionError) return "Can't reach the Macha server.";
   if (error instanceof SessionAuthError) return 'Your session has ended. Sign in again.';
   if (playbackFailureCode(error) === NOT_PLAYABLE_CODE) return "This can't be played on this television.";
-  // No server sentence behind it, and its 504 would otherwise read as the
-  // server being unable to answer, which is not what happened.
+  // Core's own, when a start that reports progress (server 0.69.0) stops
+  // reporting any: no server sentence behind it, and its 504 would otherwise
+  // read as the server being unable to answer, which is not what happened.
   if (playbackFailureCode(error) === START_NO_PROGRESS_CODE) return 'The node stopped making progress starting this stream.';
   const status = playbackFailureStatus(error);
   if (status === 401 || status === 403) return 'Your session has ended. Sign in again.';
