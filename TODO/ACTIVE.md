@@ -83,8 +83,8 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    `503 playback_pipeline_start_failed` "timed out waiting for first
    fragmented-MP4 segment", on fi-1 and gbni-1 alike, only with a seek into
    the 4K HEVC 10-bit source (controls measured and sent). The server's:
-   Tom has agreed a fixed start budget is wrong. **The shape was announced
-   2026-09-28 for server 0.69.0, not built:** opt-in `?start=async` (202
+   Tom has agreed a fixed start budget is wrong. **Built as server 0.69.0
+   on 2026-09-28 (committed, not deployed), in the shape announced that day:** opt-in `?start=async` (202
    `playback_starting`), a `start` object with a stage and counters, a
    long-poll, `DELETE .../pending`, and failure only when progress stops.
    Measured on fi-1 that day: the start takes 8.6-11.9 s (4K HEVC 10-bit
