@@ -53,7 +53,7 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 ### The set
 
 - **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~20:45
-  2026-09-28:** develop `de3ae1c` on core `fb96757` through the link, md5
+  2026-09-28:** develop `de3ae1c` on core `cdde96e` through the link (its dist built 20:05, before this build), md5
   `ea1c90a24180b4bdf1e5f881c003e002`, read back off the set; versionCode 800,
   the same as the 0.8.0 release (`ef17b384…`). Measured the same evening:
   *The Martian*'s page shows "Play chooses 1080p, which plays without
