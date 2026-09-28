@@ -41,7 +41,10 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 - **`develop`** is `main`'s 0.8.0 plus the relink and README commits, on
   core `a3beeed` or later through the link; typecheck and 344 tests pass. Tom
   pushes develop when asked ("push develop please" is the form he uses).
-- **Server:** 0.64.1 on fi-1 and gbni-1 (the server session's report).
+- **Server:** 0.71.0 on fi-1 and gbni-1 since 2026-09-28 18:58Z (core's
+  report). 0.69.0 brought start progress, 0.70.0 operator node names
+  ("Corvus FI-1", "Corvus GBNI-1") and transcode rates, and 0.71.0 is
+  torrent-only.
   0.68.0 is committed, not deployed: it adds only
   `GET /api/v1/catalogue/media/{id}/keyframes`, which core consumes
   (`bufferedTime.ts`) and this client does not; answered "no conflict"
