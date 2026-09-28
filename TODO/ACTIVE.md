@@ -185,7 +185,12 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    picks its 1080p file because the 4K file's TrueHD needs converting, which
    core ranks below direct and deliberately does not call a ceiling
    (`playbackVersions.ts`). Asked core for structured data on a ranking
-   pass-over, and the web client to word it first. **Waiting on both.**
+   pass-over, and the web client to word it first. **Core's half landed at
+   `03b0bdb`:** `versions.passedOver?` = `{ quality, mediaId?, converts:
+   { video, audio }, reasons }`, set only where automatic play chose a smaller
+   file than the largest within the ceiling because that one would convert
+   (*The Martian* here: 2160, audio only, `audio-codec-not-playable`).
+   **Waiting on the web client's wording**, which it will send for both.
 8. **Music: Tom's decision first**, whether the TV has it at all (§4.6). The
    web and phone clients have per-track lines, and Tom ruled music "yes" for
    media info; that is not the same as building the seven music routes.
