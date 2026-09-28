@@ -12,70 +12,49 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 **What landed, and what went wrong, is in `COMPLETED.md`'s top section.** This
 section is only what is open, in the order to do it.
 
-### First thing: release TV 0.8.0 on core 0.20.0
+### Released: TV 0.8.0 on core 0.20.0 — 2026-09-28
 
-**Tom has called core 0.20.0** (the Macha Client Core session cuts it; Tom
-publishes). The candidate is **`ae82922`** (dist `f7fd989fe6e8`); the TV
-answered **GO** against it on 2026-09-27 (typecheck clean, 344 tests, export).
-It may still move: take the version and commit core names when it says
-**"on npm"**. Do nothing to
-`main` before that message. Core's own steps for this client, in its words:
-merge develop into main; on main set `@machafoundation/core` to `^0.20.0` from
-the registry in place of `file:../macha-ts`, install, run the full checks;
-commit and push main; return to develop with the link restored.
+`main` `2ceb827`, annotated tag `0.8.0`, both pushed on Tom's say-so, with
+`^0.20.0` from the registry (lockfile `resolved` is the npm tarball, and
+`node_modules` held a real directory). typecheck, 344 tests and the export
+passed against that copy. `develop` merged `main` back and relinked
+`../macha-ts` (`00ce233`).
 
-**Why it matters:** `main` is `0.7.0` on core `^0.19.0`, which **cannot play
-against the servers at all** since 0.58.0 (`HTTP 400 item_id_not_accepted`,
-measured on fi-1 2026-09-25). The phone's 0.9.0 is in the same state.
+**Measured on `.133`, 2026-09-28 17:30:** release APK md5
+`ef17b38478e2219885f8f4853f8da4fe`, read back identical off the set; aapt2
+says `versionCode 800`, `armeabi-v7a`, leanback required. Smoke test
+passed: Home, *The Martian*'s detail page (three file lines, synopsis below
+the poster, now seen), 720p direct play, the Quality row, Stop, Continue
+Watching (*The Martian* first). Core's `ae82922` is **confirmed on
+hardware**: an uncapped Transcode of the 720p file marks **720p**. Core is
+told, with the md5.
 
-**The TV's version: proposed `0.8.0`, `versionCode 800`**, not 0.7.1: it
-carries features (per-quality Play, the one Quality row, media lines, next
-episode on end, resume-as-left, the spinner, Continue Watching's remove
-button) and core's breaking changes. **Tom's call**; ask before tagging.
-
-The procedure, as 0.7.0's (`git show 73cf87d`, and `COMPLETED.md`):
-
-1. Confirm `develop` is clean and pushed, and that it typechecks and passes
-   against the linked core that 0.20.0 was cut from.
-2. `git checkout main && git merge --ff-only develop` (fast-forward only;
-   stop and ask if it is not).
-3. In `package.json` put `"@machafoundation/core": "^0.20.0"`, then
-   `npm install @machafoundation/core@^0.20.0` **by name**: a plain
-   `npm install` keeps the link. Check `ls -ld node_modules/@machafoundation/core`
-   is a **directory, not a symlink**, and the lockfile's `resolved` is the npm
-   tarball.
-4. Bump the version in `package.json`, `app.json` (`version` and
-   `android.versionCode`: `major*10000 + minor*100 + patch`) and the README's
-   `_v…_` line. Then `EXPO_TV=1 npx expo prebuild --platform android --clean`
-   (`npm test` runs `version:check` against the generated tree too).
-5. `npm run typecheck`, `npm test`, `npx expo export --platform android`.
-6. Build (below), `aapt2 dump badging` must say the new `versionCode`,
-   `armeabi-v7a` and `android.software.leanback`; install on `.133` and smoke
-   test: Home, a film's detail page, Play, the Quality row, Stop, Continue
-   Watching.
-7. Commit on main **with the version bump inside the release commit**, then an
-   **annotated, bare** tag (`git tag -a 0.8.0 -m "0.8.0"`, never `v0.8.0`).
-8. **Pushing `main` and the tag needs Tom's say-so each time.** Hand him:
-   `git -C /Users/tom/devroot/macha-client-rn-tv push origin main 0.8.0`.
-9. Back on develop: restore `file:../macha-ts` (`npm install ../macha-ts`),
-   check `ls -l node_modules/@machafoundation/core` is a symlink again, run the
-   three checks, and tell core the TV is released with the tag and md5.
+**What the next release should not repeat:** the prebuild before `npm test`
+must be `EXPO_TV=1 ... --clean`. A plain prebuild was run first; the
+manifest it made still required leanback, but what else `EXPO_TV` changes
+was not checked, and the APK that shipped came from the correct one. And the smoke
+test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
+(see the traps below).
 
 ### The tree
 
-- **`develop`** is at `2a04ba2` plus TODO commits, on core `29fa878` or
-  later through the link; typecheck, 344 tests and the export pass. Tom
+- **`develop`** is `main`'s 0.8.0 plus the relink and README commits, on
+  core `a3beeed` or later through the link; typecheck and 344 tests pass. Tom
   pushes develop when asked ("push develop please" is the form he uses).
 - **Server:** 0.64.1 on fi-1 and gbni-1 (the server session's report).
+  0.68.0 is committed, not deployed: it adds only
+  `GET /api/v1/catalogue/media/{id}/keyframes`, which core consumes
+  (`bufferedTime.ts`) and this client does not; answered "no conflict"
+  2026-09-28.
   gbni-1 **is** macnessa (`10.44.1.50`). Every server release since 0.58.0
   has been announced by the Macha Server or Macha Client Core session; the
   history is in `COMPLETED.md`.
 
 ### The set
 
-- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed 20:47:39
-  2026-09-27:** develop `2a04ba2` on core `29fa878`, md5
-  `288f45462d284ffc7034135a28693fcc`, read back off the set. Diagnostics
+- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed 17:29
+  2026-09-28:** release 0.8.0 (`main` `2ceb827`, registry core 0.20.0), md5
+  `ef17b38478e2219885f8f4853f8da4fe`, read back off the set. Diagnostics
   left **Off**, the app on Home, screen timeout `600000`.
 - Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1) and
   `http://10.44.1.50:7438` (gbni-1/macnessa); remembered
@@ -91,10 +70,10 @@ The procedure, as 0.7.0's (`git show 73cf87d`, and `COMPLETED.md`):
 
 ### Open, in order
 
-1. **The release** (above).
+1. ~~**The release**~~ — done, above.
 2. ~~**The Quality row marks nothing after some starts.**~~ Fixed in core
-   `ae82922` (an uncapped transcode marks its file's own class; *The
-   Martian*'s 720p file marks 720). **Check it in the 0.8.0 smoke test.**
+   `ae82922`, **measured on the set 2026-09-28** (720p marked on an uncapped
+   transcode of the 720p file).
    The finding: On a resumed
    transcode of *The Martian*'s 720p file with no cap, none of 4K / 2K /
    1080p / 720p / 480p / 360p was highlighted (measured 2026-09-27 20:50):
@@ -148,15 +127,22 @@ direct-play reap never reaches the player (P-1 below).
 
 ### Waiting on others
 
-- **Core:** 0.20.0 on npm (then the release above).
 - **Server:** the start-progress design, for review.
-- **Tom:** the TV's version number; Music; whether series/season "links" on
+- **Tom:** Music; whether series/season "links" on
   a card mean anything beyond Back.
 
 ### Traps this session paid for — driving the set over adb
 
-- **The player chrome hides after 4 s and the next key only reveals it.** Send
-  a sequence in one `adb shell` call, or budget a reveal press.
+- **The player chrome hides after 4 s and the next key only reveals it**,
+  and a reveal puts focus back on Pause. Reading a screenshot takes longer
+  than 4 s, so every player sequence goes in **one** `adb shell` call:
+  `DPAD_LEFT` x5 (lands on the leftmost button whatever the state), then
+  `DPAD_RIGHT` x4 for "...", x5 for Stop, then `DPAD_CENTER`. Measured
+  2026-09-28: four separate attempts each pressed fast-forward or Pause.
+- **From a Continue Watching card, Up goes to the card's remove (X) button
+  first** and only a second Up reaches the top bar. So Up, Right, OK from a
+  card on Home plays a Movies-row title: it started *The Sixth Sense* on
+  2026-09-28. Screenshot after every Up on Home.
 - **`dumpsys media_session` `state=` can be stale**; compare `updated` with
   `/proc/uptime`.
 - **`adb shell input text` drops characters** on this set's keyboard; type one
