@@ -33,4 +33,9 @@ describe('the player spinner', () => {
     expect(startWaitNotice(true, 7_400)).toBe('Waiting for the node to start the stream — 7s');
     expect(startWaitNotice(false, 60_000)).toBeUndefined();
   });
+
+  it("puts a reported stage in place of the general sentence, keeps the seconds, and keeps the delay", () => {
+    expect(startWaitNotice(true, 9_200, 'Finding the start point: 40%')).toBe('Finding the start point: 40% — 9s');
+    expect(startWaitNotice(true, START_WAIT_NOTICE_MS - 1, 'Preparing the stream on fi-1')).toBeUndefined();
+  });
 });

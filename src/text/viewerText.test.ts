@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaybackStatusDescription, TechnicalSummary } from '@machafoundation/core';
+import type { PlaybackStartProgress, PlaybackStatusDescription, TechnicalSummary } from '@machafoundation/core';
 import {
   alphabetKeyLabel,
   ceilingText,
@@ -13,7 +13,9 @@ import {
   serverStatusText,
   catalogueStatusText,
   isSignedOut,
+  preparingStreamText,
   sortChoiceLabel,
+  startProgressText,
   streamLines,
   trackFacts,
   trackNumberLabel,
@@ -152,6 +154,57 @@ describe('errorText', () => {
     });
     expect(errorText(lapsed)).toBe('Your session has ended. Sign in again.');
     expect(errorText(new Error('All configured Macha API endpoints failed.'))).toBe('Something went wrong.');
+  });
+
+  it("words core's own no-progress failure, which has no server sentence, before its 504", async () => {
+    const { MachaPlaybackError } = await import('@machafoundation/core');
+    const stalled = new MachaPlaybackError('Macha playback start made no progress for 17000 ms.', 504, 'start_no_progress');
+    expect(errorText(stalled)).toBe('The node stopped making progress starting this stream.');
+  });
+});
+
+/**
+ * What a start or a change is doing (core `00ff3eb`, server 0.69.0), the web
+ * client's `startProgressText` (`macha-client/src/text/viewerText.ts`, read
+ * 2026-09-28 from its working tree) and its tests' cases.
+ */
+describe('startProgressText', () => {
+  const progress = (over: Partial<PlaybackStartProgress>): PlaybackStartProgress =>
+    ({ kind: 'start', stage: 'planning', progressSeq: 1, elapsedMs: 0, ...over });
+
+  it('names the node for a start only while planning', () => {
+    expect(startProgressText(progress({ stage: 'planning' }), 'fi-1')).toBe('Preparing the stream on fi-1');
+    expect(startProgressText(progress({ stage: 'preroll', prerollDecodedMs: 400, prerollTotalMs: 1_000 }), 'fi-1'))
+      .toBe('Finding the start point: 40%');
+    expect(startProgressText(progress({ stage: 'encoding', outputMediaMs: 1_200, firstFragmentMs: 2_000 }), 'fi-1'))
+      .toBe('Starting the stream: 60%');
+  });
+
+  it('names the node throughout a change, with an ellipsis when it stands alone without a figure', () => {
+    const change = (over: Partial<PlaybackStartProgress>) => progress({ kind: 'change', ...over });
+    expect(startProgressText(change({ stage: 'planning' }), 'fi-1', true)).toBe('Preparing new stream on fi-1…');
+    expect(startProgressText(change({ stage: 'preroll', prerollDecodedMs: 250, prerollTotalMs: 1_000 }), 'fi-1', true))
+      .toBe('Finding the start point on fi-1: 25%');
+    expect(startProgressText(change({ stage: 'encoding', outputMediaMs: 600, firstFragmentMs: 1_000 }), 'fi-1', true))
+      .toBe('Starting the new stream on fi-1: 60%');
+  });
+
+  it('shows a figure only when the node measured both halves, never 0% and never a guess', () => {
+    expect(startProgressText(progress({ stage: 'preroll', prerollDecodedMs: 400 }))).toBe('Finding the start point');
+    expect(startProgressText(progress({ stage: 'preroll', prerollDecodedMs: 0, prerollTotalMs: 0 }))).toBe('Finding the start point');
+    expect(startProgressText(progress({ stage: 'encoding', outputMediaMs: 3_000, firstFragmentMs: 2_000 }))).toBe('Starting the stream: 100%');
+  });
+
+  it("keeps the status line's old sentence for a node that reports nothing, or for a start", () => {
+    expect(preparingStreamText(undefined, 'fi-1')).toBe('Preparing new stream on fi-1…');
+    expect(preparingStreamText(undefined)).toBe('Preparing new stream…');
+    expect(preparingStreamText(progress({ kind: 'start', stage: 'encoding' }), 'fi-1')).toBe('Preparing new stream on fi-1…');
+    expect(preparingStreamText(progress({ kind: 'change', stage: 'encoding' }), 'fi-1')).toBe('Starting the new stream on fi-1…');
+  });
+
+  it('says nothing once the stage is over', () => {
+    expect(startProgressText(progress({ stage: 'ready' }))).toBeUndefined();
+    expect(startProgressText(progress({ stage: 'failed' }))).toBeUndefined();
   });
 });
 

@@ -42,6 +42,8 @@ import {
   errorText,
   formatPlaybackTime,
   playbackNoticeText,
+  preparingStreamText,
+  startProgressText,
   streamLines as streamLinesText,
 } from '../text/viewerText';
 import type { EpisodeNavigation } from '../app/useEpisodeNeighbours';
@@ -580,7 +582,13 @@ export function PlayerScreen({
       {showsBuffering(playback) ? (
         <BufferingOverlay
           delayMs={bufferingDelayMs(starting)}
-          note={startWaitNotice(starting, startWaitMs)}
+          note={startWaitNotice(
+            starting,
+            startWaitMs,
+            playback?.startProgress?.kind === 'start'
+              ? startProgressText(playback.startProgress, streamStatus?.endpoint)
+              : undefined,
+          )}
         />
       ) : null}
 
@@ -606,11 +614,11 @@ export function PlayerScreen({
                 // "which node" is the only question worth asking about it. The
                 // endpoint shown is the one currently held — the node being
                 // replaced during a failover — so watching this line through a
-                // failover shows how far round the cluster it has got.
+                // failover shows how far round the cluster it has got. A node
+                // that reports a change's progress (server 0.69.0) names the
+                // stage instead, while the current picture plays on.
                 <Text style={styles.streamLine}>
-                  {streamStatus?.endpoint
-                    ? `Preparing new stream on ${streamStatus.endpoint}…`
-                    : 'Preparing new stream…'}
+                  {preparingStreamText(playback.startProgress, streamStatus?.endpoint)}
                 </Text>
               ) : (
                 <>

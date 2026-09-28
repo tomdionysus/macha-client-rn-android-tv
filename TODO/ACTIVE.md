@@ -104,9 +104,12 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    is word the stage in place of `startWaitText`'s bare seconds
    (`src/text/viewerText.ts`, under the spinner; a slow start is the
    spinner's, not §2.11's logo), and say a `change` is under way while the
-   picture keeps playing. **Not started:** the web client is the standard for
-   that sentence, so its wording should come first or be Tom's call; and none
-   of it can be seen until 0.69.0 is deployed to a node. The TV keeps the old file playing and says "That change could
+   picture keeps playing. **Built 2026-09-28** as the web client's
+   wording, read from its working tree (uncommitted there): `startProgressText`,
+   `preparingStreamText` and the `start_no_progress` sentence in
+   `src/text/viewerText.ts`, the stage in `startWaitNotice`. Unit-tested only;
+   **not seen on the set** until 0.69.0 is deployed to a node, and the web
+   client's copy is itself unseen live. The TV keeps the old file playing and says "That change could
    not be applied.", which the server and core call correct.
 4. **Not yet seen on the set:** next episode on end across a season (needs a
    show with two seasons; *Firefly* has one), and the `resource_limit`

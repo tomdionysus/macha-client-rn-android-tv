@@ -10,6 +10,7 @@ import {
   type MediaSummary,
   type MusicHierarchyContext,
   type PlaybackNotice,
+  type PlaybackStartProgress,
   type PlaybackStatusDescription,
   type PlaybackStreamInfo,
   qualityLabel,
@@ -161,9 +162,56 @@ export function playbackNoticeText(notice: PlaybackNotice): string {
 
 // ── The player's spinner ───────────────────────────────────────────────────
 
-/** Under the spinner once a start runs long: the web client's sentence. */
-export function startWaitText(elapsedMs: number): string {
-  return `Waiting for the node to start the stream — ${Math.floor(elapsedMs / 1_000)}s`;
+/**
+ * Under the spinner once a start runs long: the web client's sentence. A node
+ * that reports its start's progress (server 0.69.0) names the stage, which
+ * replaces the general words; the seconds stay where they are.
+ */
+export function startWaitText(elapsedMs: number, stage?: string): string {
+  return `${stage ?? 'Waiting for the node to start the stream'} — ${Math.floor(elapsedMs / 1_000)}s`;
+}
+
+/** A whole percentage of `done` over `total`, when the node measured both. */
+function measuredPercent(done: number | undefined, total: number | undefined): number | undefined {
+  if (done === undefined || total === undefined || !Number.isFinite(done) || !Number.isFinite(total) || total <= 0) return undefined;
+  return Math.min(100, Math.max(0, Math.floor((done / total) * 100)));
+}
+
+/**
+ * What a start or a change is doing, from core's counters (server 0.69.0):
+ * the stage, and how far through it when the node measured that. Never an
+ * estimate: a counter the node did not report shows no figure at all.
+ *
+ * The web client's `startProgressText` (`macha-client/src/text/viewerText.ts`),
+ * word for word. `node` names where the work is happening: a change names it
+ * throughout, because the viewer is watching one stream while another is
+ * built; a start names it only while planning. `standalone` marks an open
+ * stage with an ellipsis, for a line with nothing after it.
+ */
+export function startProgressText(progress: PlaybackStartProgress, node?: string, standalone = false): string | undefined {
+  const on = node ? ` on ${node}` : '';
+  const change = progress.kind === 'change';
+  const words =
+    progress.stage === 'planning' ? `${change ? 'Preparing new stream' : 'Preparing the stream'}${on}`
+    : progress.stage === 'preroll' ? `Finding the start point${change ? on : ''}`
+    : progress.stage === 'encoding' ? (change ? `Starting the new stream${on}` : 'Starting the stream')
+    : undefined;
+  if (!words) return undefined;
+  const percent =
+    progress.stage === 'preroll' ? measuredPercent(progress.prerollDecodedMs, progress.prerollTotalMs)
+    : progress.stage === 'encoding' ? measuredPercent(progress.outputMediaMs, progress.firstFragmentMs)
+    : undefined;
+  if (percent !== undefined) return `${words}: ${percent}%`;
+  return standalone ? `${words}…` : words;
+}
+
+/**
+ * The status line while the client moves to a new stream: the stage when the
+ * node reports one, else the node that is doing the work.
+ */
+export function preparingStreamText(progress: PlaybackStartProgress | undefined, node?: string): string {
+  const staged = progress?.kind === 'change' ? startProgressText(progress, node, true) : undefined;
+  return staged ?? (node ? `Preparing new stream on ${node}…` : 'Preparing new stream…');
 }
 
 // ── Versions and the quality ceiling ───────────────────────────────────────
@@ -222,6 +270,14 @@ export function alphabetKeyLabel(key: string): string {
  * HTTP status and the server's code, through core's accessors, so a reworded
  * log line can never change what a viewer reads.
  */
+/**
+ * Core's own failure when a start that reports progress (server 0.69.0) stops
+ * reporting any (`MachaPlaybackResolver.ts`, `00ff3eb`). **A local copy:** core
+ * spells it inline and exports no constant, unlike `NOT_PLAYABLE_CODE`; asked
+ * for one 2026-09-28, and this should import it once it exists.
+ */
+const START_NO_PROGRESS_CODE = 'start_no_progress';
+
 export function errorText(error: unknown): string {
   if (error instanceof MachaClusterRouteError) {
     return error.unreachable
@@ -231,6 +287,9 @@ export function errorText(error: unknown): string {
   if (error instanceof MachaConnectionError) return "Can't reach the Macha server.";
   if (error instanceof SessionAuthError) return 'Your session has ended. Sign in again.';
   if (playbackFailureCode(error) === NOT_PLAYABLE_CODE) return "This can't be played on this television.";
+  // No server sentence behind it, and its 504 would otherwise read as the
+  // server being unable to answer, which is not what happened.
+  if (playbackFailureCode(error) === START_NO_PROGRESS_CODE) return 'The node stopped making progress starting this stream.';
   const status = playbackFailureStatus(error);
   if (status === 401 || status === 403) return 'Your session has ended. Sign in again.';
   if (status === 404 || status === 410) return "That isn't available any more.";

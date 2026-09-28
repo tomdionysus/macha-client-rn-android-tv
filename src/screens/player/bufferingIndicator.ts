@@ -24,9 +24,11 @@ export function bufferingDelayMs(starting: boolean): number {
 
 /**
  * What to tell a viewer whose title has not started yet, once it is taking a
- * while. Only a start: a rebuffer has the picture behind it.
+ * while. Only a start: a rebuffer has the picture behind it. `stage` is what
+ * a node that reports progress says it is doing; the delay is unchanged, since
+ * a quick start is no more worth announcing for being measured.
  */
-export function startWaitNotice(starting: boolean, elapsedMs: number): string | undefined {
+export function startWaitNotice(starting: boolean, elapsedMs: number, stage?: string): string | undefined {
   if (!starting || elapsedMs < START_WAIT_NOTICE_MS) return undefined;
-  return startWaitText(elapsedMs);
+  return startWaitText(elapsedMs, stage);
 }
