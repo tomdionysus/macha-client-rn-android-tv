@@ -168,6 +168,13 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 6. **§1.12:** Continue Watching is not per-account (core's storage).
 7. **§1.8** the stereo A/B (needs a listener), **§1.9** catalogue `5xx`
    charging a node (core's), **§1.1** the top bar's ends.
+7a. **Say why Play passed over a larger file** (Tom, 2026-09-28: the web
+   client's "Play chooses up to …" sentence, on the TV too). On `.133` the
+   screen is 4K, so no `limitedBy` is ever set for *The Martian*, yet Play
+   picks its 1080p file because the 4K file's TrueHD needs converting, which
+   core ranks below direct and deliberately does not call a ceiling
+   (`playbackVersions.ts`). Asked core for structured data on a ranking
+   pass-over, and the web client to word it first. **Waiting on both.**
 8. **Music: Tom's decision first**, whether the TV has it at all (§4.6). The
    web and phone clients have per-track lines, and Tom ruled music "yes" for
    media info; that is not the same as building the seven music routes.
