@@ -94,7 +94,19 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    idle timeout. The server's answers, the same day: deleting the session
    also drops a pending replacement, so Stop or Back is one DELETE; notes 1
    and 5 went to core, with `start_wait_max_ms` proposed at 25 s; stage and
-   counters are data only. **Build nothing here until core ships it.** The TV keeps the old file playing and says "That change could
+   counters are data only. **Core wrapped it at `00ff3eb` (develop, 2026-09-28):**
+   on a node that supports it, the elapsed first-fragment budget gives way
+   to no-progress; `snapshot.startProgress?` = `{ kind: 'start'|'change',
+   stage, progressSeq, elapsedMs, sourceBytesRead?, prerollDecodedMs?,
+   prerollTotalMs?, outputMediaMs?, firstFragmentMs? }`, set while a start
+   or a change is being prepared and cleared at ready or failed. Typecheck and
+   344 tests pass against it through the link. **What the TV would do with it**
+   is word the stage in place of `startWaitText`'s bare seconds
+   (`src/text/viewerText.ts`, under the spinner; a slow start is the
+   spinner's, not §2.11's logo), and say a `change` is under way while the
+   picture keeps playing. **Not started:** the web client is the standard for
+   that sentence, so its wording should come first or be Tom's call; and none
+   of it can be seen until 0.69.0 is deployed to a node. The TV keeps the old file playing and says "That change could
    not be applied.", which the server and core call correct.
 4. **Not yet seen on the set:** next episode on end across a season (needs a
    show with two seasons; *Firefly* has one), and the `resource_limit`
