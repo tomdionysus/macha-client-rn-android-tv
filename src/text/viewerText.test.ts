@@ -14,6 +14,8 @@ import {
   isSignedOut,
   preparingStreamText,
   qualityChoiceText,
+  qualitySteppedDownText,
+  tooSlowToPlayText,
   sortChoiceLabel,
   startProgressText,
   streamLines,
@@ -353,5 +355,35 @@ describe('why Play chooses the file it does, as one sentence from every fact', (
 
   it('says nothing when Play chooses the largest file there is', () => {
     expect(qualityChoiceText({ files, automatic: automatic(2160) })).toBeUndefined();
+  });
+});
+
+/**
+ * The end of the failover loop (core d1069d2): the web client's
+ * `tooSlowToPlayText` and `qualitySteppedDownText` and its tests' cases
+ * (`macha-client/src/text/viewerText.test.ts`, working tree 2026-09-28).
+ */
+describe('a quality no node can convert fast enough', () => {
+  it("says which quality and which streams, from what was playing (Tom: 'Macha can't play this quality because...')", () => {
+    expect(tooSlowToPlayText(2160, { video: 'transcode', audio: 'transcode' }))
+      .toBe("Macha can't play 4K because the server can't convert its video and audio fast enough to keep up.");
+    expect(tooSlowToPlayText(1440, { video: 'transcode', audio: 'copy' }))
+      .toBe("Macha can't play 2K because the server can't convert its video fast enough to keep up.");
+    // An omitted stream (no audio at all) is not one being converted.
+    expect(tooSlowToPlayText(2160, { video: 'transcode', audio: 'omit' }))
+      .toBe("Macha can't play 4K because the server can't convert its video fast enough to keep up.");
+  });
+
+  it('keeps the sentence whole when a fact is missing, and is what errorText falls back to', async () => {
+    const { MachaPlaybackError, TOO_SLOW_TO_PLAY_CODE } = await import('@machafoundation/core');
+    expect(tooSlowToPlayText()).toBe("Macha can't play this quality because the server can't convert it fast enough to keep up.");
+    expect(errorText(new MachaPlaybackError('too slow', 504, TOO_SLOW_TO_PLAY_CODE))).toBe(tooSlowToPlayText());
+  });
+
+  it('says where core stepped its own choice down, naming the quality it chose', () => {
+    expect(qualitySteppedDownText(1080)).toBe("Switched to 1080p: the server can't convert a higher quality fast enough.");
+    expect(playbackNoticeText({ code: 'quality-stepped-down' }, 1080))
+      .toBe("Switched to 1080p: the server can't convert a higher quality fast enough.");
+    expect(qualitySteppedDownText()).toBe("Switched to a lower quality: the server can't convert a higher quality fast enough.");
   });
 });

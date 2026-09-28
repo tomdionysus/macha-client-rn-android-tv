@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, Text, View } from 'react-native';
 import {
   describePlaybackSession,
+  playbackFailureCode,
+  TOO_SLOW_TO_PLAY_CODE,
   type Episode,
   type MediaSummary,
   type PlaybackCoordinatorSnapshot,
@@ -14,6 +16,7 @@ import {
   type SeekHold,
 } from './player/seekAcceleration';
 import { androidTvPlatform } from '../platform/AndroidTvPlatform';
+import { Button } from '../components/Button';
 import { Focusable } from '../components/Focusable';
 import { PlayerOptions, OPTIONS_SCOPE } from './player/PlayerOptions';
 import { BufferingOverlay } from './player/BufferingOverlay';
@@ -46,6 +49,7 @@ import {
   preparingStreamText,
   startProgressText,
   streamLines as streamLinesText,
+  tooSlowToPlayText,
 } from '../text/viewerText';
 import type { EpisodeNavigation } from '../app/useEpisodeNeighbours';
 
@@ -84,6 +88,14 @@ const SCRUBBER_FOCUS_ID = 'player-scrubber';
 
 /** The focus scope name; while the chrome is up nothing behind it is reachable. */
 const CHROME_SCOPE = 'player-chrome';
+
+/**
+ * The failure's own buttons (Try again, Choose another quality). A scope of
+ * their own, because the failure overlay outlives the chrome's four-second
+ * hide: in the chrome's scope they would drop out of reach while still on
+ * screen.
+ */
+const FAILURE_SCOPE = 'player-failure';
 
 
 export function PlayerScreen({
@@ -256,16 +268,6 @@ export function PlayerScreen({
     tvFocus.select(SCRUBBER_FOCUS_ID);
   }, [chromeVisible]);
 
-  // While the chrome is up it owns the D-pad entirely, mirroring the web
-  // client scoping its candidate query to `.player-chrome.visible`.
-  useEffect(() => {
-    if (!chromeVisible) {
-      tvFocus.popScope(CHROME_SCOPE);
-      return undefined;
-    }
-    tvFocus.pushScope(CHROME_SCOPE);
-    return () => tvFocus.popScope(CHROME_SCOPE);
-  }, [chromeVisible]);
 
   // The options panel takes the D-pad outright while it is open, so the
   // transport behind it cannot be reached by pressing through the panel.
@@ -274,6 +276,32 @@ export function PlayerScreen({
     tvFocus.pushScope(OPTIONS_SCOPE);
     return () => tvFocus.popScope(OPTIONS_SCOPE);
   }, [optionsOpen]);
+
+  /**
+   * Core d1069d2: a quality the viewer chose that no node converts at real
+   * speed stops with a stated reason, and Tom asked for "a try again option"
+   * with it. The overlay takes the D-pad while it is up, as the panel does.
+   */
+  const tooSlow = Boolean(playback?.fatalError) && playbackFailureCode(playback?.fatalError) === TOO_SLOW_TO_PLAY_CODE;
+  useEffect(() => {
+    if (!tooSlow) return undefined;
+    tvFocus.pushScope(FAILURE_SCOPE);
+    return () => tvFocus.popScope(FAILURE_SCOPE);
+  }, [tooSlow]);
+
+  // While the chrome is up it owns the D-pad entirely, mirroring the web
+  // client scoping its candidate query to `.player-chrome.visible` — except
+  // over the failure's buttons: any press re-shows the chrome, and pushing its
+  // scope then would stack it above them, the fault the panel had
+  // (2026-09-23, above) with the transport taking the D-pad.
+  useEffect(() => {
+    if (!chromeVisible || tooSlow) {
+      tvFocus.popScope(CHROME_SCOPE);
+      return undefined;
+    }
+    tvFocus.pushScope(CHROME_SCOPE);
+    return () => tvFocus.popScope(CHROME_SCOPE);
+  }, [chromeVisible, tooSlow]);
 
   // The panel holds the chrome open under it: letting the auto-hide run would
   // unmount the scope the viewer is currently navigating.
@@ -531,7 +559,21 @@ export function PlayerScreen({
       {playback?.fatalError ? (
         <View style={styles.fatalError}>
           <Text style={styles.fatalTitle}>Playback failed</Text>
-          <Text style={styles.fatalMessage}>{fatal?.headline ?? errorText(playback.fatalError)}</Text>
+          <Text style={styles.fatalMessage}>
+            {tooSlow
+              ? tooSlowToPlayText(playback.instruction?.quality, playback.session?.transform)
+              : (fatal?.headline ?? errorText(playback.fatalError))}
+          </Text>
+          {tooSlow ? (
+            // The web client's two buttons (`PlayerScreen.tsx`, `tooSlow`).
+            // The list is offered only while there is a session to change.
+            <View style={styles.fatalActions}>
+              <Button label="Try again" scope={FAILURE_SCOPE} defaultFocus onSelect={() => void runtime.retry()} />
+              {playback.session ? (
+                <Button label="Choose another quality" scope={FAILURE_SCOPE} onSelect={() => setOptionsOpen(true)} />
+              ) : null}
+            </View>
+          ) : null}
           {fatal?.detail ? <Text style={styles.fatalCode}>{fatal.detail}</Text> : null}
           {fatal?.code ? <Text style={styles.fatalCode}>{fatal.code}</Text> : null}
           {trail.map((entry) => (
@@ -613,7 +655,7 @@ export function PlayerScreen({
             </View>
             <View style={styles.streamStatus}>
               {playback?.notice ? (
-                <Text style={styles.streamLine}>{playbackNoticeText(playback.notice)}</Text>
+                <Text style={styles.streamLine}>{playbackNoticeText(playback.notice, playback.instruction?.quality)}</Text>
               ) : playback?.preparingSource ? (
                 // The one moment the client is moving between nodes, and
                 // "which node" is the only question worth asking about it. The
@@ -986,6 +1028,12 @@ const styles = StyleSheet.create({
   fatalMessage: {
     color: colour.error,
     textAlign: 'center',
+  },
+  /** The failure's buttons in a row, spaced as the web's `.secondary-button`s sit. */
+  fatalActions: {
+    flexDirection: 'row',
+    gap: rem(0.6),
+    marginTop: rem(0.6),
   },
   /** The server's code, as small print: for whoever is debugging, never the viewer's line. */
   fatalCode: {

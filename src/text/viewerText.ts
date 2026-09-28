@@ -3,6 +3,7 @@ import {
   MachaConnectionError,
   NOT_PLAYABLE_CODE,
   START_NO_PROGRESS_CODE,
+  TOO_SLOW_TO_PLAY_CODE,
   playbackFailureCode,
   playbackFailureDetail,
   playbackFailureStatus,
@@ -129,8 +130,12 @@ export function formatPlaybackTime(ms: number): string {
 // ── Player notices ─────────────────────────────────────────────────────────
 
 /** The line the player shows for one of core's notice codes. */
-export function playbackNoticeText(notice: PlaybackNotice): string {
+export function playbackNoticeText(notice: PlaybackNotice, quality?: QualityClass): string {
   switch (notice.code) {
+    // Core d1069d2: its own choice stepped down to a quality a node keeps up
+    // with. `quality` is the one now playing.
+    case 'quality-stepped-down':
+      return qualitySteppedDownText(quality);
     case 'copy-refused':
       return 'This node could not copy the original streams, so they are being converted.';
     case 'decode-fallback':
@@ -234,6 +239,28 @@ export function preparingStreamText(progress: PlaybackStartProgress | undefined,
  */
 export { qualityLabel };
 
+/** "its video", "its audio", "its video and audio", or undefined for neither. */
+function convertedStreams(video: boolean, audio: boolean): string | undefined {
+  return video && audio ? 'its video and audio' : video ? 'its video' : audio ? 'its audio' : undefined;
+}
+
+/**
+ * A quality the viewer chose that no node can convert at real speed (core's
+ * `TOO_SLOW_TO_PLAY_CODE`, d1069d2), built from the facts where they are
+ * known: the quality playing, and which streams the session converts. Tom:
+ * "clear, concise, and visible 'Macha can't play this quality because...'".
+ * The web client's `tooSlowToPlayText`, word for word.
+ */
+export function tooSlowToPlayText(quality?: QualityClass, transform?: { video: string; audio: string }): string {
+  const streams = transform && convertedStreams(transform.video === 'transcode', transform.audio === 'transcode');
+  return `Macha can't play ${quality ? qualityLabel(quality) : 'this quality'} because the server can't convert ${streams ?? 'it'} fast enough to keep up.`;
+}
+
+/** Core stepped its own choice down to a quality a node can keep up with. The web client's words. */
+export function qualitySteppedDownText(quality?: QualityClass): string {
+  return `Switched to ${quality ? qualityLabel(quality) : 'a lower quality'}: the server can't convert a higher quality fast enough.`;
+}
+
 /**
  * Why Play chooses the file it does, as one sentence built from every fact
  * core gives (`PlaybackVersions`): the file chosen, a larger one passed over
@@ -321,6 +348,8 @@ export function errorText(error: unknown): string {
   // Core's own, when a start that reports progress (server 0.69.0) stops
   // reporting any: no server sentence behind it, and its 504 would otherwise
   // read as the server being unable to answer, which is not what happened.
+  // The fact-free form; the player builds the full one from what was playing.
+  if (playbackFailureCode(error) === TOO_SLOW_TO_PLAY_CODE) return tooSlowToPlayText();
   if (playbackFailureCode(error) === START_NO_PROGRESS_CODE) return 'The node stopped making progress starting this stream.';
   const status = playbackFailureStatus(error);
   if (status === 401 || status === 403) return 'Your session has ended. Sign in again.';
