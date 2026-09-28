@@ -182,10 +182,15 @@ to be switched on at the set before either answers. `TODO/ACTIVE.md` §0 has
 both, with what differs.
 
 **Playback works and 5.1 was measured** — direct play, six channels, positional
-`0x0000003F`, 2026-09-13. **Failover has never run against a node at all**: no
-watchdog has fired, no standby has been promoted, and the park, the
-classification probe and the promotion gate added on 2026-09-19 have never met
-one. Do not write documentation that implies otherwise in either direction.
+`0x0000003F`, 2026-09-13. **Failover has run, twice, on 2026-09-28.** Tom
+watched it carry a film across fi-1 restarting (seen on screen, no trail
+kept). The same evening the Diagnostics trail on `.133` recorded one: fi-1's
+session closed as failed, a new session on gbni-1, and playback resumed at
+the same position (`TODO/ACTIVE.md` has the lines). What neither shows is
+which path fired. No standby promotion has been recorded, and the park, the
+classification probe and the promotion gate added on 2026-09-19 have not been
+seen to act. Do not write documentation that implies more than that, or
+less.
 
 **The Samsung/Tizen TV is not ours.** It belongs to the web client and the
 session that owns it. Never deploy to it.

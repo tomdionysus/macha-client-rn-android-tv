@@ -16,12 +16,13 @@ presentation: core already ships the search, music, status and alphabet-index
 logic those screens would sit on.
 [`TODO/ACTIVE.md`](TODO/ACTIVE.md) §4 is the complete parity list.
 
-> **Status: it runs.** Installed on the TCL on 2026-09-12, it renders the
-> library and reaches the cluster. **Nothing has been played yet** — no film has
-> started, no watchdog has fired, no failover has happened, and the 5.1 downmix
-> measurement this project exists to make is still open. Treat playback
-> behaviour as unproven. [`docs/HISTORY.md`](docs/HISTORY.md) distinguishes what
-> was measured from what is merely asserted.
+> **Status: it plays.** Direct play, remux and transcode all run on the TCL,
+> 5.1 has been measured reaching the set as six positional channels, and
+> failover has carried a film from one node to another (2026-09-28, twice:
+> once watched across a node restart, once recorded in the Diagnostics trail).
+> Standby promotion has not been seen, and the 5.1 downmix measurement this
+> project exists to make is still open. [`docs/HISTORY.md`](docs/HISTORY.md)
+> distinguishes what was measured from what is merely asserted.
 
 ## Where this sits
 
