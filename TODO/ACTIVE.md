@@ -55,9 +55,11 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
 
 ### The set
 
-- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed ~21:30
-  2026-09-28:** develop (only Home exits) on core `8614a09` through the
-  link, md5 `a64ba9c793cfcaefc5fe76f4fcf3a66c`, read back off the set; versionCode 800,
+- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed 2026-09-29:** develop (focus stays on the top-bar button that
+  chose the screen) on core `8614a09` through the link, md5
+  `01c11ddfc9c94434acec2ee7b223c8de`, read back off the set; Movies and TV
+  Shows chosen from the bar kept focus on their buttons after their grids
+  loaded (measured); versionCode 800,
   the same as the 0.8.0 release (`ef17b384…`). Measured the same evening:
   *The Martian*'s page shows "Play chooses 1080p, which plays without
   converting. 4K needs its audio converted. Pick a quality to play another.",
