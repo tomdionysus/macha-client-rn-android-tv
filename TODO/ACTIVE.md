@@ -139,7 +139,22 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
      scrolled off the eight-line overlay and logcat had rolled, so whether it
      was the stall watchdog, a fragment timeout or the node is unread. The
      next 4K run should capture the trail continuously (logcat is too noisy on
-     this set to hold it). The TV keeps the old file playing and says "That change could
+     this set to hold it).
+   - **The 0.6x was fi-1's production, not the set's link** (the server
+     session, read from fi-1's journal the same evening; asserted here, not
+     measured). The session swapped to generation 2 at 16:08:42Z, then
+     fragment 3 was refused `hold_timed_out` four times running (16:08:49,
+     :55, 16:09:02, :10), because fi-1 did not produce it within its 6 s
+     hold. fi-1 was also running another viewer's 1080p Martian transcode
+     (`641a613b`) and a second 4K start on the same file (`99154b1c`, 39.5 s
+     to ready): three pipelines on a 4-core Pi. Those four refusals are the
+     likely lead-in to the failover at 16:09:10-ish, but the client trail
+     that would confirm it was not captured.
+   - **To tell node from link next time**, read `stream.production`
+     `{produced_ms, producing_ms, produced_age_ms, producer_parked}` on the
+     session payload: `produced_ms / producing_ms` below 1.0 means the node
+     is the limit; at or above 1.0 with the buffer still falling behind means
+     the link is. The TV keeps the old file playing and says "That change could
    not be applied.", which the server and core call correct.
 4. **Not yet seen on the set:** next episode on end across a season (needs a
    show with two seasons; *Firefly* has one), and the `resource_limit`
