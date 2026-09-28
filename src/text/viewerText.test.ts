@@ -17,6 +17,7 @@ import {
   qualitySteppedDownText,
   tooSlowToPlayText,
   sortChoiceLabel,
+  statusNodeName,
   startProgressText,
   streamLines,
   trackFacts,
@@ -348,6 +349,14 @@ describe('why Play chooses the file it does, as one sentence from every fact', (
     expect(only('ceiling-preference')).toBe('Play chooses 1080p. 4K is more than the most set in Settings. Pick a quality to play another.');
   });
 
+  // Server 0.70.0, core fb96757: a node's measured rate says the conversion
+  // is too slow to watch, not only needed. The web client's case.
+  it('says when the conversion is too slow to watch, not only needed', () => {
+    const slow: PassedOverVersion = { quality: 2160, converts: { video: true, audio: true }, reasons: ['transcode-below-real-time'] };
+    expect(qualityChoiceText({ files, automatic: automatic(1080), passedOver: slow }))
+      .toBe("Play chooses 1080p, which plays without converting. 4K needs its video and audio converted, which the server can't do fast enough. Pick a quality to play another.");
+  });
+
   it('never claims the chosen file plays as it is when it does not', () => {
     expect(qualityChoiceText({ files, automatic: automatic(1080, 'copy', 'transcode'), passedOver: passedOver(2160, true, true) }))
       .toBe('Play chooses 1080p. 4K needs its video and audio converted. Pick a quality to play another.');
@@ -385,5 +394,16 @@ describe('a quality no node can convert fast enough', () => {
     expect(playbackNoticeText({ code: 'quality-stepped-down' }, 1080))
       .toBe("Switched to 1080p: the server can't convert a higher quality fast enough.");
     expect(qualitySteppedDownText()).toBe("Switched to a lower quality: the server can't convert a higher quality fast enough.");
+  });
+});
+
+/** Server 0.70.0: the operator's name for a node (Tom: "show the names the server sends"). */
+describe('statusNodeName', () => {
+  it("shows the operator's name, and the address where there is none", () => {
+    const node = (over: Record<string, unknown>) => ({ id: 'abcdef0123456789', host: '10.35.1.50', port: 7438, ...over }) as never;
+    expect(statusNodeName(node({ node_name: 'Corvus FI-1' }))).toBe('Corvus FI-1');
+    expect(statusNodeName(node({ node_name: '  ' }))).toBe('10.35.1.50:7438');
+    expect(statusNodeName(node({ node_name: null }))).toBe('10.35.1.50:7438');
+    expect(statusNodeName(node({ host: '', node_name: undefined }))).toBe('abcdef012345');
   });
 });

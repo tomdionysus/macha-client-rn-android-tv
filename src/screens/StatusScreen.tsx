@@ -3,6 +3,7 @@ import type { ClusterStatusApi } from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { colour, font, pageGutter, rem, type } from '../styles/theme';
+import { statusNodeName } from '../text/viewerText';
 
 /**
  * Cluster status, from the web client's `/status` section.
@@ -70,7 +71,7 @@ export function StatusScreen({ api }: { api: ClusterStatusApi }): React.JSX.Elem
         {nodes.map((node) => (
           <View key={node.id} style={styles.node}>
             <Text style={styles.nodeName} numberOfLines={1}>
-              {node.host}:{node.port}
+              {statusNodeName(node)}
             </Text>
             <Text style={[styles.nodeState, node.state !== 'online' && styles.nodeStateBad]}>
               {node.state}

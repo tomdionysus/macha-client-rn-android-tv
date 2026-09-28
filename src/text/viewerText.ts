@@ -17,6 +17,7 @@ import {
   type PlaybackStreamInfo,
   qualityLabel,
   type PlaybackVersions,
+  type ClusterNodeStatus,
   type QualityCeiling,
   type TechnicalSummary,
   type QualityClass,
@@ -283,7 +284,12 @@ export function qualityChoiceText(
   const clauses: string[] = [];
   const { video, audio } = passedOver?.converts ?? { video: false, audio: false };
   const converted = video && audio ? 'its video and audio' : video ? 'its video' : audio ? 'its audio' : undefined;
-  if (passedOver && converted) clauses.push(`${qualityLabel(passedOver.quality)} needs ${converted} converted`);
+  // A node's measured rate for this kind of picture (server 0.70.0): the
+  // conversion is not only needed but too slow to watch.
+  const tooSlow = passedOver?.reasons.includes('transcode-below-real-time');
+  if (passedOver && converted) {
+    clauses.push(`${qualityLabel(passedOver.quality)} needs ${converted} converted${tooSlow ? ", which the server can't do fast enough" : ''}`);
+  }
   const above = limitedBy
     ? Math.max(...versions.files.map((file) => file.quality).filter((quality) => quality > limitedBy.quality))
     : Number.NEGATIVE_INFINITY;
@@ -543,4 +549,19 @@ function formatChannels(channels?: number): string {
 function formatSampleRate(sampleRate?: number): string {
   if (!sampleRate) return '';
   return sampleRate >= 1_000 ? `${Number((sampleRate / 1_000).toFixed(1))} kHz` : `${sampleRate} Hz`;
+}
+
+/**
+ * A node's name on the Status screen: the operator's own name for it where
+ * the server sends one (server 0.70.0, `node_name`; Tom: "show the names the
+ * server sends"), else its address as this screen always showed it, else the
+ * start of its id. An empty or blank name counts as none. The web client's
+ * `statusNodeName` (`macha-client/src/screens/StatusScreen.tsx`), keeping this
+ * screen's `host:port` where the web shows the host alone.
+ */
+export function statusNodeName(node: Pick<ClusterNodeStatus, 'id' | 'host' | 'port' | 'node_name'>): string {
+  const name = node.node_name?.trim();
+  if (name) return name;
+  if (node.host) return `${node.host}:${node.port}`;
+  return node.id.slice(0, 12);
 }

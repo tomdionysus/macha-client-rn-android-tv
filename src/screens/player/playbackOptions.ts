@@ -85,6 +85,8 @@ const REASON_TEXT: Record<PlaybackDecisionReason, string> = {
   'executor-cannot-copy-video': 'this server cannot repackage the video',
   'executor-cannot-copy-audio': 'this server cannot repackage the audio',
   'player-could-not-decode': 'this television could not decode the original streams',
+  // Server 0.70.0, core fb96757: a node's measured rate. The web client's words.
+  'transcode-below-real-time': 'the server cannot convert this picture fast enough to play',
 };
 
 /** A stream, named the way a viewer choosing between two of them needs. */
