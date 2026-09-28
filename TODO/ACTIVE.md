@@ -83,9 +83,15 @@ test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
    `503 playback_pipeline_start_failed` "timed out waiting for first
    fragmented-MP4 segment", on fi-1 and gbni-1 alike, only with a seek into
    the 4K HEVC 10-bit source (controls measured and sent). The server's:
-   Tom has agreed a fixed start budget is wrong and a progress design is
-   coming for review. **Plan nothing around it until its shape is
-   announced.** The TV keeps the old file playing and says "That change could
+   Tom has agreed a fixed start budget is wrong. **The shape was announced
+   2026-09-28 for server 0.69.0, not built:** opt-in `?start=async` (202
+   `playback_starting`), a `start` object with a stage and counters, a
+   long-poll, `DELETE .../pending`, and failure only when progress stops.
+   Measured on fi-1 that day: the start takes 8.6-11.9 s (4K HEVC 10-bit
+   decoded at ~0.33x). It is all core's to call; the TV answered "fits, via
+   core", with five notes: core's elapsed budget, the player's timers, Stop
+   during a pending PATCH, words staying ours, and the https long-poll's
+   idle timeout. **Build nothing here until core ships it.** The TV keeps the old file playing and says "That change could
    not be applied.", which the server and core call correct.
 4. **Not yet seen on the set:** next episode on end across a season (needs a
    show with two seasons; *Firefly* has one), and the `resource_limit`
