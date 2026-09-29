@@ -12,6 +12,17 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 **What landed, and what went wrong, is in `COMPLETED.md`'s top section.** This
 section is only what is open, in the order to do it.
 
+### Released: TV 0.9.0 on core 0.21.0 — 2026-09-29
+
+`main` `263e308`, annotated tag `0.9.0`, both pushed on Tom's word, with
+`^0.21.0` from the registry (lockfile `resolved` is the npm tarball, and
+`node_modules` held a real directory). Typecheck, 376 tests and the export
+passed against that copy, after `EXPO_TV=1 npx expo prebuild --clean`.
+Release APK md5 `5e5980bd04453be26ff8cb16056e3346`; aapt2 says versionCode
+900, `armeabi-v7a`, leanback required. **Not yet installed:** `.133` was
+off the network when it was built. `develop` fast-forwarded to it and
+relinked `../macha-ts`.
+
 ### Released: TV 0.8.0 on core 0.20.0 — 2026-09-28
 
 `main` `2ceb827`, annotated tag `0.8.0`, both pushed on Tom's say-so, with
