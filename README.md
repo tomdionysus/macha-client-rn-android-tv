@@ -1,6 +1,6 @@
 # macha-client-rn-tv
 
-_v0.8.0_
+_v0.9.0_
 
 The Macha client for **Android TV** — React Native, leanback, D-pad only.
 
