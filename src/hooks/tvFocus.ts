@@ -53,6 +53,11 @@ export interface Focusable {
    */
   ownsDirection?: (direction: TvDirection) => boolean;
   onDirection?: (direction: TvDirection) => void;
+  /**
+   * A side rail, such as the alphabet strip: reachable by Left or Right from
+   * any row, where nothing on the row itself lies that way (`pickTvCandidate`).
+   */
+  rail?: boolean;
 }
 
 /** Distance between two spans on one axis; zero when they overlap. */
@@ -124,7 +129,7 @@ export function scoreTvCandidate(
  * Pure, so the choice can be tested with the geometry of a real screen rather
  * than through a registry.
  */
-export function pickTvCandidate<T extends { rect: FocusRect }>(
+export function pickTvCandidate<T extends { rect: FocusRect; rail?: boolean }>(
   current: FocusRect,
   candidates: readonly T[],
   direction: TvDirection,
@@ -142,10 +147,18 @@ export function pickTvCandidate<T extends { rect: FocusRect }>(
   // row). And a fallback to "anything that way, in any row" was the second
   // fault: Left from Home, first in the top bar, dropped to a card below it
   // (`.133`, 2026-09-24). Changing row is what Up and Down are for.
+  //
+  // **Except a side rail.** The alphabet strip is pinned beside a grid and is
+  // shorter than it, so the grid's bottom row has no key on its row and Right
+  // stopped there (Tom, `.133`, 2026-09-29). Where nothing on the row lies that
+  // way, a rail's nearest key is taken; any other control in another row still
+  // cannot be reached sideways. **Not in the web client**; whether its strip
+  // leaves the same gap has not been read. The weights are untouched.
   if (horizontal) {
-    return scored
+    const onRow = scored
       .filter(({ entry }) => rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0)
       .sort(byScore)[0]?.entry;
+    return onRow ?? scored.filter(({ entry }) => entry.rail).sort(byScore)[0]?.entry;
   }
 
   // **Up and down: the nearest row first, then the best of it.** Not "the same

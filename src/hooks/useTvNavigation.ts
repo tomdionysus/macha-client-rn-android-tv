@@ -148,6 +148,8 @@ export interface UseFocusableOptions {
   /** Keep these directions instead of moving focus. See `Focusable.ownsDirection`. */
   ownsDirection?: (direction: TvDirection) => boolean;
   onDirection?: (direction: TvDirection) => void;
+  /** A side rail, reachable sideways from any row. See `Focusable.rail` in `tvFocus.ts`. */
+  rail?: boolean;
 }
 
 export interface UseFocusableResult {
@@ -186,8 +188,9 @@ export function useFocusable(options: UseFocusableOptions = {}): UseFocusableRes
       onFocusChange: setFocused,
       ownsDirection: (direction) => latest.current.ownsDirection?.(direction) ?? false,
       onDirection: (direction) => latest.current.onDirection?.(direction),
+      rail: options.rail,
     });
-  }, [id, options.defaultFocus, options.scope]);
+  }, [id, options.defaultFocus, options.scope, options.rail]);
 
   /**
    * `disabled` is patched in place, not re-registered.

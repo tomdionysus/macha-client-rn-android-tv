@@ -11,6 +11,7 @@ import {
   type MediaSortKey,
   type SearchCategoryKey,
   type MediaSummary,
+  type AlphabetIndexKey,
 } from '@machafoundation/core';
 import { MediaCard } from '../components/MediaCard';
 import { TvTextInput } from '../components/TvTextInput';
@@ -21,7 +22,7 @@ import { RefreshIcon } from '../components/NavIcons';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
 import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { ErrorMessage, Loading, PageTitle } from '../components/Status';
-import { scrollTarget } from '../hooks/focusScroll';
+import { jumpTarget, scrollTarget } from '../hooks/focusScroll';
 import { tvFocus } from '../hooks/tvFocus';
 import { CARD_FRAME, colour, controlRow, focusFrame, layout, pageGutter, px, rem, screenSize } from '../styles/theme';
 
@@ -69,6 +70,7 @@ export function SearchScreen({
   const viewportHeight = useRef(0);
   const scrollY = useRef(0);
   const gridY = useRef(0);
+  const contentHeight = useRef(0);
   const cards = useRef(new Map<number, { y: number; height: number }>());
 
   useEffect(() => {
@@ -108,6 +110,26 @@ export function SearchScreen({
     Math.floor((screenSize.width - pageGutter * 2) / (layout.mediaCardWidth + rem(1))),
   );
 
+  /**
+   * A letter on the strip: focus to its first title, and that title's row to
+   * the top of the screen rather than wherever least movement leaves it
+   * (`jumpTarget`). The card's own reveal follows on its focus change, finds
+   * it in view, and does nothing.
+   */
+  const jumpToKey = (key: AlphabetIndexKey) => {
+    const mediaId = alphabet.jumpTo(key);
+    const index = mediaId === undefined ? -1 : ordered.findIndex((entry) => entry.id === mediaId);
+    const extent = cards.current.get(index);
+    if (!extent || viewportHeight.current <= 0) return;
+    const target = jumpTarget(
+      { offset: gridY.current + extent.y, length: extent.height },
+      rem(1.4),
+      Math.max(0, contentHeight.current - viewportHeight.current),
+    );
+    scrollY.current = target;
+    scroller.current?.scrollTo({ y: target, animated: true });
+  };
+
   const revealCard = (index: number) => {
     const card = cards.current.get(index);
     if (!card) return;
@@ -129,7 +151,14 @@ export function SearchScreen({
         viewportHeight.current = event.nativeEvent.layout.height;
       }}
     >
-      <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
+      <ScrollView
+        ref={scroller}
+        contentContainerStyle={styles.page}
+        scrollEnabled={false}
+        onContentSizeChange={(_, height) => {
+          contentHeight.current = height;
+        }}
+      >
         <PageTitle>Search</PageTitle>
 
         {/*
@@ -208,7 +237,7 @@ export function SearchScreen({
         )}
       </ScrollView>
       {indexed && ordered.length > 0 ? (
-        <AlphabetIndex availableKeys={alphabet.availableKeys} onSelect={alphabet.jumpTo} />
+        <AlphabetIndex availableKeys={alphabet.availableKeys} onSelect={jumpToKey} />
       ) : null}
     </View>
   );

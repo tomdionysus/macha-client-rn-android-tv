@@ -77,8 +77,11 @@ export function firstMediaIdByKey(
 export interface AlphabetIndexState {
   /** Letters with at least one title behind them. The rest render disabled. */
   availableKeys: Set<AlphabetIndexKey>;
-  /** Move focus to the first title in this bucket. No-op for an empty letter. */
-  jumpTo: (key: AlphabetIndexKey) => void;
+  /**
+   * Move focus to the first title in this bucket, and answer its id so the
+   * screen can bring it to the top. No-op, and undefined, for an empty letter.
+   */
+  jumpTo: (key: AlphabetIndexKey) => string | undefined;
 }
 
 export function useAlphabetIndex(items: readonly MediaSummary[]): AlphabetIndexState {
@@ -89,8 +92,9 @@ export function useAlphabetIndex(items: readonly MediaSummary[]): AlphabetIndexS
   const jumpTo = useCallback(
     (key: AlphabetIndexKey) => {
       const mediaId = firstItemByKey.get(key);
-      if (!mediaId) return;
+      if (!mediaId) return undefined;
       tvFocus.select(mediaFocusId(mediaId));
+      return mediaId;
     },
     [firstItemByKey],
   );

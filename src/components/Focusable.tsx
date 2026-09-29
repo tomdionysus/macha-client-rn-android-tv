@@ -39,6 +39,8 @@ export interface FocusableProps {
   /** Directions this element keeps rather than yielding to the focus scorer. */
   ownsDirection?: (direction: TvDirection) => boolean;
   onDirection?: (direction: TvDirection) => void;
+  /** A side rail, reachable sideways from any row (the alphabet strip). */
+  rail?: boolean;
 }
 
 /**
@@ -67,6 +69,7 @@ export const Focusable = forwardRef<View, FocusableProps>(function Focusable(
     onExtent,
     ownsDirection,
     onDirection,
+    rail,
   },
   _forwardedRef,
 ) {
@@ -78,6 +81,7 @@ export const Focusable = forwardRef<View, FocusableProps>(function Focusable(
     scope,
     ownsDirection,
     onDirection,
+    rail,
   });
 
   const previous = useRef(focused);

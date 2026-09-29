@@ -652,3 +652,35 @@ describe('the fallback remembers the last nav item used', () => {
     card();
   });
 });
+
+/**
+ * The alphabet strip beside a grid: a column of small keys pinned to the
+ * screen edge, shorter than the grid, so the grid's bottom row sits below
+ * its last key. Geometry as on `.133`'s 960x540 dp viewport.
+ *
+ * Tom, 2026-09-29: "The side alphabetical index is not accessible by DPad
+ * Right from movies when the cursor is on the bottom row." Right only takes
+ * candidates sharing the row, and no key shares a row below the strip.
+ */
+describe('a side rail beside a grid', () => {
+  const keys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((key, index) => ({
+    id: `alphabet:${key}`,
+    rect: rect(940, 160 + index * 10.5, 14, 10),
+    rail: true,
+  }));
+  const lastCard = { id: 'card-last', rect: rect(720, 470, 100, 150) };
+  const lower = { id: 'card-lower', rect: rect(520, 470, 100, 150) };
+
+  it('is reached by Right from a row below its last key, at the nearest key', () => {
+    expect(pickTvCandidate(lastCard.rect, keys, 'right')?.id).toBe('alphabet:Z');
+  });
+
+  it('still loses to a control on the same row', () => {
+    expect(pickTvCandidate(lower.rect, [lastCard, ...keys], 'right')?.id).toBe('card-last');
+  });
+
+  it('does not let an ordinary control in another row be reached sideways', () => {
+    const below = { id: 'below', rect: rect(900, 700, 100, 150) };
+    expect(pickTvCandidate(lastCard.rect, [below], 'right')).toBeUndefined();
+  });
+});

@@ -62,3 +62,17 @@ export function scrollTarget(
   if (top < viewportTop + lead) return Math.max(0, top - lead);
   return Math.max(0, bottom - viewportLength + lead);
 }
+
+/**
+ * Where a jump scrolls to: the item at the top, with `lead` above it, whether
+ * or not it was already in view. For the alphabet strip (Tom, 2026-09-29:
+ * "the titles that start with that letter should come to the top of the
+ * screen, not the bottom"): a jump is a new place to read from, and
+ * `scrollTarget`'s least movement left a forward jump's titles on the bottom
+ * row. Near the last titles they come as high as the page allows:
+ * `maxOffset` is the page's last scroll position, so the offset answered is
+ * the one the scroller actually reaches.
+ */
+export function jumpTarget(item: ScrollExtent, lead = 0, maxOffset = Number.POSITIVE_INFINITY): number {
+  return Math.max(0, Math.min(item.offset - lead, maxOffset));
+}

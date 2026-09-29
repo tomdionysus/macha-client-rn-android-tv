@@ -7,6 +7,7 @@ import {
   type MediaApi,
   type MediaSortKey,
   type MediaSummary,
+  type AlphabetIndexKey,
 } from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
@@ -14,7 +15,7 @@ import { MediaCard } from '../components/MediaCard';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
 import { SortControl } from '../components/SortControl';
 import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
-import { scrollTarget } from '../hooks/focusScroll';
+import { jumpTarget, scrollTarget } from '../hooks/focusScroll';
 import { tvFocus } from '../hooks/tvFocus';
 import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
 
@@ -56,6 +57,7 @@ export function LibraryScreen({
   const viewportHeight = useRef(0);
   const scrollY = useRef(0);
   const gridY = useRef(0);
+  const contentHeight = useRef(0);
   const cardExtents = useRef(new Map<number, { y: number; height: number }>());
   // Jumping moves focus to the first title in the bucket; the grid's existing
   // scroll-on-focus below does the revealing. See `useAlphabetIndex` for why
@@ -94,6 +96,26 @@ export function LibraryScreen({
    * Cards report their own boxes now, and a card already fully visible does not
    * scroll at all.
    */
+  /**
+   * A letter on the strip: focus to its first title, and that title's row to
+   * the top of the screen rather than wherever least movement leaves it
+   * (`jumpTarget`). The card's own reveal follows on its focus change, finds
+   * it in view, and does nothing.
+   */
+  const jumpToKey = (key: AlphabetIndexKey) => {
+    const mediaId = alphabet.jumpTo(key);
+    const index = mediaId === undefined ? -1 : items.findIndex((entry) => entry.id === mediaId);
+    const extent = cardExtents.current.get(index);
+    if (!extent || viewportHeight.current <= 0) return;
+    const target = jumpTarget(
+      { offset: gridY.current + extent.y, length: extent.height },
+      rem(1.4),
+      Math.max(0, contentHeight.current - viewportHeight.current),
+    );
+    scrollY.current = target;
+    scroller.current?.scrollTo({ y: target, animated: true });
+  };
+
   const revealCard = (index: number) => {
     const extent = cardExtents.current.get(index);
     if (!extent) return;
@@ -119,7 +141,14 @@ export function LibraryScreen({
         viewportHeight.current = event.nativeEvent.layout.height;
       }}
     >
-      <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
+      <ScrollView
+        ref={scroller}
+        contentContainerStyle={styles.page}
+        scrollEnabled={false}
+        onContentSizeChange={(_, height) => {
+          contentHeight.current = height;
+        }}
+      >
         {/* `.media-page-title-row { display: flex; align-items: center; justify-content: space-between }` */}
         <View style={styles.titleRow}>
           <PageTitle>{title}</PageTitle>
@@ -156,7 +185,7 @@ export function LibraryScreen({
           ))}
         </View>
       </ScrollView>
-      {indexed ? <AlphabetIndex availableKeys={alphabet.availableKeys} onSelect={alphabet.jumpTo} /> : null}
+      {indexed ? <AlphabetIndex availableKeys={alphabet.availableKeys} onSelect={jumpToKey} /> : null}
     </View>
   );
 }

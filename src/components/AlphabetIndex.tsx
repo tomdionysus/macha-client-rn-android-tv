@@ -40,6 +40,7 @@ export function AlphabetIndex({
           <Focusable
             key={key}
             focusId={`alphabet:${key}`}
+            rail
             disabled={!available}
             onSelect={() => onSelect(key)}
             ring={false}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scrollTarget } from './focusScroll';
+import { jumpTarget, scrollTarget } from './focusScroll';
 
 /**
  * The fault these are written against shipped: a control that could be focused,
@@ -50,5 +50,28 @@ describe('bringing a focused item into view', () => {
   it('abstains until something has been measured', () => {
     // A zero viewport is the first render, not a very small screen.
     expect(scrollTarget({ offset: 1_400, length: 100 }, 0, 0)).toBeUndefined();
+  });
+});
+
+/**
+ * Tom, 2026-09-29: "when an alphabetic index is selected, the titles that
+ * start with that letter should come to the top of the screen, not the
+ * bottom." A jump is a new place to read from, not a nudge.
+ */
+describe('jumpTarget', () => {
+  it('brings the item to the top, with the lead above it, even when it is already in view', () => {
+    expect(jumpTarget({ offset: 1200, length: 300 }, 24)).toBe(1176);
+    expect(jumpTarget({ offset: 400, length: 300 }, 24)).toBe(376);
+  });
+
+  it('never scrolls above the start of the page', () => {
+    expect(jumpTarget({ offset: 10, length: 300 }, 24)).toBe(0);
+  });
+
+  // The screens remember where they scrolled to; a target past the end, which
+  // the scroller clamps silently, would leave that memory wrong.
+  it('stops at the end of the page, where the last titles cannot come any higher', () => {
+    expect(jumpTarget({ offset: 5000, length: 300 }, 24, 4200)).toBe(4200);
+    expect(jumpTarget({ offset: 1200, length: 300 }, 24, 4200)).toBe(1176);
   });
 });
