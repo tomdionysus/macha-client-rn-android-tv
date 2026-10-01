@@ -7,250 +7,129 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 ---
 
-## 0. Handover, 2026-09-27 evening — read this first after a clear
+## 0. Handover, 2026-10-01 — read this first after a clear
 
-**What landed, and what went wrong, is in `COMPLETED.md`'s top section.** This
-section is only what is open, in the order to do it.
+**What landed, and what went wrong, is in `COMPLETED.md`'s top section**
+(2026-09-28 to 2026-09-30). This section is only where things stand and what is
+open, in the order to do it.
 
-### Released: TV 0.9.0 on core 0.21.0 — 2026-09-29
+### Where things stand
 
-`main` `263e308`, annotated tag `0.9.0`, both pushed on Tom's word, with
-`^0.21.0` from the registry (lockfile `resolved` is the npm tarball, and
-`node_modules` held a real directory). Typecheck, 376 tests and the export
-passed against that copy, after `EXPO_TV=1 npx expo prebuild --clean`.
-Release APK md5 `5e5980bd04453be26ff8cb16056e3346`; aapt2 says versionCode
-900, `armeabi-v7a`, leanback required. **Not yet installed:** `.133` was
-off the network when it was built. `develop` fast-forwarded to it and
-relinked `../macha-ts`.
-
-### Released: TV 0.8.0 on core 0.20.0 — 2026-09-28
-
-`main` `2ceb827`, annotated tag `0.8.0`, both pushed on Tom's say-so, with
-`^0.20.0` from the registry (lockfile `resolved` is the npm tarball, and
-`node_modules` held a real directory). typecheck, 344 tests and the export
-passed against that copy. `develop` merged `main` back and relinked
-`../macha-ts` (`00ce233`).
-
-**Measured on `.133`, 2026-09-28 17:30:** release APK md5
-`ef17b38478e2219885f8f4853f8da4fe`, read back identical off the set; aapt2
-says `versionCode 800`, `armeabi-v7a`, leanback required. Smoke test
-passed: Home, *The Martian*'s detail page (three file lines, synopsis below
-the poster, now seen), 720p direct play, the Quality row, Stop, Continue
-Watching (*The Martian* first). Core's `ae82922` is **confirmed on
-hardware**: an uncapped Transcode of the 720p file marks **720p**. Core is
-told, with the md5.
-
-**What the next release should not repeat:** the prebuild before `npm test`
-must be `EXPO_TV=1 ... --clean`. A plain prebuild was run first; the
-manifest it made still required leanback, but what else `EXPO_TV` changes
-was not checked, and the APK that shipped came from the correct one. And the smoke
-test put *The Sixth Sense* into `tvtest`'s Continue Watching by accident
-(see the traps below).
-
-### The tree
-
-- **`develop`** is `main`'s 0.8.0 plus the relink and README commits, on
-  core `a3beeed` or later through the link; typecheck and 344 tests pass. Tom
-  pushes develop when asked ("push develop please" is the form he uses).
-- **Server:** 0.71.0 on fi-1 and gbni-1 since 2026-09-28 18:58Z (core's
-  report). 0.69.0 brought start progress, 0.70.0 operator node names
-  ("Corvus FI-1", "Corvus GBNI-1") and transcode rates, and 0.71.0 is
-  torrent-only.
-  0.68.0 is committed, not deployed: it adds only
-  `GET /api/v1/catalogue/media/{id}/keyframes`, which core consumes
-  (`bufferedTime.ts`) and this client does not; answered "no conflict"
-  2026-09-28.
-  gbni-1 **is** macnessa (`10.44.1.50`). Every server release since 0.58.0
-  has been announced by the Macha Server or Macha Client Core session; the
-  history is in `COMPLETED.md`.
+- **Released: TV 0.9.0 on core 0.21.0**, 2026-09-29. `main` `263e308`,
+  annotated tag `0.9.0`, both pushed; core `^0.21.0` from the registry. The
+  release APK (md5 `5e5980bd04453be26ff8cb16056e3346`, versionCode 900) was
+  **never installed**: the set was off when it was built, and later `develop`
+  builds superseded it. Rebuild from the tag if the release itself is wanted
+  on a set.
+- **`develop`** is at `54c64ce` (pushed) plus the clear's notes commit, on
+  `file:../macha-ts` (a symlink; core develop `1217429` at the clear, which
+  only adds types for server 0.73.0's `nodes[].traffic`). Typecheck, 382 tests
+  and the export pass. `develop` carries versionCode 900 too, so **only the
+  md5 tells a develop build from the release**; record it at every install.
+- **Servers:** 0.74.0 deploying to both nodes on 2026-09-30 (a Status thread
+  named `observation`), after 0.73.0 (`nodes[].traffic`), 0.71.0
+  (torrent-only), 0.70.0 (operator node names, transcode rates) and 0.69.0
+  (start progress). All checked against this client: nothing breaks, nothing
+  is needed. 0.68.0's keyframes route is core's (`bufferedTime.ts`), not ours.
+  gbni-1 **is** macnessa (`10.44.1.50`).
 
 ### The set
 
-- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel. **Installed 2026-09-29:** develop (focus stays on the top-bar button that
-  chose the screen) on core `8614a09` through the link, md5
-  `01c11ddfc9c94434acec2ee7b223c8de`, read back off the set; Movies and TV
-  Shows chosen from the bar kept focus on their buttons after their grids
-  loaded (measured); versionCode 800,
-  the same as the 0.8.0 release (`ef17b384…`). Measured the same evening:
-  *The Martian*'s page shows "Play chooses 1080p, which plays without
-  converting. 4K needs its audio converted. Pick a quality to play another.",
-  and Status names the nodes "Corvus GBNI-1" and "Corvus FI-1" (server
-  0.70.0). The too-slow-to-play failure, its Try again and Choose another
-  quality buttons, the stepped-down notice and the ", which the server can't
-  do fast enough" clause are unit-tested and **not seen**: the last needs a
-  node's `transcode_rates`, empty until a transcode of a minute or more
-  finishes on it. Diagnostics is
-  **On** from the 4K test. Diagnostics
-  left **Off**, the app on Home, screen timeout `600000`.
-- Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1) and
-  `http://10.44.1.50:7438` (gbni-1/macnessa); remembered
-  `https://macnessa.macha.network`. `ramaroja` is gone for the foreseeable.
+- **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel, 960x540 dp.
+  **Installed 2026-09-29:** develop `54c64ce` on core 0.21.0's code
+  (`553e9e4`, linked at `ede402f`), md5 `7c0419607009b9bb2d06cb9b7dd2aeaf`, read back off the set. Left on
+  a *Sons of Anarchy* season page from a mispress, Diagnostics **On**, screen
+  timeout `600000`. It drops off the network for hours at a time; `adb mdns
+  services` and a ping say whether it is back.
+- Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1, "Corvus
+  FI-1") and `http://10.44.1.50:7438` (gbni-1, "Corvus GBNI-1"); remembered
+  `https://macnessa.macha.network`.
 - **Tom and others watch this set.** Check `dumpsys media_session` (with
-  `updated` against `/proc/uptime`) before any key **and between key bursts**:
-  on 2026-09-27 someone started an episode mid-sitting and a Stop meant for a
-  test went to their player. A screenshot before each burst, checked for the
-  title expected, would have caught it.
-- **Launch with `am start -n foundation.macha.client.tv/.MainActivity`**, not
-  `monkey`. **Back from a top-level screen leaves the app**, and the launcher
-  may then show a "Set up Google TV" prompt: answer nothing, relaunch.
+  `updated` against `/proc/uptime`) before any key **and between key bursts**.
+  Tom has twice said to install over what was playing; that was for that
+  install only. **On 2026-09-29 Tom said "Don't test."** Install when asked;
+  drive the set only when asked.
+- **`10.34.1.115`** did not answer on 2026-09-29 (no ping, no adb
+  advertisement); when it was last up is not recorded here. The other
+  device on adb, `10.35.1.164` over TLS, is a **Blackview A85 phone**: the
+  phone client's, and this APK requires leanback so it will not install there.
+- **Launch with `am start -n foundation.macha.client.tv/.MainActivity`.**
+  **Back exits only from Home** (2026-09-28); every other screen goes Home.
 
 ### Open, in order
 
-1. ~~**The release**~~ — done, above.
-2. ~~**The Quality row marks nothing after some starts.**~~ Fixed in core
-   `ae82922`, **measured on the set 2026-09-28** (720p marked on an uncapped
-   transcode of the 720p file).
-   The finding: On a resumed
-   transcode of *The Martian*'s 720p file with no cap, none of 4K / 2K /
-   1080p / 720p / 480p / 360p was highlighted (measured 2026-09-27 20:50):
-   `instruction.quality` matches no step for an uncapped transcode of a
-   file. Sent to core 2026-09-27 21:00; follow its answer.
-3. **A mid-film switch into the 4K file times out at the server**:
-   `503 playback_pipeline_start_failed` "timed out waiting for first
-   fragmented-MP4 segment", on fi-1 and gbni-1 alike, only with a seek into
-   the 4K HEVC 10-bit source (controls measured and sent). The server's:
-   Tom has agreed a fixed start budget is wrong. **Built as server 0.69.0
-   on 2026-09-28 (committed, not deployed), in the shape announced that day:** opt-in `?start=async` (202
-   `playback_starting`), a `start` object with a stage and counters, a
-   long-poll, `DELETE .../pending`, and failure only when progress stops.
-   Measured on fi-1 that day: the start takes 8.6-11.9 s (4K HEVC 10-bit
-   decoded at ~0.33x). It is all core's to call; the TV answered "fits, via
-   core", with five notes: core's elapsed budget, the player's timers, Stop
-   during a pending PATCH, words staying ours, and the https long-poll's
-   idle timeout. The server's answers, the same day: deleting the session
-   also drops a pending replacement, so Stop or Back is one DELETE; notes 1
-   and 5 went to core, with `start_wait_max_ms` proposed at 25 s; stage and
-   counters are data only. **Core wrapped it at `00ff3eb` (develop, 2026-09-28):**
-   on a node that supports it, the elapsed first-fragment budget gives way
-   to no-progress; `snapshot.startProgress?` = `{ kind: 'start'|'change',
-   stage, progressSeq, elapsedMs, sourceBytesRead?, prerollDecodedMs?,
-   prerollTotalMs?, outputMediaMs?, firstFragmentMs? }`, set while a start
-   or a change is being prepared and cleared at ready or failed. Typecheck and
-   344 tests pass against it through the link. **What the TV would do with it**
-   is word the stage in place of `startWaitText`'s bare seconds
-   (`src/text/viewerText.ts`, under the spinner; a slow start is the
-   spinner's, not §2.11's logo), and say a `change` is under way while the
-   picture keeps playing. **Built 2026-09-28** as the web client's
-   wording, read from its working tree (uncommitted there): `startProgressText`,
-   `preparingStreamText` and the `start_no_progress` sentence in
-   `src/text/viewerText.ts`, the stage in `startWaitNotice`. Unit-tested only;
-   **not seen on the set** until 0.69.0 is deployed to a node, and the web
-   client's copy is itself unseen live.
-
-   **Measured on `.133`, 2026-09-28 ~19:10 local** (develop `a85a1a9`+`160474c`
-   on core `ec608c3`, APK md5 `de3689947278734e0c3090250bd169da`, versionCode
-   800 like the release; server 0.69.0 on both nodes, Diagnostics on).
-   *The Martian* resumed as a 720p transcode on fi-1, then Quality 4K in the
-   player: a change with a seek, **the case that used to 503**.
-   - **The change line showed, once a second:** "Starting the new stream on
-     http://10.35.1.50:7438: 0%" (1-2 s), 20% (3 s), 48% (6 s), 75% (7-8 s),
-     then the old stream's lines at 9 s, then the new one at 10 s. No planning
-     or preroll stage was ever on screen. The node is named as the full
-     endpoint URL, as the web client's line does.
-   - **The switch succeeded:** trail `session-update` 297.5 s,
-     `session-updated` 312.5 s (15.0 s), first fragment 312.8 s. The new
-     stream is VIDEO COPY HEVC 3840×2160 47.4 Mb/s with TrueHD 7.1 transcoded
-     to AAC 7.1 512 kb/s, fMP4.
-   - **But it did not keep up:** the buffer grew about 0.6x real time
-     (10.7 s to 21.9 s of media in 18 s), with repeated rebuffers.
-   - **Then the client's first observed failover:** at 340.5 s
-     `cluster failed-session-closed` on fi-1 (`attempts: 1`), a new session
-     on gbni-1 (`10.44.1.50`) at 346.0 s, `source-failover-ready`, first
-     fragment 348.6 s, presented at the same position (143629 ms). At 377.6 s
-     `cluster.health preemptive-endpoint-swap` moved routing back to fi-1
-     (550 ms against 22 ms). Playback on gbni-1 then stuttered, the media
-     session flipping between playing and buffering every ~100 ms, and was
-     stopped by hand.
-   - **Not known:** what closed the fi-1 session. The trail's earlier lines
-     scrolled off the eight-line overlay and logcat had rolled, so whether it
-     was the stall watchdog, a fragment timeout or the node is unread. The
-     next 4K run should capture the trail continuously (logcat is too noisy on
-     this set to hold it).
-   - **The 0.6x was fi-1's production, not the set's link** (the server
-     session, read from fi-1's journal the same evening; asserted here, not
-     measured). The session swapped to generation 2 at 16:08:42Z, then
-     fragment 3 was refused `hold_timed_out` four times running (16:08:49,
-     :55, 16:09:02, :10), because fi-1 did not produce it within its 6 s
-     hold. fi-1 was also running another viewer's 1080p Martian transcode
-     (`641a613b`) and a second 4K start on the same file (`99154b1c`, 39.5 s
-     to ready): three pipelines on a 4-core Pi. Those four refusals are the
-     likely lead-in to the failover at 16:09:10-ish, but the client trail
-     that would confirm it was not captured.
-   - **The line that names a failover's cause** (core, 2026-09-28):
-     `playback.coordinator source-failover-start`, whose `error` is the
-     player failure that began it (a stall, a fragment 404, a decode error).
-     `cluster failed-session-closed` is only the old session's close that
-     follows, and `cluster.health preemptive-endpoint-swap` is the health
-     monitor moving work to the lower-latency node. **Capture
-     `source-failover-start` above all**; it scrolled off the overlay here.
-     The web client saw the same shape on 0.69.0: a 4K HEVC source neither
-     node serves at real speed fails over back and forth indefinitely. Core
-     has taken the fix to Tom as a behaviour decision. Core `ce31561` makes a
-     failover's replacement start report `startProgress` like any other start.
-   - **To tell node from link next time**, read `stream.production`
-     `{produced_ms, producing_ms, produced_age_ms, producer_parked}` on the
-     session payload: `produced_ms / producing_ms` below 1.0 means the node
-     is the limit; at or above 1.0 with the buffer still falling behind means
-     the link is. The TV keeps the old file playing and says "That change could
-   not be applied.", which the server and core call correct.
+1. **See on the set, when Tom says to:** the alphabet strip reached by Right
+   from the bottom row, and a letter bringing its titles to the top
+   (`54c64ce`); the failover status line naming no node (`32d4a7f`); the
+   too-slow-to-play screen with Try again and Choose another quality; the
+   stepped-down notice; ", which the server can't do fast enough" (needs a
+   node's `transcode_rates`, empty until a transcode of a minute or more
+   finishes on it).
+2. **The next failover: capture `playback.coordinator source-failover-start`**,
+   whose `error` names what began it. On 2026-09-28 it scrolled off the
+   eight-line Diagnostics overlay and logcat had rolled, so the first failover
+   seen on this client has no recorded cause. Core and the web client report a
+   4K HEVC source neither node serves at real speed failing over back and
+   forth; core's answer is `too_slow_to_play` (built here, unseen).
+3. **OK on a Continue Watching card does two different things.** On
+   2026-09-28 it opened *The Martian*'s detail page once and started playback
+   once, both with focus confirmed on the card. Seen, unexplained.
 4. **Not yet seen on the set:** next episode on end across a season (needs a
-   show with two seasons; *Firefly* has one), and the `resource_limit`
-   sentence on a switch back into transcode (needs a second viewer holding
-   the slot). Everything else built this week has been seen; see
-   `COMPLETED.md`.
+   show with two seasons), and the `resource_limit` sentence on a switch back
+   into transcode (needs a second viewer holding the slot).
 5. **Unexplained:** Tom's 4K press on *The Martian* that returned to the
-   detail page with nothing said (2026-09-27 ~13:10), never reproduced. Keep
-   Diagnostics on for any 4K test and read the screen before pressing
-   anything.
+   detail page with nothing said (2026-09-27 ~13:10), never reproduced.
 6. **§1.12:** Continue Watching is not per-account (core's storage).
 7. **§1.8** the stereo A/B (needs a listener), **§1.9** catalogue `5xx`
    charging a node (core's), **§1.1** the top bar's ends.
-7a. **Say why Play passed over a larger file** (Tom, 2026-09-28: the web
-   client's "Play chooses up to …" sentence, on the TV too). On `.133` the
-   screen is 4K, so no `limitedBy` is ever set for *The Martian*, yet Play
-   picks its 1080p file because the 4K file's TrueHD needs converting, which
-   core ranks below direct and deliberately does not call a ceiling
-   (`playbackVersions.ts`). Asked core for structured data on a ranking
-   pass-over, and the web client to word it first. **Core's half landed at
-   `03b0bdb`:** `versions.passedOver?` = `{ quality, mediaId?, converts:
-   { video, audio }, reasons }`, set only where automatic play chose a smaller
-   file than the largest within the ceiling because that one would convert
-   (*The Martian* here: 2160, audio only, `audio-codec-not-playable`).
-   **Built 2026-09-28** as the web client's `qualityChoiceText` (f512cdc),
-   one sentence from every fact, replacing `ceilingText`, on the detail
-   page and in the player's options (the web shows it on the detail page
-   only). **Seen on the set** on *The Martian*'s page, 2026-09-28.
-8. **Music: Tom's decision first**, whether the TV has it at all (§4.6). The
-   web and phone clients have per-track lines, and Tom ruled music "yes" for
-   media info; that is not the same as building the seven music routes.
+8. **Tom's calls, asked and unanswered:** whether the Status screen shows
+   each node's inter-node traffic, as the web client now does; whether the
+   web client should be told about the two TV-only focus rules (focus stays
+   on the top bar; the alphabet strip as a side rail) so it can match;
+   Music (§4.6); whether series/season "links" on a card mean anything beyond
+   Back.
 9. The rest of parity, §4.
 
 **Known limits, not open work:** the native-adapter trial is shelved (Tom,
 2026-09-24): a transcode reap recovers only after the buffer drains, and a
 direct-play reap never reaches the player (P-1 below).
 
-### Tom's standing rulings that shape the UI (all 2026-09-27 unless dated)
+### Tom's standing rulings that shape the UI
 
 - **Every client matches the web client, within the device** ("Copy the web
-  style, formatted for the device screen"). Media info: one line per file
-  under the title, core's `fileSummaries` parts joined with " · ", largest
-  file first, "3840×2160 (4K)", channels after the audio codec.
+  style, formatted for the device screen"), and **every client shows the same
+  sentence** for the same facts. Media info: one line per file under the
+  title, core's `fileSummaries` parts joined with " · ", largest file first.
 - **Technical facts and their labels are core's; layout and sentences are
-  ours.** Viewer sentences live in `src/text/viewerText.ts` (2026-09-24).
+  ours.** Viewer sentences live in `src/text/viewerText.ts` (2026-09-24). The
+  web client words new sentences first and this client ports them word for
+  word, reading the web's tree rather than its summary.
 - **Quality names are 4K, 2K, 1080p, 720p** (core's `qualityLabel`), and
   the player has **one Quality row**: the versions, then smaller caps.
+- **Why Play chooses a file is one sentence from every fact** (2026-09-28,
+  `qualityChoiceText`), on the detail page and in the player's options.
+- **A chosen quality no node converts fast enough stops** with "Macha can't
+  play … because …" and a Try again option (2026-09-28).
+- **Nodes are named by the server's operator name**, else the host, never the
+  full URL (2026-09-28).
 - **Episodes are marked `S04E08` everywhere**, "Episode 8" with no season.
 - **Resume as you left it:** Continue Watching keeps item, file, mode, cap,
-  audio and subtitles (core `89a9d0c`); Restart is a fresh automatic start.
+  audio and subtitles; Restart is a fresh automatic start.
 - **An episode's end plays the next, across seasons.**
-- **Back returns to the card that was opened**, Home included.
+- **Back returns to the card that was opened**, Home included; **only Back
+  from Home exits**, with no confirmation, after storage is flushed
+  (2026-09-28).
+- **Focus stays on the top-bar button that chose a screen** (2026-09-29);
+  **a letter on the strip brings its titles to the top** (2026-09-29).
 - **The synopsis sits below the poster** on the TV.
+- **Releases:** the version number and every push of `main` are Tom's word.
+  "Deploy" means build `develop` and install it on `.133`; "push" means push
+  `develop`.
 
 ### Waiting on others
 
-- **Server:** the start-progress design, for review.
-- **Tom:** Music; whether series/season "links" on
-  a card mean anything beyond Back.
+- **Tom:** the calls in item 8, and when to drive the set again.
+- **Core, the web client, the server:** nothing outstanding from this client.
 
 ### Traps this session paid for — driving the set over adb
 
@@ -277,8 +156,18 @@ direct-play reap never reaches the player (P-1 below).
 - **This shell's `grep` skips files it thinks are binary** (logcat captures
   included) — use `grep -a`. **zsh reads `===` and `$VAR:s…`** as syntax;
   avoid both in commands.
-- **Back on a top-level screen leaves the app.** On Search that is one Back
-  after a keyboard that did not open.
+- **Back from Home leaves the app** (every other screen now goes Home,
+  2026-09-28). A driver that loses count still drops out to the launcher.
+- **Home's first focus after a cold start is not fixed.** On 2026-09-29, after
+  `am force-stop` and a relaunch, the usual three Ups and a Right did not reach
+  Movies and the OK opened a Continue Watching item's season. Screenshot
+  before the OK.
+- **Capture a burst on the set, not across adb calls:** `screencap -p
+  /sdcard/mb/fNN.png` inside one `adb shell` loop, then `adb pull
+  /sdcard/mb/.`. **Never `adb pull /sdcard/`**: it copies the whole card.
+- **In this shell:** `export ANDROID_SERIAL=10.35.1.133:5555` rather than a
+  `S="adb -s …"` variable (zsh does not word-split it); waits go in `adb shell
+  sleep N`, since a foreground `sleep` is refused here.
 
 ### Getting a build onto the set
 
@@ -899,7 +788,9 @@ All measured on the set, all by D-pad over `adb`. The three fixed on
   route effect runs — a first attempt that restored there fell back to the
   navigation bar, which is the fault it was written to fix, seen on the set.
   Verified on `10.35.1.133`: before and after Back are the same card.
-- **Back from a top-level screen exits the app** rather than returning to the
+- ~~**Back from a top-level screen exits the app**~~ — **decided and built
+  2026-09-28**: only Home exits; see `COMPLETED.md`. The record as it was:
+  Back from a top-level screen exited the app rather than returning to the
   previous route. Conventional on Android TV, so possibly correct — but it
   means a stray Back drops out to the launcher, and `com.tcl.tv` is
   `FLAG_SECURE`, so screenshots silently return empty when it does. Worth a
@@ -2320,7 +2211,11 @@ the principle *Work is bounded and event-driven*
 (`docs/principles-and-laws.md`), that a degraded state must be visible rather
 than becoming indefinite waiting. The logo is what makes a recovery *marked*.
 
-#### **This client has no spinner at all** — the pair is half missing
+#### ~~**This client has no spinner at all**~~ — **the spinner landed 2026-09-25/27**
+
+`BufferingOverlay` and `bufferingIndicator.ts`, the web client's rules, with the
+start-progress stage under it since 2026-09-28. The precondition below is met;
+the logo itself is still not started. The record as it was:
 
 Checked, and it is the thing most likely to derail this item. `ExpoVideoAdapter`
 produces the flag correctly — `buffering: this.video.status === 'loading'`
@@ -2434,71 +2329,6 @@ It matters because the site session has published that this repo is not
 fetchable, with `macha-ts` and `macha-client` as precedent. If it is public
 that sentence is now wrong, and it is Macha UI Work's to correct rather than
 ours. Loading the URL while signed out answers it in a second.
-
-### 3.3 `/manage` and `/items/:id/edit` — **decided, 2026-09-19**
-
-Not TV work. Tom's ruling on the nav bar: match the web client's *including*
-Status, and **not Import or Manage regardless of user role**. The metadata
-editor goes with Manage. `/ingest` and `/sponsor` were already ruled out
-(2026-09-10). The `ManageNav`/`ManageIcons` rows in §4.3 close with it.
-
----
-
-### 3.4 The `@macha/core` import alias — **done, 2026-09-15**
-
-Renamed to `@machafoundation/core@^0.11.1`, resolved from the registry, with
-the `file:../macha-ts` link and the `npm link` option both removed: the
-development cycle is now what a user gets on install (Tom's decision).
-
-The judgement recorded here before — *"this is not a defect"* — was wrong, and
-for a reason worth keeping. The `@macha` scope is **unclaimed on npm**: the
-old key resolved only because its value was a `file:` path. Anyone could have
-registered the scope and published `core` into it, and any install that lost
-the override — a regenerated lockfile, CI, a teammate without the sibling
-checkout — would have fetched a stranger's package and run its install
-scripts. A 404 was the only thing preventing it. An alias that is safe only
-while nobody else claims the name is not a tidy-up.
-
-Two things this cost, both recorded because a green check hid them:
-
-- The lockfile cached the link at **version `0.7.0`** while `../macha-ts` on
-  disk was `0.11.1`. Neither a version string nor a green suite proves what is
-  installed; only the `resolved` URL and an integrity hash do.
-- `pretest` ran core's `dist:check` against a sibling tree. Dropped — it
-  answered a question about a directory this tree no longer compiles against.
-  `version:check` is ours and stays.
-
-Verified by fresh clone with no sibling `macha-ts`, `npm ci`, typecheck, 159
-tests, and `expo export` — the last because Metro resolving core's ESM through
-its `exports` map had only ever been exercised through a link.
-
-### 3.5 Is Back from a top-level screen meant to exit the app?
-
-**Partly answered, 2026-09-20.** Tom ruled on Back *inside the player*: if the
-controls are up it puts them away, and the next press leaves the film — and
-leaving arrives at **the media detail screen**, which now holds for every path
-into the player rather than only the one that went through a detail screen
-(`App.tsx`'s `play`). The top-level question below is still open.
-
-**Answered, 2026-09-28.** Tom: Settings first ("'Back' on settings should
-go to Home, not exit the app"), then all of them: "only back from home exits
-the app. No confirmation - but the app should make sure that currently
-watching etc is persisted before exit." Built in `src/app/backAction.ts`
-(every screen without a level to go back to goes Home; Home exits) and
-`src/app/appExit.ts` (the exit waits for `flushStorage`, bounded by
-`EXIT_FLUSH_BUDGET_MS`, 2 s, which is unmeasured and guarded against Android's 5 s
-key-dispatch timeout). **Seen on `.133`**, build md5
-`a64ba9c793cfcaefc5fe76f4fcf3a66c`: Movies, Back, Home; Home, Back, the
-launcher. That a pending write survives the exit is unit-tested, not
-measured.
-
-
-It does today. That is conventional Android TV behaviour, so it may be
-correct — but combined with §1.0's requirement that Settings stay reachable
-from behind the login wall, it is worth stating deliberately rather than
-inheriting.
-
----
 
 ### 3.6 The client ships with no endpoints — **decided by Tom, 2026-09-20**
 
