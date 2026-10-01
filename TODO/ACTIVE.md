@@ -13,6 +13,19 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 (2026-09-28 to 2026-09-30). This section is only where things stand and what is
 open, in the order to do it.
 
+### Work only on `experiment/object-ledger` — from 2026-10-01
+
+**Not `main`, not `develop`.** The server's operator instruction, relayed by
+the Macha Server session: the server's experiment is on its
+`experiment/object-ledger` (steps `-t0` .. `-t2`, server `develop` frozen at
+`75e6f98`), and every client works on a branch of the same name until it
+ends. This repo's was cut from `develop` at `3f7bad0`; commit only there or
+on branches cut from it, and do not commit to, merge into or push `main` or
+`develop`. API changes on that line are announced to core and every client
+before they ship: check everything this client depends on. Decided and not
+built: the whole API becomes RESTful (identity resets first; this client
+calls neither reset route). Pushing the branch is Tom's word.
+
 ### Where things stand
 
 - **Released: TV 0.9.0 on core 0.21.0**, 2026-09-29. `main` `263e308`,
