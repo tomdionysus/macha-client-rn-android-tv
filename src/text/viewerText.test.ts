@@ -6,6 +6,7 @@ import {
   qualityLabel,
   errorText,
   NO_NODE_ANSWERED_TEXT,
+  SERVER_UNREACHABLE_TEXT,
   categoryLabel,
   episodeLabel,
   formatPlaybackTime,
@@ -155,6 +156,20 @@ describe('errorText', () => {
       'No Macha server answered. Try again in a moment; if it keeps happening, check that the servers are running.',
     );
     expect(errorText(new MachaClusterRouteError(['a'], false, new Error('x')))).toMatch(/couldn't answer/);
+  });
+
+  it('gives the server\'s own sentence when the nodes answered and refused', async () => {
+    const { MachaClusterRouteError } = await import('@machafoundation/core');
+    const refused = Object.assign(new Error('log'), { detail: 'That file changed since matching failed.' });
+    expect(errorText(new MachaClusterRouteError(['fi-1'], false, refused))).toBe('That file changed since matching failed.');
+  });
+
+  it('says an unreachable server is unreachable, in the web client\'s words', async () => {
+    const { MachaConnectionError } = await import('@machafoundation/core');
+    expect(errorText(new MachaConnectionError())).toBe(SERVER_UNREACHABLE_TEXT);
+    expect(SERVER_UNREACHABLE_TEXT).toBe(
+      'The Macha server cannot be reached. Check that the server is running and that the API address is correct.',
+    );
   });
 
   it('words a status found anywhere down the chain, never the message', () => {

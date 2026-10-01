@@ -334,6 +334,10 @@ export function alphabetKeyLabel(key: string): string {
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 
+/** No connection at all. The web client's sentence, word for word. */
+export const SERVER_UNREACHABLE_TEXT =
+  'The Macha server cannot be reached. Check that the server is running and that the API address is correct.';
+
 /**
  * Every node was tried and none answered: refused, gone, or slower than core
  * waits for one (8 s each). Usually a passing slowness, so it says to try
@@ -353,11 +357,12 @@ export const NO_NODE_ANSWERED_TEXT =
  */
 export function errorText(error: unknown): string {
   if (error instanceof MachaClusterRouteError) {
-    return error.unreachable
-      ? NO_NODE_ANSWERED_TEXT
-      : "The Macha server couldn't answer right now. Try again shortly.";
+    if (error.unreachable) return NO_NODE_ANSWERED_TEXT;
+    // The nodes answered and refused: the server's own sentence, as the web
+    // client gives it (`viewerErrorText`), and ours only when it gave none.
+    return playbackFailureDetail(error) ?? "The Macha server couldn't answer right now. Try again shortly.";
   }
-  if (error instanceof MachaConnectionError) return "Can't reach the Macha server.";
+  if (error instanceof MachaConnectionError) return SERVER_UNREACHABLE_TEXT;
   if (error instanceof SessionAuthError) return 'Your session has ended. Sign in again.';
   if (playbackFailureCode(error) === NOT_PLAYABLE_CODE) return "This can't be played on this television.";
   // Core's own, when a start that reports progress (server 0.69.0) stops
