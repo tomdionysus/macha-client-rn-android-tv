@@ -335,6 +335,15 @@ export function alphabetKeyLabel(key: string): string {
 // ── Errors ─────────────────────────────────────────────────────────────────
 
 /**
+ * Every node was tried and none answered: refused, gone, or slower than core
+ * waits for one (8 s each). Usually a passing slowness, so it says to try
+ * again before it says to check anything. The web client's sentence, word for
+ * word (`macha-client` `src/text/viewerText.ts`, `043fd81`).
+ */
+export const NO_NODE_ANSWERED_TEXT =
+  'No Macha server answered. Try again in a moment; if it keeps happening, check that the servers are running.';
+
+/**
  * A sentence for any error a viewer might be shown.
  *
  * **Never the error's message.** Since core's cut (`8db0a12`, `e28d6ad`)
@@ -345,7 +354,7 @@ export function alphabetKeyLabel(key: string): string {
 export function errorText(error: unknown): string {
   if (error instanceof MachaClusterRouteError) {
     return error.unreachable
-      ? "Can't reach the Macha server."
+      ? NO_NODE_ANSWERED_TEXT
       : "The Macha server couldn't answer right now. Try again shortly.";
   }
   if (error instanceof MachaConnectionError) return "Can't reach the Macha server.";

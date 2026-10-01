@@ -5,6 +5,7 @@ import {
   fileLine,
   qualityLabel,
   errorText,
+  NO_NODE_ANSWERED_TEXT,
   categoryLabel,
   episodeLabel,
   formatPlaybackTime,
@@ -146,8 +147,13 @@ describe('playbackNoticeText', () => {
 
 describe('errorText', () => {
   it('words a failed walk by whether any node answered', async () => {
-    const { MachaClusterRouteError } = await import('@machafoundation/core');
-    expect(errorText(new MachaClusterRouteError(['a'], true, new Error('x')))).toBe("Can't reach the Macha server.");
+    const { MachaClusterRouteError, MachaConnectionError } = await import('@machafoundation/core');
+    // The web client's sentence, word for word (macha-client 043fd81).
+    const timedOut = new MachaConnectionError('Request to http://node/api/v1/manage/unmatched exceeded 8000 ms.');
+    expect(errorText(new MachaClusterRouteError(['fi-1', 'gbni-1'], true, timedOut))).toBe(NO_NODE_ANSWERED_TEXT);
+    expect(NO_NODE_ANSWERED_TEXT).toBe(
+      'No Macha server answered. Try again in a moment; if it keeps happening, check that the servers are running.',
+    );
     expect(errorText(new MachaClusterRouteError(['a'], false, new Error('x')))).toMatch(/couldn't answer/);
   });
 
