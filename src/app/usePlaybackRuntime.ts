@@ -3,7 +3,6 @@ import { AppState } from 'react-native';
 import { trackLiveSession } from '../state/liveSessions';
 import {
   PlaybackRuntime,
-  type MediaSummary,
   type PlaybackHost,
   type PlaybackResolver,
   type PlaybackRuntimeOptions,
@@ -92,6 +91,3 @@ export function attachPlaybackHost(runtime: PlaybackRuntime, host: PlaybackHost)
   runtime.attach(host);
   return () => runtime.detach(host);
 }
-
-/** Convenience type for the runtime's `facts` binding. */
-export type PlaybackFactsLookup = (media: MediaSummary) => ReturnType<PlaybackRuntimeOptions['facts'] & {}>;

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
 import { tvFocus } from '../hooks/tvFocus';
-import { colour, font, radius, rem, screenSize, type, vh } from '../styles/theme';
+import { colour, font, rem, screenSize, type, vh } from '../styles/theme';
 
 export const CONFIRM_SCOPE = 'confirm';
 

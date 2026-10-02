@@ -5,7 +5,7 @@ import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaCard } from '../components/MediaCard';
 import { scrollTarget } from '../hooks/focusScroll';
-import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
+import { CARD_FRAME, layout, pageGutter, rem } from '../styles/theme';
 
 /**
  * Music — albums, and only albums for now.
@@ -39,11 +39,6 @@ export function MusicScreen({
   const scrollY = useRef(0);
   const gridY = useRef(0);
   const cards = useRef(new Map<number, { y: number; height: number }>());
-
-  const columns = Math.max(
-    1,
-    Math.floor((screenSize.width - pageGutter * 2) / (layout.mediaCardWidth + rem(1))),
-  );
 
   const revealCard = (index: number) => {
     const card = cards.current.get(index);

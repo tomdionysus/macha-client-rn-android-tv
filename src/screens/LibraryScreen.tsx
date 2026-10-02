@@ -17,7 +17,7 @@ import { SortControl } from '../components/SortControl';
 import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { jumpTarget, scrollTarget } from '../hooks/focusScroll';
 import { tvFocus } from '../hooks/tvFocus';
-import { CARD_FRAME, layout, pageGutter, rem, screenSize } from '../styles/theme';
+import { CARD_FRAME, layout, pageGutter, rem } from '../styles/theme';
 
 /**
  * The full catalogue grid, from `.media-grid` in base.css.
@@ -65,13 +65,6 @@ export function LibraryScreen({
   const alphabet = useAlphabetIndex(items);
 
   const title = kind === 'movies' ? 'Movies' : 'TV Shows';
-  const columns = Math.max(
-    1,
-    Math.floor(
-      (screenSize.width - pageGutter * 2 - alphabetStripWidth) / (layout.mediaCardWidth + rem(1)),
-    ),
-  );
-
   if (!result.value) {
     return (
       <ScrollView contentContainerStyle={styles.page}>

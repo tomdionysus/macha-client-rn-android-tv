@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { sessionManager, type CurrentSession, type UsersApi } from '@machafoundation/core';
+import { type CurrentSession, type UsersApi } from '@machafoundation/core';
 
 /**
  * Who the viewer is and what the server granted them.

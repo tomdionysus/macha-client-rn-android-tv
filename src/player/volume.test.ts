@@ -3,7 +3,6 @@ import {
   adjustVolume,
   clampVolume,
   initialVolume,
-  setVolumeLevel,
   toggleMute,
   volumePercent,
   VOLUME_STEP,
@@ -87,9 +86,5 @@ describe('showing the level', () => {
 
   it('shows zero while muted, whatever the setting behind it', () => {
     expect(volumePercent(toggleMute(initialVolume(0.8)))).toBe(0);
-  });
-
-  it('takes an explicit level without going through steps', () => {
-    expect(setVolumeLevel(initialVolume(0.2), 0.75).setting).toBe(0.75);
   });
 });

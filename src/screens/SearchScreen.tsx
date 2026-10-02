@@ -24,7 +24,7 @@ import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { ErrorMessage, Loading, PageTitle } from '../components/Status';
 import { jumpTarget, scrollTarget } from '../hooks/focusScroll';
 import { tvFocus } from '../hooks/tvFocus';
-import { CARD_FRAME, colour, controlRow, focusFrame, layout, pageGutter, px, rem, screenSize } from '../styles/theme';
+import { CARD_FRAME, colour, controlRow, focusFrame, layout, pageGutter, px, rem } from '../styles/theme';
 
 /**
  * Search, from the web client's screen of the same name.
@@ -104,11 +104,6 @@ export function SearchScreen({
       clearTimeout(timer);
     };
   }, [api, query, categories, refreshToken]);
-
-  const columns = Math.max(
-    1,
-    Math.floor((screenSize.width - pageGutter * 2) / (layout.mediaCardWidth + rem(1))),
-  );
 
   /**
    * A letter on the strip: focus to its first title, and that title's row to

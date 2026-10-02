@@ -53,17 +53,6 @@ export function SettingsIcon({ size, colour: stroke = colour.textDim }: NavIconP
   );
 }
 
-/** The magnifier on the search field, from `.search-field`'s adornment. */
-export function SearchIcon({ size, colour: stroke = colour.textDim }: NavIconProps): React.JSX.Element {
-  const dimension = size ?? px(18);
-  return (
-    <Svg width={dimension} height={dimension} viewBox="0 0 24 24" fill="none">
-      <Circle cx="11" cy="11" r="6.4" fill="none" stroke={stroke} strokeWidth={1.6} />
-      <Path d="M15.8 15.8 20 20" stroke={stroke} strokeWidth={1.6} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
 /**
  * `ManageIcons`'s `RefreshIcon`, same path, same 1.8 stroke. Search's control
  * row ends in it (`.search-bar-refresh`).

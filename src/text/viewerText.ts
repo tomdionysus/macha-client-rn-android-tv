@@ -334,6 +334,11 @@ export function alphabetKeyLabel(key: string): string {
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 
+export const SESSION_ENDED_TEXT = 'Your session has ended. Sign in again.';
+
+/** A node answered but could not serve the request, and said nothing of its own. */
+export const SERVER_BUSY_TEXT = "The Macha server couldn't answer right now. Try again shortly.";
+
 /** No connection at all. The web client's sentence, word for word. */
 export const SERVER_UNREACHABLE_TEXT =
   'The Macha server cannot be reached. Check that the server is running and that the API address is correct.';
@@ -360,10 +365,10 @@ export function errorText(error: unknown): string {
     if (error.unreachable) return NO_NODE_ANSWERED_TEXT;
     // The nodes answered and refused: the server's own sentence, as the web
     // client gives it (`viewerErrorText`), and ours only when it gave none.
-    return playbackFailureDetail(error) ?? "The Macha server couldn't answer right now. Try again shortly.";
+    return playbackFailureDetail(error) ?? SERVER_BUSY_TEXT;
   }
   if (error instanceof MachaConnectionError) return SERVER_UNREACHABLE_TEXT;
-  if (error instanceof SessionAuthError) return 'Your session has ended. Sign in again.';
+  if (error instanceof SessionAuthError) return SESSION_ENDED_TEXT;
   if (playbackFailureCode(error) === NOT_PLAYABLE_CODE) return "This can't be played on this television.";
   // Core's own, when a start that reports progress (server 0.69.0) stops
   // reporting any: no server sentence behind it, and its 504 would otherwise
@@ -372,9 +377,9 @@ export function errorText(error: unknown): string {
   if (playbackFailureCode(error) === TOO_SLOW_TO_PLAY_CODE) return tooSlowToPlayText();
   if (playbackFailureCode(error) === START_NO_PROGRESS_CODE) return 'The node stopped making progress starting this stream.';
   const status = playbackFailureStatus(error);
-  if (status === 401 || status === 403) return 'Your session has ended. Sign in again.';
+  if (status === 401 || status === 403) return SESSION_ENDED_TEXT;
   if (status === 404 || status === 410) return "That isn't available any more.";
-  if (status !== undefined && status >= 500) return "The Macha server couldn't answer right now. Try again shortly.";
+  if (status !== undefined && status >= 500) return SERVER_BUSY_TEXT;
   return 'Something went wrong.';
 }
 
@@ -398,13 +403,13 @@ export function serverStatusText(status: ServerStatus): string | undefined {
       return 'Playback is switched off on this Macha server.';
     case 'unauthorized':
     case 'forbidden':
-      return 'Your session has ended. Sign in again.';
+      return SESSION_ENDED_TEXT;
     default:
       break;
   }
   const http = status.httpStatus;
-  if (http === 401 || http === 403) return 'Your session has ended. Sign in again.';
-  if (http >= 500) return "The Macha server couldn't answer right now. Try again shortly.";
+  if (http === 401 || http === 403) return SESSION_ENDED_TEXT;
+  if (http >= 500) return SERVER_BUSY_TEXT;
   return 'Playback is not available on this Macha server.';
 }
 

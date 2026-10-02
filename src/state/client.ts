@@ -46,7 +46,3 @@ export function getDiscoveredEndpoints(): string[] {
 export function setDiscoveredEndpoints(urls: readonly string[]): void {
   clientConfiguration.setDiscoveredEndpoints(urls);
 }
-
-export function getServerUrl(): string {
-  return clientConfiguration.serverUrl();
-}

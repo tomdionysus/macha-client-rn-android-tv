@@ -43,11 +43,6 @@ export function adjustVolume(state: VolumeState, delta: number): VolumeState {
   return { effective: setting, setting, muted: false };
 }
 
-export function setVolumeLevel(state: VolumeState, value: number): VolumeState {
-  const setting = clampVolume(value);
-  return { effective: setting, setting, muted: false };
-}
-
 /**
  * Mute keeps the setting and zeroes only what the player hears.
  *

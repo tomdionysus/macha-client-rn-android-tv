@@ -35,7 +35,6 @@ import { failureTrailEnabled } from '../diagnostics/failureTrailSetting';
 import { failureCopy } from './player/failureCopy';
 import { playbackLog } from '../diagnostics/playbackLog';
 import { usePlayerVolume } from '../hooks/usePlayerVolume';
-import { volumePercent } from '../player/volume';
 import { useMacha } from '../app/MachaProvider';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
@@ -125,7 +124,7 @@ export function PlayerScreen({
   const chromeVisibleRef = useRef(chromeVisible);
   chromeVisibleRef.current = chromeVisible;
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const volume = usePlayerVolume(runtime, useMacha().volume);
+  usePlayerVolume(runtime, useMacha().volume);
   // How long this start has been going on, for the spinner's note. Counted
   // here because core says `starting` without saying since when.
   const starting = playback?.starting ?? false;

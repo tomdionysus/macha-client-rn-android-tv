@@ -9,7 +9,7 @@ import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaRow } from '../components/MediaRow';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
-import { pageGutter, rem } from '../styles/theme';
+import { rem } from '../styles/theme';
 
 /**
  * Home, matching the web client's screen of the same name: Continue Watching
