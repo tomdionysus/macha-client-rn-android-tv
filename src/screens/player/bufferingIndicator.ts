@@ -6,9 +6,8 @@ import { startWaitText } from '../../text/viewerText';
  * The rules behind the player's spinner, the web client's
  * (`PlayerScreen.tsx`, `showBuffering` and `startWaitNotice`) unchanged.
  *
- * Tom, 2026-09-23: the spinner is simply a streaming and seeking indicator —
- * the stream is catching up. A recovery no other player could make is §2.11's
- * logo, not this.
+ * The spinner is only a streaming and seeking indicator: the stream is
+ * catching up. A recovery is shown by its own indicator, not this.
  */
 
 /** A start, or the player reporting it is buffering; never over a failure. */

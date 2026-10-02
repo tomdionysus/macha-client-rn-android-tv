@@ -5,7 +5,8 @@
  * engine would also move focus around, but it would move it *differently* —
  * and the requirement is that this client behaves like the web TV client, not
  * merely that it is navigable. So the geometry, the weights and the tie-breaks
- * below are the same ones `scoreTvCandidate` uses in the browser.
+ * below are the same ones `scoreTvCandidate` uses in the browser; a weight
+ * changed here must change there too, and in `tvFocus.test.ts`.
  *
  * The DOM's `[data-tv-focusable="true"]` query becomes an explicit registry:
  * React Native has no document to query, so every focusable registers itself
@@ -71,28 +72,20 @@ function rectGap(start: number, size: number, otherStart: number, otherSize: num
 
 /**
  * The web client's candidate score, with its geometry taken from edges rather
- * than centres (Tom, 2026-09-24 — see below).
+ * than centres.
  *
- * The weights are the port's and unchanged: primary-axis distance dominates;
+ * The weights are the web client's: primary-axis distance dominates;
  * cross-axis drift is discounted to a fifth so a slightly-offset neighbour
  * still wins over a distant aligned one; and a lane gap is penalised six-fold
  * so focus prefers staying within a row or column.
  *
- * **What changed, and why.** The port judged "is it to the right?" and "how
- * far?" from the two centres. For a wide element — Search's field, which takes
- * most of a row — the centre is nowhere near the edge a viewer is moving
- * towards, so every card whose centre lay right of the field's middle counted
- * as "right" of it, and one a row down beat the sort control beside it. Tom:
- * "moving right on the D-pad from search drops into the results".
- *
- * So a candidate is in the direction of travel only when its centre is past
- * the current element's *edge* on that side, and the primary distance is the
- * gap between the facing edges. For two equal cards in a grid this chooses
- * exactly what the centre rule chose; it differs only where sizes differ,
- * which is where the centre rule was wrong. **The web client made the same
- * change the same night** (its develop `50a2ff7`, "TV focus: judge direction from edges
- * and prefer the current row"), after its own tests of these cases failed
- * first — so the two ports still agree.
+ * A candidate is in the direction of travel only when its centre is past the
+ * current element's *edge* on that side, and the primary distance is the gap
+ * between the facing edges. Judged from centres, a wide element such as
+ * Search's field would count every card right of its middle as "right" of it.
+ * For two equal cards in a grid the edge rule chooses what a centre rule
+ * would; it differs only where sizes differ. The web client judges from edges
+ * the same way, so the two ports agree.
  */
 export function scoreTvCandidate(
   current: FocusRect,
@@ -142,18 +135,17 @@ export function pickTvCandidate<T extends { rect: FocusRect; rail?: boolean }>(
 
   // **Left and right: only the row.** Only candidates sharing the current
   // element's row compete, and at the end of the row the move stops. The lane
-  // penalty alone could not promise the first — a far control on the same row
-  // lost to a near card on the next (Search: field → refresh past a results
-  // row). And a fallback to "anything that way, in any row" was the second
-  // fault: Left from Home, first in the top bar, dropped to a card below it
-  // (`.133`, 2026-09-24). Changing row is what Up and Down are for.
+  // penalty alone cannot promise that — a far control on the same row would
+  // lose to a near card on the next — and falling back to "anything that way,
+  // in any row" would drop Left from the first top-bar item onto a card below
+  // it. Changing row is what Up and Down are for.
   //
   // **Except a side rail.** The alphabet strip is pinned beside a grid and is
-  // shorter than it, so the grid's bottom row has no key on its row and Right
-  // stopped there (Tom, `.133`, 2026-09-29). Where nothing on the row lies that
-  // way, a rail's nearest key is taken; any other control in another row still
-  // cannot be reached sideways. **Not in the web client**; whether its strip
-  // leaves the same gap has not been read. The weights are untouched.
+  // shorter than it, so the grid's lower rows have no key on their row. Where
+  // nothing on the row lies that way, a rail's nearest key is taken; any other
+  // control in another row still cannot be reached sideways. **Not in the web
+  // client**; whether its strip leaves the same gap has not been read. The
+  // weights are untouched.
   if (horizontal) {
     const onRow = scored
       .filter(({ entry }) => rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0)
@@ -162,11 +154,10 @@ export function pickTvCandidate<T extends { rect: FocusRect; rail?: boolean }>(
   }
 
   // **Up and down: the nearest row first, then the best of it.** Not "the same
-  // column first": that reading skipped a whole row on Home — Up from a Movies
-  // card with nothing directly above it in a short Continue Watching row went
-  // straight to the top bar (`.133`, 2026-09-24). A viewer reads Up as "the
-  // row above". So the row is the band of candidates overlapping, vertically,
-  // the one whose facing edge is nearest; the usual score chooses within it.
+  // column first", which skips a short row with nothing directly above the
+  // current card. A viewer reads Up as "the row above". So the row is the band
+  // of candidates overlapping, vertically, the one whose facing edge is
+  // nearest; the usual score chooses within it.
   const nearest = [...scored].sort(
     (a, b) =>
       rectGap(current.top, current.height, a.entry.rect.top, a.entry.rect.height) -
@@ -205,21 +196,19 @@ class TvFocusRegistry {
   /**
    * Rectangles that arrived before their focusable registered.
    *
-   * **This is not a rare race, it is the normal order.** Registration is a
-   * passive effect, which React defers; Fabric dispatches `onLayout` from
-   * native the moment layout commits. On the first device run every one of 46
-   * focusables measured before it registered, so every rectangle was dropped
-   * and the scorer never ran once — focus fell back to registration order for
-   * the entire session.
+   * **This is not a rare race, it is the normal order** (measured on the
+   * device): Fabric dispatches `onLayout` from native the moment layout
+   * commits, often before registration has run. Dropping these rectangles
+   * leaves the scorer nothing to work with and focus falls back to
+   * registration order.
    */
   private pendingRects = new Map<string, FocusRect>();
 
   /**
    * A card Back should return to, which may not have mounted yet.
    *
-   * Armed rather than applied, because the screen being returned to re-fetches:
-   * on the television the grid's cards had not registered by the time the route
-   * effect ran, so a restore applied there found nothing. Registration claims
+   * Armed rather than applied, because the screen being returned to re-fetches
+   * and its cards have not registered when the route effect runs. Registration claims
    * it; the first command the viewer sends abandons it.
    */
   private pendingRestoreId: string | undefined;
@@ -228,10 +217,9 @@ class TvFocusRegistry {
    * The selection is a fallback nobody chose: `focusDefault` found no element
    * marked `defaultFocus` and took the first thing on screen instead.
    *
-   * Measured on `.133`, 2026-09-23 — a screen's default card registers only
-   * after its content is fetched, so the fallback is usually the top bar. The
-   * series screen opened with Home selected and the viewer's OK went there.
-   * While this holds, a `defaultFocus` element that registers takes over; any
+   * A screen's default card registers only after its content is fetched, so
+   * the fallback is usually the top bar (measured on `.133`). While this
+   * holds, a `defaultFocus` element that registers takes over; any
    * real selection — a key, a restore, an explicit `select` — clears it.
    *
    * **Not in the web client**, whose DOM autofocus runs after render; the
@@ -242,22 +230,21 @@ class TvFocusRegistry {
   /**
    * The last move the D-pad made, so the opposite press can undo it.
    *
-   * Tom, 2026-09-24: going down from a row and straight back up should land
-   * on the control the viewer left, not on whatever geometry finds nearest
-   * from where they now are. Only the move just made is remembered, and any
-   * other selection — another direction, a restore, a default — forgets it,
-   * so the rule stays one a viewer can predict: *the opposite press undoes
-   * the last one*. **Not in the web client, by Tom's decision (2026-09-24)** — the
-   * one place the two focus ports deliberately differ.
+   * Going down from a row and straight back up lands on the control the
+   * viewer left, not on whatever geometry finds nearest from where they now
+   * are. Only the move just made is remembered, and any other selection —
+   * another direction, a restore, a default — forgets it, so the rule stays
+   * one a viewer can predict: *the opposite press undoes the last one*.
+   * **Deliberately not in the web client** — the one place the two focus
+   * ports intentionally differ.
    */
   private lastMove: { from: string; to: string; direction: TvDirection } | undefined;
 
   /**
    * The top-bar item the viewer last chose, for the fallback to return to.
    *
-   * Tom, 2026-09-24: focus "always jumps to Home" however a screen was
-   * reached, because a screen's own default registers only after its fetch
-   * and the fallback took the first thing on screen, which is Home. Only a
+   * A screen's own default registers only after its fetch, so the fallback
+   * would otherwise take the first thing on screen, which is Home. Only a
    * selection the viewer caused sets this; the fallback's own choice does not,
    * or Home would remember itself. In memory, for the life of the app.
    * **Not in the web client**, like `provisional`; the scoring weights are
@@ -381,15 +368,13 @@ class TvFocusRegistry {
    * Reference counting is correct until a holder disappears without releasing,
    * and then it is unrecoverable: nothing else knows the token, so the registry
    * stays suspended for the life of the process and **the entire remote stops
-   * working with nothing on screen to explain it.** That is not hypothetical —
-   * it shipped in 0.3.0 and was found within minutes of a person picking up the
-   * remote (see `TvTextInput`), because Android TV keeps a `ReactEditText`
-   * natively focused after the IME closes, so `onBlur` never fires.
+   * working with nothing on screen to explain it.** Android TV keeps a
+   * `ReactEditText` natively focused after the IME closes, so `onBlur` never
+   * fires (see `TvTextInput`).
    *
-   * The individual leak is fixed where it was caused. This exists because the
-   * *consequence* is out of all proportion to the cause: any future holder that
-   * forgets, throws, or is unmounted mid-flight would brick navigation the same
-   * way. Callers must establish that nothing legitimately owns the remote
+   * This exists because the *consequence* is out of all proportion to the
+   * cause: any holder that forgets, throws, or is unmounted mid-flight would
+   * brick navigation. Callers must establish that nothing legitimately owns the remote
    * before calling this — `useTvNavigation` does it by asking the platform
    * whether a keyboard is actually on screen.
    */
@@ -542,9 +527,6 @@ class TvFocusRegistry {
      * selected and no focus ring is ever drawn.** On a row of controls with no
      * neighbour above or below, that is a screen where the D-pad does nothing
      * at all, permanently, with nothing on screen to explain it.
-     *
-     * Seen on the library after Back from a detail page: no ring anywhere, and
-     * Up did nothing however many times it was pressed.
      *
      * Consuming the press is the right trade and matches every television UI:
      * the first press reveals where focus is, the second moves it.

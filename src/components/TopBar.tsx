@@ -17,11 +17,9 @@ export interface NavItem {
  * is reproduced with flex, since the grid there exists only to keep the nav
  * optically centred while the outer cells size to content.
  *
- * **The platform badge is gone, as it is there.** That client's own note says
- * it "labelled the build on every screen for the benefit of nobody but a
- * developer", and Status reports the platform beside the codec probes that give
- * it meaning. This carried "Android TV" in the same slot for the same bad
- * reason.
+ * **No platform badge, as on the web.** It would label the build on every
+ * screen for the benefit of nobody but a developer; Status reports the platform
+ * beside the codec probes that give it meaning.
  *
  * The trailing pair is that client's `topbar-trailing`: who the viewer is, and
  * a cog to the settings screen. Identity is a glyph and a name rather than an
@@ -76,11 +74,7 @@ export function TopBar({
       <View style={styles.trailing}>
         {/*
           * **Focusable, because a television has no other way out of an
-          * account.** This was a plain `View` until 2026-09-21: drawn, never
-          * registered, so the D-pad walked from Status straight to the cog and
-          * skipped it. There was no sign-out behind it either, and none
-          * anywhere else in the client — so a viewer on a set could not leave
-          * an account at all, short of clearing the app's data.
+          * account.** This is the client's only sign-out.
           */}
         {username ? (
           <Focusable
@@ -167,9 +161,8 @@ const styles = StyleSheet.create({
     backgroundColor: colour.accentSurface,
   },
   // Focus is the standard ring (`Focusable`'s 1px `--focus` border) over the
-  // stronger fill. Until 2026-09-24 the ring was switched off here, which left
-  // focus and the current page as two dark fills a shade apart: Home looked
-  // selected whatever actually held focus (Tom).
+  // stronger fill. Without the ring, focus and the current page would be two
+  // dark fills a shade apart.
   navItemFocused: {
     backgroundColor: colour.accentSurfaceStrong,
   },
@@ -193,7 +186,7 @@ const styles = StyleSheet.create({
    * `AccountMenu`'s trigger, reduced to what a remote can use.
    *
    * That client opens an overflow with sign-out and account links; there is no
-   * `OverflowMenu` here yet (§4.3), and identity still has to be visible —
+   * `OverflowMenu` here, and identity still has to be visible —
    * *am I signed in as the right person* is the question it exists to answer.
    * So the name is shown and the menu is not, rather than the control being
    * left out until the menu exists.

@@ -27,12 +27,10 @@ export class AndroidTvPlatform implements Platform {
    * `aac, opus, vorbis, mp3, flac` and forces the node to transcode 5.1 E-AC-3
    * to AAC, losing the centre channel in a downmix the mixer cannot perform.
    *
-   * This stays on the native module even though playback moved to
-   * `expo-video`, which exposes no codec enumeration at all. The phone client
-   * answers this from a hardcoded conservative list, and doing that here would
+   * This stays on the native module although playback is `expo-video`, which
+   * exposes no codec enumeration at all. A hardcoded conservative list would
    * make the node transcode AC-4, AV1 and Dolby Vision that the panel decodes
-   * natively — defeating the point of the client to save a native dependency
-   * that is already built.
+   * natively, defeating the point of the client.
    */
   async capabilities(): Promise<PlaybackCapabilities> {
     if (this.cached) return this.cached;
@@ -56,8 +54,8 @@ export class AndroidTvPlatform implements Platform {
       // on a set whose decoder handles 4K forces a transcode that buys nothing.
       ...(native.maxWidth ? { maxWidth: native.maxWidth } : {}),
       ...(native.maxHeight ? { maxHeight: native.maxHeight } : {}),
-      // Core d6fa069: a codec whose own decoders stop short of the limit
-      // above, which the chooser holds that codec's streams to instead.
+      // A codec whose own decoders stop short of the limit above, which core's
+      // chooser holds that codec's streams to instead.
       ...(native.videoCodecMaxSize && Object.keys(native.videoCodecMaxSize).length > 0
         ? { videoCodecMaxSize: native.videoCodecMaxSize }
         : {}),
@@ -72,9 +70,8 @@ export class AndroidTvPlatform implements Platform {
    * platform reports none, which leaves automatic play uncapped by the display.
    *
    * **The panel's, not the UI's.** React Native's window on `.133` is
-   * 1920x1080 while the panel runs 3840x2160 (Tom, 2026-09-25: the display
-   * class this TV states is the panel's), and capping at the UI would keep a
-   * 4K set off its 4K files. Read once: the mode is the set's, not the app's.
+   * 1920x1080 while the panel runs 3840x2160, and capping at the UI would keep
+   * a 4K set off its 4K files. Read once: the mode is the set's, not the app's.
    * Not a capability either — screen size is not a decoder limit (above).
    */
   display(): { width: number; height: number } | undefined {
@@ -93,9 +90,8 @@ export class AndroidTvPlatform implements Platform {
   /**
    * The player core drives.
    *
-   * `expo-video` rather than the native `ExoPlayerAdapter` in this tree, on
-   * Tom's decision of 2026-09-10: it is the proven component, this client has
-   * never been run, and it is Media3 underneath so the hardware-decoder
+   * `expo-video` rather than the native `ExoPlayerAdapter` in this tree: it is
+   * the proven component, and it is Media3 underneath so the hardware-decoder
    * premise is unaffected. `ExpoVideoAdapter`'s own comment records what that
    * costs — seamless failover most of all. Called once, from the
    * `PlaybackRuntime` constructor.

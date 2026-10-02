@@ -62,7 +62,7 @@ object Capabilities {
    * Curated deliberately: this is not discoverable from the device, and a
    * codec list without the container that carries it is not a capability.
    * Getting this wrong is expensive in a specific way — advertising `mp3` as a
-   * codec but not as a container made a node transcode every MP3 in the
+   * codec but not as a container makes a node transcode every MP3 in the
    * library, burning CPU to produce something strictly worse than the original.
    * The bare audio containers are therefore listed explicitly.
    */
@@ -195,7 +195,7 @@ object Capabilities {
     // A software decoder's declared size is what it will accept, not what the
     // set's CPU decodes in real time: one that declares 4K plays 4K as a
     // stutter, which the decode fallback cannot see, since nothing fails.
-    // Core's caution, 2026-09-25; the policy is this device's. So each codec's
+    // The caution is core's; the policy is this device's. So each codec's
     // limit is its hardware decoders' largest frame, and the overall limit is
     // the largest over those, falling back to software only for a codec (or a
     // device) with no hardware decoder at all.
@@ -224,7 +224,7 @@ object Capabilities {
       // forces a transcode that buys nothing.
       maxWidth = maxWidth.takeIf { it > 0 },
       maxHeight = maxHeight.takeIf { it > 0 },
-      // Core d6fa069: each codec's own largest frame, where it is below the
+      // Each codec's own largest frame, where it is below the
       // overall one, which is a maximum over every decoder and so claims 4K
       // for a codec whose decoders stop at 1080p (VP8 on `.133`, per its vendor
       // XML). The largest over that codec's decoders, because the player may

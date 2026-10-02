@@ -28,14 +28,13 @@ import { decoderFailureKind } from './playerErrorKind';
 /**
  * Buffer ahead the way the web client does.
  *
- * **Tom, 2026-09-19: the client must buffer ahead, as the web client does, and
- * in the same way.** That client configures hls.js with `maxBufferLength: 60`
- * (`WebHlsPolicy.webHlsBufferConfig`, read there rather than remembered);
- * `expo-video` defaults Android to **20**. Three times less cover, in exactly
- * the quantity everything about failover is decided on: the runway is what core
- * defers a replacement behind, and it is what this adapter spends classifying a
- * failure. Their measurements talk about sixty seconds in hand because they
- * have sixty seconds in hand.
+ * **The client must buffer ahead as the web client does, and in the same
+ * way.** That client configures hls.js with `maxBufferLength: 60`
+ * (`macha-client` `WebHlsPolicy.webHlsBufferConfig`); `expo-video` defaults
+ * Android to **20**. Three times less cover, in exactly the quantity
+ * everything about failover is decided on: the runway is what core defers a
+ * replacement behind, and it is what this adapter spends classifying a
+ * failure.
  *
  * **The byte ceiling is deliberately not copied.** Theirs is 128 MB, set on a
  * desktop browser; this set is `armeabi-v7a` with no arm64, and an allocation
@@ -44,8 +43,7 @@ import { decoderFailureKind } from './playerErrorKind';
  * hardware — and `prioritizeTimeOverSizeThreshold` stays at its default so the
  * size ceiling still wins, rather than the sixty seconds being held against a
  * 4K HEVC bitrate on a 32-bit device. **What forward buffer is actually reached
- * on a high-bitrate title is unmeasured**, and is the thing to read off the set
- * (`TODO/ACTIVE.md` §1.7's sitting).
+ * on a high-bitrate title is unmeasured.**
  */
 const BUFFER_OPTIONS: BufferOptions = {
   preferredForwardBufferDuration: 60,
@@ -59,10 +57,8 @@ const BUFFER_OPTIONS: BufferOptions = {
  * `modules/macha-player` is a complete Media3 player that has never been run.
  * `expo-video` is also Media3 underneath, so it reaches the same hardware
  * decoders and can direct-play E-AC-3 — which is the whole premise of this
- * project — and it is proven working in the phone client. Tom's decision on
- * 2026-09-10 was to get a picture on the screen with the proven component and
- * settle the 5.1 measurement first, then revisit. `ExoPlayerAdapter` stays in
- * the tree, unused, for that revisit.
+ * project — and it is proven working in the phone client. This is the player
+ * in use; `ExoPlayerAdapter` stays in the tree, unused, as the alternative.
  *
  * **What is knowingly given up while this is the player**, so none of it is
  * rediscovered as a bug:
@@ -73,11 +69,10 @@ const BUFFER_OPTIONS: BufferOptions = {
  *   what the player's own loader hits. `addDirectSourceAlternative` is not
  *   implemented for that reason — deliberately, not by oversight.
  *
- *   **This does not cost seamless failover**, which an earlier version of this
- *   paragraph claimed: handover does not live in the transport. `VideoView`'s
- *   player setter holds the shutter open for a pre-warmed player, so a second
- *   `VideoPlayer` can be primed and promoted — which is what `preflightSource`
- *   and `promoteStandby` below do.
+ *   **This does not cost seamless failover**: handover does not live in the
+ *   transport. `VideoView`'s player setter holds the shutter open for a
+ *   pre-warmed player, so a second `VideoPlayer` can be primed and promoted —
+ *   which is what `preflightSource` and `promoteStandby` below do.
  * - **Audio focus ducking.** `expo-video`'s `AudioFocusManager` halves
  *   `player.volume` on a transient duck and restores from its own
  *   `userVolume`, rather than keeping ducking as a separate multiplier.
@@ -117,10 +112,10 @@ export class ExpoVideoAdapter implements Player {
    *
    * Keyed by URL because that is all core gives us to recognise *which* source
    * this is: promotion arrives as an ordinary `play()` carrying the one we were
-   * asked to preflight, with no separate hook. Since core 0.14.0 the
-   * `transition` argument says whether the swap may be hidden, which is a
-   * different question from which source it is — both have to agree before the
-   * standby is cut to. See `promoteStandby`.
+   * asked to preflight, with no separate hook. The `transition` argument says
+   * whether the swap may be hidden, which is a different question from which
+   * source it is — both have to agree before the standby is cut to. See
+   * `promoteStandby`.
    */
   private standby?: { url: string; player: VideoPlayer };
 
@@ -141,9 +136,7 @@ export class ExpoVideoAdapter implements Player {
    * decay and the buffer it describes does, so a stale sample over-reports
    * cover by however long it has been standing — which is the dangerous
    * direction for anything spending that cover, because it grants a budget that
-   * no longer exists. Found by the core session while reading this for a
-   * different question; it has the same exposure at its own deferral decision.
-   * The monotonic clock, because this is a duration.
+   * no longer exists. The monotonic clock, because this is a duration.
    */
   private lastForwardBufferMs = 0;
 
@@ -152,11 +145,10 @@ export class ExpoVideoAdapter implements Player {
   /**
    * Whether the viewer wants this playing.
    *
-   * **Not `!this.video.playing`**, which is the mistake the web client names:
-   * between a play request and the element actually running, the player is
-   * still not playing while the viewer is very much waiting — and that window
-   * is exactly when a node refusing the stream must be judged rather than
-   * excused.
+   * **Not `!this.video.playing`**: between a play request and the element
+   * actually running, the player is still not playing while the viewer is very
+   * much waiting — and that window is exactly when a node refusing the stream
+   * must be judged rather than excused.
    */
   private wantsPlayback = false;
 
@@ -171,11 +163,10 @@ export class ExpoVideoAdapter implements Player {
    * that dies during a pause has hurt no one yet, and reporting it tears down a
    * generation nothing is using: core fails over, the viewer comes back to a
    * failure screen naming a node they never asked for, and the session they
-   * were actually on is gone. The web client measured exactly that — a pause
-   * ending on `Playback failed` two minutes in — and answered it by parking the
-   * load instead of judging it (`WebHlsPolicy.managedHlsErrorAction`,
-   * `park-paused`). This is the same decision on a platform that cannot reach
-   * its loader to park it, so the source is re-asked on resume instead.
+   * were actually on is gone. The web client parks the load instead of judging
+   * it (`macha-client` `WebHlsPolicy.managedHlsErrorAction`, `park-paused`).
+   * This is the same decision on a platform that cannot reach its loader to
+   * park it, so the source is re-asked on resume instead.
    *
    * Held rather than dropped, because the error is very likely still true: it is
    * met again at `resume()`, with the viewer present and this adapter in the
@@ -187,24 +178,17 @@ export class ExpoVideoAdapter implements Player {
    * What a node last said about a source, in a status.
    *
    * `expo-video` reports `{ message: string }` and nothing else, so a terminal
-   * error from its own loader carries no status to classify. The web client has
-   * exactly this problem on its Direct Play path — a 404 body handed to the
-   * element as media raises a generic decode error — and did **not** parse the
-   * message: the layer that does see statuses latches what it learned, and the
-   * statusless error is reinterpreted against that memory. This is the same
-   * latch, fed by the readiness walk, which is the only thing here that makes
-   * its own requests.
+   * error from its own loader carries no status to classify. Rather than parse
+   * the message, the layer that does see statuses latches what it learned, and
+   * the statusless error is reinterpreted against that memory — as the web
+   * client does on its Direct Play path. Here the latch is fed by the readiness
+   * walk, which is the only thing that makes its own requests.
    *
-   * **Cleared at every `play()`, and keyed by URL as well.** The web session
-   * observes that a stream URL carries a per-generation index — a fresh session
-   * served `/…/1/master.m3u8`, one that had taken about fifty PATCHes served
-   * `/…/50/` — which would make the URL generation-unique on its own. But that
-   * is two captures rather than a contract, and core says outright that the URL
-   * shape is the server's to change: 0.32.12 turned `master.m3u8` from a media
-   * playlist into a master one without renaming it. So correctness does not
-   * rest on it. The verdict is discarded when a new source is attached, which
-   * is the only lifetime it was ever meant to have, and the URL check is what
-   * is left if a stale one somehow survives.
+   * **Cleared at every `play()`, and keyed by URL as well.** A stream URL may
+   * look generation-unique, but core says the URL shape is the server's to
+   * change, so correctness does not rest on it. The verdict is discarded when
+   * a new source is attached, which is its only intended lifetime, and the URL
+   * check is what is left if a stale one somehow survives.
    *
    * The cheap direction is an extra probe; the expensive one is answering for a
    * generation nobody asked about.
@@ -217,9 +201,9 @@ export class ExpoVideoAdapter implements Player {
   /**
    * Which `play()` call is the current one.
    *
-   * Needed only because `play()` can now await: the readiness walk can run
-   * for up to five server holds, and core is free to call `play()` again in
-   * the meantime — a failover, a quality change, or the viewer picking
+   * Needed only because `play()` can await: the readiness walk can run for up
+   * to a node's whole attempt budget, and core is free to call `play()` again
+   * in the meantime — a failover, a quality change, or the viewer picking
    * something else. Without this, the older walk would finish afterwards and
    * hand the player a source two generations stale, silently replacing what
    * the viewer is actually watching.
@@ -232,11 +216,11 @@ export class ExpoVideoAdapter implements Player {
    * `MediaStallWatchdog` takes the serving node's figures through
    * `useSourceBudgets()`; the start watchdog has no such method — its budget is
    * a constructor argument — so the equivalent is a fresh one per source. Core
-   * gives the figure either way (Tom, 2026-09-19): the same deadline the
-   * readiness walk uses, stated by the node or derived from the server's
-   * defaults for one that cannot say. Left at its own default it would judge
-   * every node by `MEDIA_START_STARVATION_MS`, a compiled-in 20 s, against
-   * nodes that now say what they are entitled to spend.
+   * gives the figure either way: the same deadline the readiness walk uses,
+   * stated by the node or derived from the server's defaults for one that
+   * cannot say. Left at its own default it would judge every node by
+   * `MEDIA_START_STARVATION_MS`, a compiled-in 20 s, against nodes that say
+   * what they are entitled to spend.
    */
   private startWatchdog: MediaStartWatchdog;
   private readonly stallWatchdog: MediaStallWatchdog;
@@ -247,8 +231,8 @@ export class ExpoVideoAdapter implements Player {
     // create a playback session, so the session begins at `play()`.
     this.active = createVideoPlayer(null);
     this.active.bufferOptions = BUFFER_OPTIONS;
-    // Media3 keeps the screen awake itself when told to. The WebView client
-    // never had this and dimmed through films; a CPU wake lock is not enough.
+    // Media3 keeps the screen awake itself when told to; without it the panel
+    // dims through films, and a CPU wake lock is not enough.
     this.active.keepScreenOnWhilePlaying = true;
     // Emitted often enough for the scrubber and the stall watchdog to have
     // something to judge, without flooding the bridge.
@@ -308,10 +292,8 @@ export class ExpoVideoAdapter implements Player {
     // clock runs from the moment the interval is set, source or not, so between
     // films the active player ticks position 0 every 250 ms; and core's
     // coordinator lets a player event overwrite its start position until the
-    // session is presented. A tick landing while a resume was being resolved
-    // started the film at 0:00 (reproduced against core 3a5dc56's dist,
-    // 2026-09-25). Core is told; this is the platform half: an idle player's
-    // zero is not an observation.
+    // session is presented, so a tick landing while a resume is being resolved
+    // starts the film at 0:00. An idle player's zero is not an observation.
     if (!this.activeSource) return;
     const positionMs = Math.max(0, this.video.currentTime * 1_000);
     const durationMs = Math.max(0, this.video.duration * 1_000);
@@ -418,9 +400,9 @@ export class ExpoVideoAdapter implements Player {
     //
     // Checked before the readiness walk, not after: a standby has already
     // been preflighted and is holding bytes, so walking its manifest again
-    // would spend up to five server holds re-answering a question that was
-    // settled when it was primed — in front of a viewer whose picture has
-    // just frozen, which is the worst possible moment to spend it.
+    // would spend server holds re-answering a question that was settled when
+    // it was primed — in front of a viewer whose picture has just frozen,
+    // which is the worst possible moment to spend it.
     if (this.promoteStandby(source, positionMs, startPaused, transition)) {
       this.activeSource = source;
       this.startWatchdogs(source);
@@ -478,8 +460,7 @@ export class ExpoVideoAdapter implements Player {
       new PlaybackSourceError(
         `The node did not serve the first fragment: ${readiness.reason}`,
         // The status it answered with, through core's rule — never a blanket
-        // `stream`, which is what this said until core 0.13.0 gave `404` a kind
-        // of its own. A `404` on a playback route is one session's existence,
+        // `stream`. A `404` on a playback route is one session's existence,
         // not the node's health: read as `stream` it is endpoint evidence, and
         // the node that answered honestly is charged a failure and dropped from
         // the candidate list while the viewer is sent to one that never held
@@ -506,20 +487,16 @@ export class ExpoVideoAdapter implements Player {
    * Arm both watchdogs.
    *
    * **Called only once the player has actually been given a source**, which
-   * is the ordering the readiness walk depends on:
-   * `MEDIA_START_STARVATION_MS` is 20 s and `FIRST_FRAGMENT_TIMEOUT_MS` is
-   * 30 s, so arming these first and then waiting would have the start
-   * watchdog fire mid-walk and report a `stream` failure against a node that
-   * was answering the protocol correctly — the exact spurious failover the
-   * walk was written to remove.
+   * is the ordering the readiness walk depends on: the start watchdog's budget
+   * and the walk's are independent, so arming these first and then waiting
+   * would let the start watchdog fire mid-walk and report a `stream` failure
+   * against a node that was answering the protocol correctly.
    *
    * **The source is passed because the stall budget belongs to the node, not
    * to the watchdog.** A stall must be called only after the node has failed
-   * to answer its own hold, and until core 0.14.0 that relationship could only
-   * be written against a compiled-in guess at what the hold was. The watchdog
-   * outlives any one generation while the figure travels with the source, so
-   * a host that does not re-state it at every attach goes on judging the new
-   * node by the old one's number.
+   * to answer its own hold. The watchdog outlives any one generation while the
+   * figure travels with the source, so a host that does not re-state it at
+   * every attach goes on judging the new node by the old one's number.
    */
   private startWatchdogs(source: PlaybackSource): void {
     this.stallWatchdog.useSourceBudgets(source);
@@ -651,10 +628,9 @@ export class ExpoVideoAdapter implements Player {
    * Validate a transformed source without replacing the active presentation.
    *
    * Core calls this before it accepts a warm standby, and throws the standby
-   * away when it returns `false` (`PlaybackCoordinator.ts:1305`). No decoder is
+   * away when it returns `false` (`PlaybackCoordinator`). No decoder is
    * involved — the walk is `fetch` and a range request, so nothing here depends
-   * on `expo-video` exposing anything. See `preflight.ts` for why it is a
-   * re-implementation of the web client's version rather than a copy of it.
+   * on `expo-video` exposing anything.
    */
   async preflightSource(source: PlaybackSource): Promise<boolean> {
     const servable = await preflightHlsSource(source, { fetch });
@@ -665,30 +641,28 @@ export class ExpoVideoAdapter implements Player {
   /**
    * Buffer a source on a second player so promotion does not have to.
    *
-   * **Tier 2 of seamless failover.** Promotion itself was measured at 3 ms; the
-   * visible cost of a failover is the buffering, and this pays it in advance
-   * against a node already proven to be serving by the walk above.
+   * Promotion itself was measured at 3 ms; the visible cost of a failover is
+   * the buffering, and this pays it in advance against a node already proven
+   * to be serving by the walk above.
    *
    * Muted and never started: the standby must not be heard behind the active
    * source, and `play()` is what would make it compete for audio focus.
    *
-   * No surface is bound here, which is the deliberate Tier 2 limit. A player
-   * that has never rendered reports `hasSentFirstFrameForCurrentMediaItem` as
-   * false, so `VideoView`'s setter closes the shutter over the swap and the
-   * viewer sees a brief black frame. Tier 3 removes that by giving the standby
-   * an off-screen surface, and is gated on §1.3's decoder-instance limit —
-   * whether a second surfaceless player already costs a decoder session on this
-   * panel is exactly what that measurement answers.
+   * No surface is bound here, deliberately. A player that has never rendered
+   * reports `hasSentFirstFrameForCurrentMediaItem` as false, so `VideoView`'s
+   * setter closes the shutter over the swap and the viewer sees a brief black
+   * frame. Giving the standby an off-screen surface would remove that, but
+   * whether a second player costs a decoder session on this panel is
+   * unmeasured.
    */
   private primeStandby(source: PlaybackSource): void {
     if (this.released || this.standby?.url === source.url) return;
     this.discardStandby();
     const player = createVideoPlayer(this.videoSourceFor(source));
     // The standby buffers on the same terms as the active player, which is what
-    // makes a promotion worth having — and is the web client's shape. Two
-    // players holding a minute each is also the memory question on a 32-bit set,
-    // and belongs with §1.3's decoder-instance measurement rather than being
-    // guessed at here.
+    // makes a promotion worth having — and is the web client's shape. What two
+    // players holding a minute each cost in memory on a 32-bit set is
+    // unmeasured.
     player.bufferOptions = BUFFER_OPTIONS;
     player.volume = 0;
     player.timeUpdateEventInterval = 0;
@@ -709,23 +683,20 @@ export class ExpoVideoAdapter implements Player {
    * recognition. Returns false when this is an ordinary play.
    *
    * **A matching URL is not sufficient on its own; `transition` decides.** Core
-   * 0.14.0 states whether the viewer asked for this change, and it is the one
+   * states whether the viewer asked for this change, and it is the one
    * fact no host can derive: a seek and a recovery both arrive as
    * `play(source, positionMs)` and are byte-identical, measured. `continue`
    * means the viewer did not ask and should not see it — a failover, a reaped
    * session, a quality change — which is exactly what a warm standby is for.
    * `relocate` means they asked to be somewhere else, and the one outcome they
-   * did not want is being held where they were while the move is hidden. The
-   * web client measured fourteen seconds of that.
+   * did not want is being held where they were while the move is hidden.
    *
    * So a `relocate` takes the ordinary path and the standby is discarded by the
-   * caller. Absent is treated as `relocate`, which is core's stated default and
-   * the behaviour every player had before seamless replacement existed.
+   * caller. Absent is treated as `relocate`, which is core's stated default.
    *
-   * Today the cost of getting this wrong is small, because Tier 2 promotion
-   * still shows a black frame — but Tier 3 (§2.1) exists precisely to make the
-   * swap invisible, and at that point an unasked-for hide becomes a lie about
-   * where the viewer is.
+   * While promotion shows a black frame the cost of getting this wrong is
+   * small, but once the swap is invisible an unasked-for hide becomes a lie
+   * about where the viewer is.
    */
   private promoteStandby(
     source: PlaybackSource,
@@ -820,32 +791,28 @@ export class ExpoVideoAdapter implements Player {
    * Classify a terminal error the player could not classify for itself.
    *
    * **The player's own errors are the one path here with no status.**
-   * `expo-video`'s `PlayerError` is `{ message: string }`, and until this
-   * existed every one of them was reported as `unknown` — which core treats as
-   * possible endpoint evidence. So a session the node reaped while the viewer
-   * was paused, the single likeliest failure on a television, charged a failure
-   * against the node that had answered honestly and sent the viewer to one that
-   * had never held the session. That is the fault core's `not-found` exists to
-   * prevent, arriving through the one door this client could not see through.
+   * `expo-video`'s `PlayerError` is `{ message: string }`, and reported as
+   * `unknown` — which core treats as possible endpoint evidence — a session the
+   * node reaped while the viewer was paused, the single likeliest failure on a
+   * television, would charge a failure against the node that had answered
+   * honestly and send the viewer to one that had never held the session. That
+   * is the fault core's `not-found` exists to prevent.
    *
-   * So the node is asked. **The readiness walk, not the session** — the web
-   * client's correction, and the reason is measured: a fragment past the end of
-   * a live plan and a reaped session both answer `404 not_found`, differing by
-   * one word of English in a body no loader surfaces. A session that reports
+   * So the node is asked. **The readiness walk, not the session**, and the
+   * reason is measured: a fragment past the end of a live plan and a reaped
+   * session both answer `404 not_found`, differing by one word of English in a
+   * body no loader surfaces. A session that reports
    * itself alive therefore does not prove the fragment was servable, while the
    * walk asks exactly what the loader asked.
    *
    * **Conservative on everything else.** A walk that answers `ready`,
    * `holding`, `unassessable` or nothing at all leaves the kind `unknown`.
    *
-   * *An earlier version of this comment justified that by saying `unknown`
-   * costs a spinner while a wrong `stream` costs a healthy node. That is not
-   * true and the core session corrected it:*
-   * `isEndpointRetryablePlaybackFailure` (`Platform.js:27`) returns true for
-   * **both** — an `unknown` prepares a standby on another node and can escalate
-   * exactly as a `stream` does. `unknown` is still the right floor for a
-   * different reason: it is core's documented answer for a status it has no
-   * rule for, and the standby machinery behind it is the recovery that works
+   * Not because `unknown` is cheap: core's `isEndpointRetryablePlaybackFailure`
+   * returns true for both it and `stream`, so an `unknown` prepares a standby
+   * on another node and can escalate exactly as a `stream` does. `unknown` is
+   * the right floor because it is core's documented answer for a status it has
+   * no rule for, and the standby machinery behind it is the recovery that works
    * *without* knowing the cause. The asymmetry that does hold is against
    * `not-found`, which is excluded from that gate — a wrong `not-found` sends
    * core to ask about a session that was never reaped, and a session reported
@@ -900,18 +867,14 @@ export class ExpoVideoAdapter implements Player {
    * nothing in the case it exists for and bounds the case where the node has
    * stopped answering at all.
    *
-   * *What it is weighed against was wrong here first, and is worth stating
-   * correctly.* The comparison is not with a cold start: a terminal `unknown`
+   * What it is weighed against is not a cold start: a terminal `unknown`
    * with no cover is endpoint evidence, so it goes to failover, and negotiating
    * a generation on the new node is bounded by `generationAttemptBudgetMs()` —
    * the node's `startupTimeoutMs`, 15 s by default, plus the transport
    * allowance. **Roughly 19 s on a node holding nothing for this title**,
    * against a `not-found` at zero cover, which regenerates on the node already
    * warm and already configured for the session. Four seconds spent to avoid
-   * nineteen. The two figures this first cited — 9 s and 4 s — are both real
-   * measurements of other things, which the core session went and read: the 9 s
-   * is a join point built past a node's look-ahead frontier, and the 4 s is
-   * this very allowance elapsing on a dead node.
+   * nineteen.
    *
    * The runway is the last figure the event stream carried, **less the time
    * since it was carried**: a stale sample describes a buffer that has been
@@ -950,14 +913,13 @@ export class ExpoVideoAdapter implements Player {
       const outcome = await probeHlsReadiness(source, { fetch, signal: controller.signal });
       if (outcome.state !== 'unavailable' || outcome.status === undefined) {
         /*
-         * **Measured 2026-09-20: this is the branch a reaped session takes**,
-         * and it is why the first failover on hardware classified a `404` as
-         * `unknown` with `Response code: 404` sitting in the player's own
-         * message.
+         * **This is the branch a reaped session takes (measured)**, so a `404`
+         * is classified `unknown` even with `Response code: 404` in the
+         * player's own message.
          *
-         * When the session is gone the *master playlist* 404s, and
-         * `hlsWalkTargets` answers a non-ok manifest with `[]`
-         * (`hlsWalk.ts:436`) rather than with its status — so
+         * When the session is gone the *master playlist* 404s, and core's
+         * `hlsWalkTargets` answers a non-ok manifest with `[]` rather than
+         * with its status — so
          * `probeHlsReadiness` reports `unassessable / empty-manifest`, the
          * status the walk actually saw is dropped, and there is nothing here
          * to map. `playbackFailureKindForStatus(404)` would have said
@@ -966,10 +928,8 @@ export class ExpoVideoAdapter implements Player {
          *
          * **The distinction belongs in core** — a manifest that answers `404`
          * is exactly as much evidence as a fragment that does, and only the
-         * walk ever sees it — and core has the measurement. This line exists
-         * so the next run says *which* verdict was returned instead of leaving
-         * a silent `unknown` on the trail, and so it keeps saying it if the
-         * cause is ever something else.
+         * walk ever sees it. This line puts *which* verdict was returned on
+         * the trail instead of a silent `unknown`.
          */
         playbackLog.warn('terminal-failure-unclassified', {
           state: outcome.state,

@@ -14,8 +14,7 @@ export interface EpisodeNavigation extends EpisodeNeighbours {
 /**
  * The episodes either side of the one playing, for the player's control bar.
  *
- * **The rule is core's** (`episodeNeighbours`, asked for from this client on
- * 2026-09-23 for Tom's business P0): which episode is next across a season
+ * **The rule is core's** (`episodeNeighbours`): which episode is next across a season
  * boundary, that specials are their own chain, and that a missing parent means
  * no neighbour rather than an error. This hook only owns the lifecycle — one
  * lookup per episode, abandoned when the episode changes.

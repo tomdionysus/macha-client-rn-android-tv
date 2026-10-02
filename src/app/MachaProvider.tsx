@@ -61,18 +61,10 @@ export function configureHost(): void {
   hostConfigured = true;
   configureMachaHost({
     storage: nativeStorage,
-    // `ephemeralStorage` was removed in core 0.10.0. `SessionManager` was its
-    // only reader, and the session is now deliberately persisted rather than
-    // held for one run — Tom's "permanent until logout". Nothing here replaces
-    // it, so the key is simply gone.
-    //
-    // **Not yet supplied: `secureStorage`.** Core 0.10.0 takes an optional
-    // `StorageLike` and puts the token in it when present. `expo-secure-store`
-    // runs on Android TV and would make that Keystore-backed; until it is
-    // wired, the session token lives in app-private `AsyncStorage`, which is
-    // what the rest of this client's state uses. Recorded rather than assumed,
-    // because core's own note is that it cannot make a platform safer than it
-    // is — only use what the host offers.
+    // **Not supplied: `secureStorage`.** Core takes an optional `StorageLike`
+    // and puts the session token in it when present; `expo-secure-store` would
+    // make that Keystore-backed on Android TV. Without it the token lives in
+    // app-private `AsyncStorage` with the rest of this client's state.
     origin: clientConfiguration.serverUrl(),
   });
 }

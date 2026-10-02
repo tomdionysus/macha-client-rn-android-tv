@@ -7,23 +7,20 @@ import { trackFacts } from '../../text/viewerText';
 import { colour, font, rem, vh, vw } from '../../styles/theme';
 
 /**
- * A track in the player: its artwork, and what it is beneath it.
+ * A track in the player: its artwork, and the artist, album, year and track
+ * beneath it.
  *
- * Without this a track played over a black video surface with nothing on it.
- * Tom asked, 2026-09-24, for the artist, album, year and track below the
- * artwork; this is the web client's `.audio-player-*` presentation, ported
- * from `macha-client` `src/styles/base.css` 869–878 as they stood in that
- * tree the same evening (**uncommitted there**, so re-check them when they
- * land). The radial gradient behind it is not ported: React Native has none
- * built in, and the plain background is what the gradient fades to.
+ * The web client's `.audio-player-*` presentation, ported from `macha-client`
+ * `src/styles/base.css`. The radial gradient behind it is not ported: React
+ * Native has none built in, and the plain background is what the gradient
+ * fades to.
  */
 export function AudioPresentation({ track }: { track: MediaSummary }): React.JSX.Element {
   const { services } = useMacha();
   const artwork = track.artwork?.poster ?? track.artwork?.thumbnail;
   const facts = trackFacts(track);
   // Its format, "3:45 · FLAC · 24-bit · 96 kHz · Stereo · 2,304 kbps", where
-  // the track plays: Tom ruled music in on 2026-09-27, and the phone shows it
-  // under the same lines in its player.
+  // the track plays, as the phone client shows it under the same lines.
   const lines = useFileLines(track);
   return (
     <View style={styles.fill} pointerEvents="none">

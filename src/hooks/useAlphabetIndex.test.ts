@@ -45,8 +45,7 @@ describe('the contract between the strip and the grid', () => {
 /**
  * A jump has to *move focus*, not merely scroll. The web client calls
  * `scrollIntoView` and stops, which on a D-pad would leave focus behind and the
- * viewer's next press would scroll straight back — the jump appearing to undo
- * itself.
+ * viewer's next press would scroll straight back, undoing the jump.
  */
 describe('jumping to a letter', () => {
   it('selects the first title in the bucket, in indexed order', () => {

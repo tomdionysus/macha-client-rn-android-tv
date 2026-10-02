@@ -39,24 +39,20 @@ import {
  * **Its shape, section for section**: the brand hero with the one line that
  * says whether the system is working, a row of status cards for Server,
  * Catalogue and Client, Connection — where the endpoints are *edited* rather
- * than listed — and Diagnostics. This screen had a read-only endpoint list and
- * two blocks that client does not have, which is what Tom read as "nothing like
- * the web client" off the set.
+ * than listed — and Diagnostics.
  *
- * **The two blocks that stay are the reason this client exists.** Hardware
- * decoding is what `MediaCodecList` actually answered, and the platform surface
- * is what core's contract found here; neither has a web counterpart because
- * neither question arises in a browser. They come last, so the screen reads the
- * same as that one until it runs out of shared ground. The decoder panel is not
- * decoration: the worst failure in this client is silent — a probe narrower
- * than the truth means the node transcodes a library that would have
- * direct-played, the picture still works, and nothing prompts anyone to look.
+ * **Two blocks follow that have no web counterpart**, because neither question
+ * arises in a browser: Hardware decoding is what `MediaCodecList` actually
+ * answered, and Platform surface is what core's contract found here. They come
+ * last, so the screen reads the same as the web one until it runs out of shared
+ * ground. The decoder panel matters because a probe narrower than the truth
+ * fails silently: the node transcodes a library that would have direct-played,
+ * and the picture still works.
  *
- * **Endpoints are the one control a bricked set needs.** A television has no
+ * **Endpoints are the one control a stranded set needs.** A television has no
  * address bar, so when a cluster stops answering this is the only way to point
- * the client somewhere else — which is why Settings stays reachable from behind
- * the login wall (`App.tsx`), and why editing belongs here rather than in a
- * developer build.
+ * the client somewhere else, which is why Settings stays reachable from behind
+ * the login wall (`App.tsx`).
  */
 export function SettingsScreen(): React.JSX.Element {
   const { services } = useMacha();
@@ -64,10 +60,9 @@ export function SettingsScreen(): React.JSX.Element {
 
   const [capabilities, setCapabilities] = useState<PlaybackCapabilities | undefined>();
   const [error, setError] = useState<Error | undefined>();
-  // Seeded from storage once. The setting is only ever changed from this
-  // control, so there is nothing to subscribe to.
+  // Seeded from storage once. Each setting is only ever changed from its
+  // control here, so there is nothing to subscribe to.
   const [trailEnabled, setTrailEnabled] = useState(failureTrailEnabled);
-  // Seeded from storage once, as the trail is; only this control changes it.
   const [ceiling, setCeiling] = useState<QualityClass | undefined>(() => qualityPreferenceStore().get().wifi);
   const [offerAll, setOfferAll] = useState(() => qualityPreferenceStore().get().offerAll ?? false);
   // The panel's class, which is the ceiling when none is set: core's screen
@@ -76,7 +71,7 @@ export function SettingsScreen(): React.JSX.Element {
     const display = androidTvPlatform.display();
     return display ? displayQualityClass(display.width, display.height) : undefined;
   }, []);
-  // Read once, with the capabilities: which limits no hardware decoder backs.
+  // Which limits no hardware decoder backs.
   const softwareOnly = useMemo(() => androidTvPlatform.softwareOnlyVideoCodecs(), []);
   // Probed once: the answer cannot change while the app is running.
   const surface = useMemo(() => checkPlatformSurface(), []);
@@ -100,15 +95,14 @@ export function SettingsScreen(): React.JSX.Element {
   }, []);
 
   /**
-   * The one line a person actually reads on this screen.
+   * The state line under the hero.
    *
-   * The web client's ladder in its order: an unreachable server outranks an
-   * unreachable catalogue, which outranks a catalogue still synchronising.
-   * Reproduced rather than reinvented, because "Ready" has to mean the same
-   * thing on both clients — a viewer comparing them is entitled to that much.
+   * The web client's ladder in its order, so "Ready" means the same thing on
+   * both clients: an unreachable server outranks an unreachable catalogue,
+   * which outranks a catalogue still synchronising. Signed out is not an outage
+   * and outranks the rest, which would otherwise report a 401 as "catalogue
+   * unavailable".
    */
-  // Signed out is not an outage (§1.12): it outranks the rest of the ladder,
-  // which would otherwise report a 401 as "catalogue unavailable".
   const signedOut =
     isSignedOut(server.error) ||
     isSignedOut(catalogue.error) ||
@@ -136,9 +130,8 @@ export function SettingsScreen(): React.JSX.Element {
       return;
     }
     setBootstrapEndpoints(parsed);
-    // Stated rather than implied. The registry is built from this list once, at
-    // startup, so the endpoints are saved now and adopted on the next launch —
-    // and a viewer who is not told that concludes the change did nothing.
+    // The registry is built from this list once, at startup, so the endpoints
+    // are adopted on the next launch; the notice says so.
     setEndpointNotice('Saved. Restart the app to connect to these.');
   };
 
@@ -240,10 +233,10 @@ export function SettingsScreen(): React.JSX.Element {
         </View>
 
         {/*
-          The quality ceiling (Tom, 2026-09-25): per device, labelled by
-          height, and unset means the screen's own class. It caps automatic
-          play only; a version picked on the detail page or in the player is
-          never capped. No web rule to port yet: it takes Diagnostics' control.
+          The quality ceiling: per device, labelled by height, and unset means
+          the screen's own class. It caps automatic play only; a version picked
+          on the detail page or in the player is never capped. No web rule to
+          port: it takes Diagnostics' control.
         */}
         <View style={styles.section} onLayout={measureRow('quality')}>
           <Text style={styles.heading}>Playback</Text>
@@ -274,8 +267,8 @@ export function SettingsScreen(): React.JSX.Element {
             best version at or below it; the quality buttons beside them play what they say.
           </Text>
           {/*
-            Tom, 2026-09-25: offer only what the device plays, on every client,
-            and a setting on every client to turn that off. Off by default.
+            Every client offers only what the device plays, with this setting
+            to turn that off. Off by default.
           */}
           <Focusable
             onSelect={() => {
@@ -324,10 +317,8 @@ export function SettingsScreen(): React.JSX.Element {
           {/*
             The web client's label reads "…on errors", because on that client
             it is only ever on errors. Here it is also the running trail and
-            the session id, which is why the words differ: a television is the
-            one host where the buffer cannot be read any other way — a release
-            build writes no console and the set's `adb` is over the link its
-            own notes call the unreliable half.
+            the session id: a release build writes no console, so on a
+            television the buffer cannot be read any other way.
           */}
           <Text style={styles.note}>
             Prints the last warnings and errors under the failure message on the player, and, while
@@ -428,10 +419,8 @@ export function SettingsScreen(): React.JSX.Element {
  * A section with nothing to press, made a focus stop so it can be read.
  *
  * The page follows focus and nothing else scrolls it, so a section with no
- * control in it could never be brought on screen: Hardware decoding and
- * Platform surface sat below the last control, Diagnostics, and were
- * unreachable on `.133` (2026-09-25). The web client's page scrolls with the
- * keys, which a TV page cannot. OK does nothing; the ring says where you are.
+ * control in it below the last control could never be brought on screen. OK
+ * does nothing; the ring says where you are.
  */
 function ReadingStop({ onFocus, children }: { onFocus: () => void; children: React.ReactNode }): React.JSX.Element {
   return (
@@ -653,21 +642,17 @@ const styles = StyleSheet.create({
     fontSize: type.body,
     fontWeight: font.weightMedium,
   },
-  /**
-   * `.search-type-pill[aria-pressed='true'] { color: #dedee2 }`: lit, in the
-   * heading colour. It was `colour.focus`, `#4b000f`, a border and fill colour
-   * that as text read as dim red on grey on `.133`, 2026-09-25.
-   */
+  /** `.search-type-pill[aria-pressed='true'] { color: #dedee2 }`: lit, in the heading colour. */
   toggleStateOn: {
     color: colour.heading,
   },
-  /** `[aria-pressed='true'] { background: var(--accent-surface-strong) }`. */
   /** Room for the focus ring around a whole section. */
   readingStop: {
     padding: rem(0.6),
     marginHorizontal: -rem(0.6),
     borderRadius: radius.control,
   },
+  /** `[aria-pressed='true'] { background: var(--accent-surface-strong) }`. */
   choiceSelected: {
     backgroundColor: colour.accentSurfaceStrong,
   },

@@ -14,8 +14,8 @@ import type { ArtworkRef, MediaApi } from '@machafoundation/core';
  *
  * **The server re-signs a capability URL on every catalogue fetch**, even when
  * the image has not changed and the previous signature has not expired
- * (`types.ts:9-15` says so, and `macha-client/src/components/LazyArtwork.tsx:23`
- * explains what it costs). `expo-image` caches by URL, so handing it each fresh
+ * (core's `src/types.ts` says so, and `macha-client`
+ * `src/components/LazyArtwork.tsx` explains what it costs). `expo-image` caches by URL, so handing it each fresh
  * signature churns the cache key itself: every revisit to a library screen
  * re-downloads and re-decodes every poster already on it, and the server's
  * `Cache-Control` never gets a chance to matter.

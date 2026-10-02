@@ -8,8 +8,7 @@ import { categoryLabel } from '../text/viewerText';
  * Which kinds of media a search covers: Movies, TV Shows, Music, each on or
  * off, in any combination including none.
  *
- * **Tom's, relayed by core (2026-09-24).** The categories, their names and the
- * kinds each covers are core's (`SEARCH_CATEGORIES`); core also answers an
+ * The categories and the kinds each covers are core's (`SEARCH_CATEGORIES`); core also answers an
  * empty selection with nothing and no request. The web client draws them as
  * toggle pills, and so does this: a pill is one focus target and one press, so
  * it needs no D-pad translation.

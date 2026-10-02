@@ -17,8 +17,7 @@ import { statusNodeName } from '../text/viewerText';
  *
  * Everything shown is core's `ClusterStatusApi`, unparsed and unsummarised by
  * this client: `health`, the node roll and each node's state are the server's
- * own words, and re-deriving any of them here would be a second opinion nobody
- * asked for.
+ * own words, not re-derived here.
  */
 export function StatusScreen({ api }: { api: ClusterStatusApi }): React.JSX.Element {
   const snapshot = useRefreshableAsync(() => api.status(), [api]);
@@ -52,10 +51,9 @@ export function StatusScreen({ api }: { api: ClusterStatusApi }): React.JSX.Elem
           value={`${cluster.metadata_availability}, ${cluster.metadata_voters_online} of ${cluster.metadata_voters} voters, quorum ${cluster.metadata_quorum_required}`}
         />
         {/*
-          Conditions are the server's own account of what is wrong. Rendered
-          verbatim and only when present: an empty list is not "no problems
-          reported", it is the absence of a report, and a cheerful line in its
-          place would be this client inventing an answer.
+          Conditions are the server's own account of what is wrong, rendered
+          verbatim and only when present: an empty list is the absence of a
+          report, not "no problems", so nothing is shown in its place.
         */}
         {cluster.conditions.length > 0
           ? cluster.conditions.map((condition) => (

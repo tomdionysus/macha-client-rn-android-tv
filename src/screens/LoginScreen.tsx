@@ -9,10 +9,9 @@ import { colour, font, rem, type } from '../styles/theme';
 export const LOGIN_SCOPE = 'login';
 
 /**
- * What the viewer has typed, kept while the sign-in wall is away.
+ * What the viewer has typed, kept while the sign-in wall is away: the screen
+ * unmounts on a visit to Server settings.
  *
- * §1.12, measured on `.133` 2026-09-23: going to Server settings and back
- * discarded the typed username and password, because the screen unmounts.
  * In memory only, never storage; the username is forgotten after a sign-in
  * that succeeds, and the password after every attempt.
  */
@@ -26,10 +25,9 @@ const draft = { username: '', password: '' };
  * empty credentials authenticate the anonymous one. This exchanges that session
  * for one belonging to a named account.
  *
- * `guestAllowed={false}` is the deployment this client currently cares about:
- * strip `media_viewer` from the anonymous account and an unauthenticated viewer
- * genuinely may do nothing, so this screen stands *in front of* the application
- * rather than beside it. **What the server permits decides which it is**, not a
+ * With `guestAllowed={false}`, the anonymous account lacks `media_viewer` and an
+ * unauthenticated viewer may do nothing, so this screen stands *in front of*
+ * the application rather than beside it. **What the server permits decides which it is**, not a
  * build flag — the same screen, positioned by what the roles say.
  *
  * The wording, the identical treatment of a wrong user and a wrong password,
@@ -44,16 +42,14 @@ export function LoginScreen({
   onOpenSettings,
   notice,
 }: {
-  /** Exchanges credentials for a session. Rejects on a refusal, which is the whole point. */
+  /** Exchanges credentials for a session. Rejects on a refusal. */
   onSignIn: (username: string, password: string) => Promise<void>;
-  /** Re-read who the session belongs to once it changes. */
   onSignedIn: () => void;
   /**
    * Whether there is anything to browse without signing in.
    *
-   * False where the server grants the anonymous account no roles, which makes
-   * this screen a wall rather than a doorway. Offering "Browse as guest" there
-   * would be a button that navigates home and is bounced straight back, so the
+   * False where the server grants the anonymous account no roles. "Browse as
+   * guest" there would navigate home and be bounced straight back, so the
    * choice is removed rather than left to fail.
    */
   guestAllowed?: boolean;
@@ -63,22 +59,19 @@ export function LoginScreen({
    *
    * A television has no address bar. Without a route to the endpoint settings,
    * a set whose node stops granting roles can neither sign in nor be pointed
-   * anywhere else — it is simply bricked, and the only remedy is a reinstall.
-   * The web client keeps its connection screen reachable behind the same wall
-   * for the same reason, after 0.13.0 shipped exactly that lockout.
+   * anywhere else, and the only remedy is a reinstall. The web client keeps its
+   * connection screen reachable behind the same wall for the same reason.
    */
   onOpenSettings?: () => void;
   /**
    * Why this screen is up, when it is up for a reason the viewer did not
    * expect — replacing the standing blurb rather than joining it.
    *
-   * There is one thing worth saying here and it is core's argument, not this
-   * client's: a session that lapses under a viewer empties the library and
-   * renders the refused state "unannounced, looking exactly like a fault". The
-   * remedy core names is to say what happened. It also names the limit —
-   * **"a false 'you were signed out' is worse than a missing one"** — so the
-   * caller supplies this only where it knows, and core reports no identity
-   * change at all against a node too old to state a username.
+   * A session that lapses under a viewer empties the library and would
+   * otherwise look exactly like a fault, so this says what happened. A false
+   * "you were signed out" is worse than a missing one, so the caller supplies
+   * this only where it knows; core reports no identity change at all against a
+   * node too old to state a username.
    */
   notice?: string;
 }): React.JSX.Element {
@@ -96,12 +89,10 @@ export function LoginScreen({
   const [error, setError] = useState<string>();
 
   /**
-   * Claim the focus scope while this screen is up.
-   *
-   * Not optional bookkeeping: the registry only offers candidates matching the
-   * active scope, and every focusable here declares one — so without this push
-   * nothing on the screen is reachable and the D-pad does nothing at all. It
-   * also keeps anything still mounted behind the wall out of reach.
+   * Claim the focus scope while this screen is up. The registry only offers
+   * candidates matching the active scope, and every focusable here declares
+   * one, so without this push nothing on the screen is reachable. It also keeps
+   * anything still mounted behind the wall out of reach.
    */
   useEffect(() => {
     tvFocus.pushScope(LOGIN_SCOPE);
@@ -160,9 +151,9 @@ export function LoginScreen({
 
         {/*
           * Sign in on its own row, the width of the fields, so Down from the
-          * password lands on it (§1.12: it landed on Server settings, whose
-          * centre sat nearer the field's). Geometry, not a focus override: the
-          * scoring weights are the web client's and stay untouched.
+          * password lands on it rather than on a button whose centre sits
+          * nearer the field's. Geometry, not a focus override: the scoring
+          * weights are the web client's and stay untouched.
           */}
         <Button
           label={busy ? 'Signing in…' : 'Sign in'}

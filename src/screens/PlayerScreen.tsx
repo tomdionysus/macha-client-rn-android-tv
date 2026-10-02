@@ -183,12 +183,10 @@ export function PlayerScreen({
   /**
    * Read by `showChrome`, which is stable and so cannot see the state.
    *
-   * **The panel pins the chrome.** Measured on `.133`, 2026-09-23: with the
-   * options panel open, a keypress re-armed the hide timer, the chrome hid,
-   * and the next press brought it back — pushing the chrome's focus scope
-   * *above* the panel's, so the D-pad moved along the transport row while
-   * the panel was on screen. Not arming the timer while the panel is open
-   * means the chrome never re-stacks over it.
+   * **The panel pins the chrome.** If the hide timer ran while the options
+   * panel was open, the next press would re-show the chrome and push its focus
+   * scope *above* the panel's, handing the D-pad to the transport row behind
+   * the panel. Not arming the timer while the panel is open prevents that.
    */
   const optionsOpenRef = useRef(false);
 
@@ -221,22 +219,13 @@ export function PlayerScreen({
   }, [showChrome]);
 
   /**
-   * Any button brings the controls back.
+   * Any press brings the chrome back, and left or right also seeks.
    *
    * While the chrome is hidden every focusable is out of scope, so the focus
-   * registry has no candidate and would swallow the press. Waking on the
-   * command itself is what makes the first press of a direction feel like it
-   * did something, which is the behaviour the web client gets from its chrome
-   * never leaving the DOM.
-   */
-  /**
-   * Any press brings the chrome back — and left or right also seeks.
-   *
-   * **Tom, 2026-09-19: a tap on the D-pad with the bar hidden should raise it,
-   * land on the progress control, and make the move, all at once.** The bar
-   * appearing and then having to be steered to is two presses for one
-   * intention, and on a remote the viewer's thumb is already on the key that
-   * means "back a bit".
+   * registry has no candidate and would swallow the press; waking on the
+   * command itself is what the web client gets from its chrome never leaving
+   * the DOM. A left or right with the bar hidden raises it, lands on the
+   * progress control and makes the move, all in one press.
    *
    * The seek runs through the same ladder as a press on the focused scrubber,
    * so holding from cold accelerates exactly as holding on it does — it is one
@@ -277,9 +266,9 @@ export function PlayerScreen({
   }, [optionsOpen]);
 
   /**
-   * Core d1069d2: a quality the viewer chose that no node converts at real
-   * speed stops with a stated reason, and Tom asked for "a try again option"
-   * with it. The overlay takes the D-pad while it is up, as the panel does.
+   * A quality the viewer chose that no node converts at real speed stops with
+   * a stated reason and a Try again. The overlay takes the D-pad while it is
+   * up, as the panel does.
    */
   const tooSlow = Boolean(playback?.fatalError) && playbackFailureCode(playback?.fatalError) === TOO_SLOW_TO_PLAY_CODE;
   useEffect(() => {
@@ -291,8 +280,7 @@ export function PlayerScreen({
   // While the chrome is up it owns the D-pad entirely, mirroring the web
   // client scoping its candidate query to `.player-chrome.visible` — except
   // over the failure's buttons: any press re-shows the chrome, and pushing its
-  // scope then would stack it above them, the fault the panel had
-  // (2026-09-23, above) with the transport taking the D-pad.
+  // scope then would stack it above them, as with the panel above.
   useEffect(() => {
     if (!chromeVisible || tooSlow) {
       tvFocus.popScope(CHROME_SCOPE);
@@ -314,26 +302,19 @@ export function PlayerScreen({
   /**
    * Back unwinds what is on screen, one layer per press, before it leaves.
    *
-   * Tom's rule, given on the set (2026-09-20): **if the controls are up, Back
-   * puts them away; the next Back leaves the film.** A television remote has
-   * one Back and three things it could mean here, and the viewer's own reading
-   * is positional — whatever is covering the picture goes first, and only a
-   * press against a clean picture means "I have finished watching".
-   *
-   * The ladder is panel, chrome, player. It replaces a handler that consumed
-   * Back only while the options panel was open and otherwise let the app-level
-   * handler tear the session down — so a viewer who pressed Info, read the
-   * stream lines and pressed Back lost the film instead of the overlay.
+   * **If the controls are up, Back puts them away; the next Back leaves the
+   * film.** Whatever is covering the picture goes first, and only a press
+   * against a clean picture means "I have finished watching". The ladder is
+   * panel, chrome, player.
    *
    * Registered here rather than folded into the app-level handler because
    * `BackHandler` invokes listeners in reverse registration order, and this
    * screen mounts after the root — so this runs first and can consume the
-   * press. Returning `false` on the last rung is what hands the press back to
-   * the app, which writes the resume point and stops the session.
+   * press. Returning `false` on the last rung hands the press back to the app,
+   * which writes the resume point and stops the session.
    *
-   * Always registered, because the ladder now has a rung for the ordinary
-   * case. The hide is the chrome's own, timer and all: leaving the auto-hide
-   * timer running would have it fire against a chrome already gone.
+   * The hide is the chrome's own, timer and all: leaving the auto-hide timer
+   * running would have it fire against a chrome already gone.
    */
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -355,18 +336,15 @@ export function PlayerScreen({
   /**
    * What the scrubber shows: the viewer's own preview, then **core's intent**.
    *
-   * Not `event.positionMs`. A seek is dispatched and the player goes on
-   * reporting the old position until it has actually moved, so falling back to
-   * what it reports snapped the bar back to where the viewer started and then
-   * jumped forward when the seek landed — reported from the set by Tom,
-   * 2026-09-19, as flicking back before seeking.
+   * Not `event.positionMs`: after a seek is dispatched the player goes on
+   * reporting the old position until it has actually moved, so the bar would
+   * snap back to where the viewer started and then jump forward.
    *
    * `intent.positionMs` is the position core is holding the transport at, and
    * core keeps holding it until the player is tracking again — that is what
    * `seekIntentActive` is for. So the bar moves once, to where the viewer asked
-   * to be, and stays there. This is what the web client renders
-   * (`PlayerScreen.tsx:687`), read there rather than inferred, and matching it
-   * is the requirement.
+   * to be, and stays there. This matches what the web client's
+   * `PlayerScreen.tsx` renders.
    */
   const position = scrubPosition ?? Math.min(duration || Number.MAX_SAFE_INTEGER, playback?.intent.positionMs ?? 0);
   const paused = playback?.intent.paused ?? false;
@@ -423,16 +401,9 @@ export function PlayerScreen({
   seekByHeldKeyRef.current = seekByHeldKey;
 
   /**
-   * What the node says it is doing to each stream — **core's description, not
-   * ours**.
-   *
-   * This built its own lines until Tom read the two control bars side by side
-   * (2026-09-19) and they did not match. They could not: core ships
-   * `describePlaybackSession` and the web client calls it, while this assembled
-   * something similar from `instruction` — mode with a `(no facts)` suffix,
-   * `video …`, `audio …`, and no subtitle line at all. Same intent, different
-   * words, and reimplementing what core already ships is the one thing
-   * `AGENTS.md` says not to do.
+   * What the node says it is doing to each stream — **core's description
+   * (`describePlaybackSession`), as the web client uses it**, so the two
+   * control bars read alike.
    *
    * The arrangement is the web client's too: carriage and the node that served
    * it on one line as `CONTAINER : endpoint`, because "what was I served, and
@@ -449,19 +420,13 @@ export function PlayerScreen({
   /**
    * The session the node issued, shown only with Diagnostics on.
    *
-   * **Because there is no other way to learn it.** Reproducing a reaped
-   * session means deleting it out from under a paused client — the web
-   * client's recipe, and the only way to do it without waiting out the node's
-   * thirty-minute `session_idle` — and that needs the id. The node will not
-   * give it — today: `GET /api/v1/playback/sessions` is not a route and
-   * `/playback/status` reports a count and no ids. The server's
-   * sessions-as-a-resource change (planned 2026-09-21, not yet shipped) adds
-   * that list route, which makes the id findable from a laptop; the line
-   * stays anyway, because reading it off the screen is still the only way
-   * that needs no laptop. The id is in the stream
-   * URL, which this client logs to the failure trail, which only renders once
-   * playback has already failed — by which time the session under test is
-   * gone.
+   * Reproducing a reaped session means deleting it out from under a paused
+   * client, without waiting out the node's thirty-minute `session_idle`, and
+   * that needs the id. The node lists no session ids
+   * (`/playback/status` reports only a count), and the failure trail that
+   * carries the stream URL renders only after playback has failed, by which
+   * time the session under test is gone. Reading it off the screen needs no
+   * laptop.
    *
    * Read once per render rather than subscribed to: the setting is changed on
    * the Settings screen, which cannot be reached without leaving the player.
@@ -471,35 +436,23 @@ export function PlayerScreen({
   /**
    * The trail as it fills, not as a failure screen recites it.
    *
-   * **This is the diagnostic `TODO/ACTIVE.md` §1.0 ends on.** The first
-   * failover on hardware (2026-09-20) recovered with nothing visible: no
-   * failure screen, and therefore no trail, at exactly the moment the trail
-   * was the evidence. Which channel carried that recovery — a terminal error
-   * classified as `not-found`, or a stall that reached core as degradation and
-   * promoted a standby elsewhere — is unsettled, and the whole `not-found`
-   * contract on this platform turns on it. Both channels already write
+   * A failover that recovers shows no failure screen, and therefore no trail,
+   * so this is the only way to see which path carried it. Both paths write
    * warnings: this client logs `stalled`, `terminal-failure-classified` and
    * `standby-promoted`, and core's coordinator logs `source-reaped`,
    * `session-reaped-regenerating`, `source-degradation-evidence` and
    * `alternate-promoted-on-degradation`. The trail filters warnings and errors
-   * from every scope, so it already holds the answer. Nothing could read it.
+   * from every scope.
    *
-   * The web client does not have this and does not need it: it renders the
-   * trail only under a failure because a browser keeps the same buffer
-   * reachable from a console, and its Android build bridges it to logcat. A
-   * release build here writes no console at all — `diagnostics/playbackLog.ts`
-   * turns it off outside `__DEV__` because the bridge costs real CPU on this
-   * panel — and a television has neither a console nor, over a link the set's
-   * own notes call the unreliable half, a dependable `adb`. On screen is the
-   * only place this can be read.
+   * The web client renders the trail only under a failure because a browser
+   * keeps the same buffer reachable from a console. A release build here
+   * writes no console at all (`diagnostics/playbackLog.ts` turns it off
+   * outside `__DEV__`), so on screen is the only place this can be read.
    *
    * **Polled rather than subscribed or rendered.** Core's diagnostics buffer
-   * offers `snapshot()` and no subscription, and the obvious alternative —
-   * reading it on every render, which the player already does four times a
-   * second from `timeUpdate` — fails on exactly the case it is for: a stall
-   * stops the time updates, so the renders stop with them and the screen
-   * freezes on the last reading taken before the thing worth seeing. A timer
-   * keeps reading when the picture does not.
+   * offers `snapshot()` and no subscription, and reading it on every render
+   * fails on exactly the case it is for: a stall stops the time updates, so the
+   * renders stop with them. A timer keeps reading when the picture does not.
    */
   const [liveTrail, setLiveTrail] = useState<PlaybackFailureTrailEntry[]>([]);
   useEffect(() => {
@@ -520,8 +473,8 @@ export function PlayerScreen({
     return () => clearInterval(timer);
   }, [diagnostics]);
 
-  // Composed here since core's cut: the description is data, and its `video`
-  // and `audio` are objects that would throw inside a `<Text>`.
+  // Composed here: the description is data, and its `video` and `audio` are
+  // objects that would throw inside a `<Text>`.
   const streamLines = useMemo(() => {
     const worded = streamLinesText(streamStatus);
     return [
@@ -661,8 +614,8 @@ export function PlayerScreen({
                 // endpoint shown is the one currently held — the node being
                 // replaced during a failover — so watching this line through a
                 // failover shows how far round the cluster it has got. A node
-                // that reports a change's progress (server 0.69.0) names the
-                // stage instead, while the current picture plays on.
+                // that reports a change's progress names the stage instead,
+                // while the current picture plays on.
                 <Text style={styles.streamLine}>
                   {preparingStreamText(playback.startProgress, streamStatus?.endpoint)}
                 </Text>
@@ -684,10 +637,8 @@ export function PlayerScreen({
           </View>
 
           {/*
-            `.player-options` sits **inside the chrome, above the scrubber** on
-            the web client — a block of rows, not a pane. It was a 42%-wide
-            side panel here until Tom called it off the set; the same groups in
-            the same order, but in the wrong shape and in the wrong place.
+            `.player-options` sits **inside the chrome, above the scrubber**, as
+            on the web client: a block of rows, not a side pane.
           */}
           {optionsOpen && playback?.session ? (
             <PlayerOptions
@@ -695,9 +646,9 @@ export function PlayerScreen({
               pendingPreferences={playback.pendingPreferences}
               instruction={playback.instruction}
               versions={playback.versions}
-              // Core's `offeredModes` for the playing file (424f8a6), which
-              // follows failover and file switches; Tom, 2026-09-25: offer only
-              // what this set plays, with a setting to offer everything.
+              // Core's `offeredModes` for the playing file, which follows
+              // failover and file switches: only what this set plays, unless
+              // the setting to offer everything is on.
               offeredModes={playback.modes}
               onApply={(update) => {
                 runtime.update(update);
@@ -746,12 +697,12 @@ export function PlayerScreen({
           <View style={styles.buttonRow}>
             <ChromeButton icon="restart" onSelect={() => { runtime.seek(0); showChrome(); }} />
             {/*
-              * **Previous and next episode, on every episode** (Tom,
-              * 2026-09-23, business P0) — whether it was started from
-              * Continue Watching or from its season. Always drawn, and greyed
-              * out when there is no neighbour or core has not answered yet,
-              * so the row never changes shape under the viewer's thumb. A
-              * greyed button takes no focus, so the D-pad steps over it.
+              * **Previous and next episode, on every episode**, whether it was
+              * started from Continue Watching or from its season. Always
+              * drawn, and greyed out when there is no neighbour or core has
+              * not answered yet, so the row never changes shape under the
+              * viewer's thumb. A greyed button takes no focus, so the D-pad
+              * steps over it.
               *
               * Placed outside rewind/forward, the order media controls take
               * everywhere: the web client's music bar reads previous, play,
@@ -784,16 +735,13 @@ export function PlayerScreen({
               />
             ) : null}
             {/*
-              * **No volume control here** (Tom, 2026-09-19). A television's own
-              * remote has volume keys and they drive the set's output stage,
-              * which is the one a viewer reaches for; an app-level level in the
-              * transport row is a second, invisible multiplier underneath it,
-              * and two volumes that disagree is worse than one.
+              * **No volume control here.** The remote's volume keys drive the
+              * set's output stage; an app-level level would be a second,
+              * invisible multiplier underneath it.
               *
-              * `VolumeStore` and `usePlayerVolume` stay wired — core's
+              * `VolumeStore` and `usePlayerVolume` stay wired: core's
               * `setVolume` still applies a remembered level, and a promoted
-              * standby still comes up at it. What is gone is the control, not
-              * the state. See `TODO/ACTIVE.md` §4.2.
+              * standby comes up at it.
               */}
             {playback?.session ? (
               <ChromeButton icon="options" onSelect={() => setOptionsOpen(true)} />
@@ -962,7 +910,6 @@ const styles = StyleSheet.create({
     borderColor: colour.text,
     transform: [{ scale: 1.25 }],
   },
-  // `.player-button-row { justify-content: center; gap: .7rem; margin-top: 1.25rem }`
   /** Sits in the button row but is wider, because it carries a readable level. */
   volumeControl: {
     flexDirection: 'row',
@@ -981,6 +928,7 @@ const styles = StyleSheet.create({
     fontSize: type.small,
     minWidth: rem(2.6),
   },
+  // `.player-button-row { justify-content: center; gap: .7rem; margin-top: 1.25rem }`
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1044,8 +992,8 @@ const styles = StyleSheet.create({
    * The live trail, at the top of the screen and out of the chrome's way.
    *
    * Top-left because the chrome is bottom-anchored and the picture's own
-   * content — titles, faces, subtitles — is centre and lower. Half the width
-   * so a long detail truncates rather than drawing a band across the frame,
+   * content — titles, faces, subtitles — is centre and lower. Narrower than
+   * the screen so a long detail truncates rather than drawing a band across the frame,
    * and a background dark enough to read against a bright scene without
    * blacking out what is behind it.
    */

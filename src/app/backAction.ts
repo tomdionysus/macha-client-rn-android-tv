@@ -8,8 +8,7 @@ export type BackAction = 'pop' | 'home' | 'exit';
  * ladder, `PlayerScreen.tsx`).
  *
  * A level to go back to is always taken. Otherwise every screen goes Home, and
- * **only Home leaves the app** (Tom, 2026-09-28: "all should. In fact, only
- * back from home exits the app"), with no confirmation; the exit waits for
+ * **only Home leaves the app**, with no confirmation; the exit waits for
  * storage first (`appExit.ts`). A screen alone on the stack that is not a
  * section goes Home too, since there is nothing to pop to.
  */

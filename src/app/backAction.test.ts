@@ -7,7 +7,6 @@ describe('what Back does on a screen that is not the player', () => {
     expect(backAction('settings', 2)).toBe('pop');
   });
 
-  // Tom, 2026-09-28: "all should. In fact, only back from home exits the app."
   it('takes every other screen home, never out of the app', () => {
     for (const route of ['settings', 'movies', 'shows', 'music', 'search', 'status']) {
       expect(backAction(route, 1)).toBe('home');

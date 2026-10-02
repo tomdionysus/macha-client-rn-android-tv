@@ -3,15 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 /**
  * The unit conversion between `base.css` and this platform.
  *
- * This file claimed for a week that dp and the web client's CSS px were the
- * same unit on a television, and every size in the interface rested on it. The
+ * dp and the web client's CSS px are not the same unit on a television: the
  * TCL `G10_4K_GB_NF_32BIT` reports a 1920x1080 surface at density 320, so React
- * Native's viewport is 960x540 dp and everything drew at twice its intended
- * size — "all too big", from the set, which is what a factor of two looks like
- * when nothing is blurry.
- *
- * So the conversion is asserted against both cases: the grid the file used to
- * assume, and the one the hardware actually reports.
+ * Native's viewport is 960x540 dp. The conversion is asserted against both a
+ * 1920 dp grid and the 960 dp one the hardware reports.
  */
 async function themeAt(width: number, height: number) {
   vi.resetModules();
@@ -51,8 +46,8 @@ describe('CSS px to dp', () => {
   });
 
   it('does not convert viewport units, which are already a fraction', async () => {
-    // The trap that made the cards wrong: `clamp()` mixes CSS px bounds with a
-    // vw preferred value, and only the bounds convert. An unconverted 145 floor
+    // `clamp()` mixes CSS px bounds with a vw preferred value, and only the
+    // bounds convert. An unconverted 145 floor
     // is 290 px on this set and beats a `13vw` that was already correct.
     const set = await themeAt(960, 540);
     expect(set.vw(13)).toBeCloseTo(124.8, 5);

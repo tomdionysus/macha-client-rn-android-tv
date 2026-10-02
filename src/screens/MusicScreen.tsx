@@ -13,16 +13,14 @@ import { CARD_FRAME, layout, pageGutter, rem } from '../styles/theme';
  * **This is one of the web client's seven music routes, not a port of them.**
  * That client has artists, albums, tracks, playlists and a page for each, all
  * hanging off an `OverflowMenu` this client does not have yet, and a queue that
- * outlives the screen. `TODO/ACTIVE.md` §4.6 is the whole of it.
+ * outlives the screen.
  *
- * Albums first because it is the one that stands alone: a grid of things a
- * viewer recognises, opening the same detail screen everything else opens. The
- * nav entry is therefore honest — it goes somewhere real — rather than a stub
- * that apologises, which is the alternative that was rejected.
+ * Albums stand alone: a grid of things a viewer recognises, opening the same
+ * detail screen everything else opens, so the nav entry goes somewhere real.
  *
- * **What a viewer cannot do here yet**, so it is not rediscovered as a bug:
- * play a whole album in order, queue anything, or reach an artist. All three
- * need the queue and the menu, and both are in §4.6.
+ * **What a viewer cannot do here yet**, so it is not mistaken for a bug: play a
+ * whole album in order, queue anything, or reach an artist. All three need the
+ * queue and the menu.
  */
 export function MusicScreen({
   api,

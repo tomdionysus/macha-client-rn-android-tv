@@ -17,11 +17,10 @@ const { withAndroidManifest } = require('expo/config-plugins');
  *    install an Android app.
  *  - `LEANBACK_LAUNCHER`: emitted by config-tv already; asserted here so a
  *    change upstream cannot silently drop the app off the TV home screen.
- *  - `stateAlwaysHidden`: the keyboard only when asked for. Brought back to
- *    the front on Settings (`am start`, `.133`, 2026-09-25), the app opened
- *    the endpoints keyboard by itself: the window regained focus, the text
- *    field is the only natively focusable view, and the platform raised the
- *    IME for it. OK on a field still opens it, since `TextInput.focus()` asks
+ *  - `stateAlwaysHidden`: the keyboard only when asked for. Without it, an app
+ *    brought back to the front on Settings raises the IME by itself: the window
+ *    regains focus and the endpoints text field is the only natively focusable
+ *    view. OK on a field still opens it, since `TextInput.focus()` asks
  *    explicitly. `adjustResize` is Expo's and is kept.
  */
 const withAndroidTvOnly = (config) =>

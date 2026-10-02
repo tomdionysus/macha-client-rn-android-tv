@@ -28,10 +28,9 @@ import { CARD_FRAME, layout, pageGutter, rem } from '../styles/theme';
  * inputs the CSS uses, so the two lay out identically at a given width.
  *
  * Ordering is core's (`LIBRARY_SORTS`, `orderMedia`), offered as a sort
- * control because Tom ruled every media list has one (2026-09-24). Title, the
- * default, is `sortMediaByIndexedTitle` — the comparator that knows about
- * leading articles and numeric titles — so the default is what this screen
- * always showed.
+ * control because every media list has one. Title, the default, is
+ * `sortMediaByIndexedTitle`, the comparator that knows about leading articles
+ * and numeric titles.
  *
  * **The alphabet index only in title order.** Under Year or Recently added a
  * letter names no run of the grid, and jumping to it would land somewhere
@@ -75,21 +74,6 @@ export function LibraryScreen({
   }
 
   /**
-   * Bring the focused card fully into view.
-   *
-   * **Measured, not computed.** This multiplied a row index by a card height
-   * derived from the poster ratio plus two text lines, and then parked that row
-   * second from the top. Both halves were wrong on the set: a title that wraps
-   * to two lines makes a row taller than the formula says, the error accumulates
-   * down the grid, and forcing a scroll on every focus change means the last row
-   * can never come further up than the arithmetic allows — so the selector sat
-   * on a card cut off by the bottom edge and stayed there. Reported by Tom,
-   * 2026-09-19.
-   *
-   * Cards report their own boxes now, and a card already fully visible does not
-   * scroll at all.
-   */
-  /**
    * A letter on the strip: focus to its first title, and that title's row to
    * the top of the screen rather than wherever least movement leaves it
    * (`jumpTarget`). The card's own reveal follows on its focus change, finds
@@ -109,6 +93,11 @@ export function LibraryScreen({
     scroller.current?.scrollTo({ y: target, animated: true });
   };
 
+  /**
+   * Bring the focused card fully into view, from the box the card measured
+   * rather than a computed row height: a title that wraps makes its row taller
+   * than any formula. A card already fully visible does not scroll at all.
+   */
   const revealCard = (index: number) => {
     const extent = cardExtents.current.get(index);
     if (!extent) return;
@@ -130,7 +119,7 @@ export function LibraryScreen({
       style={styles.screen}
       onLayout={(event) => {
         // The wrapper, not the scroller: a `ScrollView`'s own `onLayout`
-        // reports no height here, which left every decision abstaining.
+        // reports no height here.
         viewportHeight.current = event.nativeEvent.layout.height;
       }}
     >
@@ -169,8 +158,7 @@ export function LibraryScreen({
                 cardExtents.current.set(index, { y: box.y, height: box.height });
                 // Focus restored by Back lands on a card before it has laid
                 // out, when there was nothing to scroll to. Reveal it once its
-                // box is known, if it still holds focus (Firefly half below
-                // the fold on `.133`, 2026-09-23).
+                // box is known, if it still holds focus.
                 if (tvFocus.selected() === mediaFocusId(item.id)) revealCard(index);
               }}
               onFocusChange={(focused) => focused && revealCard(index)}
@@ -198,7 +186,6 @@ const styles = StyleSheet.create({
     gap: rem(1),
     paddingRight: pageGutter + alphabetStripWidth,
   },
-  // `.media-grid { gap: 1.4rem 1rem }` — row gap then column gap.
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

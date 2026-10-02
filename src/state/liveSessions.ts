@@ -8,20 +8,18 @@ import { nativeStorage } from './storage';
  * **Why this exists.** A session outlives the death of the process that created
  * it: `terminateForPageExit` only runs on a clean exit, so a crash, an OOM kill,
  * or `com.tcl.esticker` taking the foreground leaves the node holding a live
- * session. Measured on the television 2026-09-21 — ten left open in one
- * afternoon, one of them a transcode holding that node's single video slot and
- * refusing the next viewer until it was deleted by hand.
+ * session. Measured on the TCL set: an orphaned transcode holds that node's
+ * single video slot and refuses the next viewer.
  *
  * **Why the client owns this half and not the reclaim itself.** From outside,
  * this install cannot tell its own orphan from another device's live session on
  * the same account — `GET /api/v1/playback/sessions` lists the account's, and
  * closing the wrong one kills someone else's film. The discriminator is the id
  * core already mints and hands over, `${endpoint.id}::${nodeSessionId}`
- * (`ClusterPlaybackResolver.ts:767`). Core reconciles that list against each
- * node and closes what is still there; it cannot store it, because core dies
- * with the process too. **Durable storage is the one thing only the host has.**
- * Core's design, put to this session 2026-09-21 after Tom ruled out doing
- * nothing — "We can't lock people out for 30m."
+ * (`macha-ts` `ClusterPlaybackResolver.ts`). Core reconciles that list against
+ * each node and closes what is still there; it cannot store it, because core
+ * dies with the process too. **Durable storage is the one thing only the host
+ * has.**
  *
  * **Two behaviours, not one, and the second is the easy one to get wrong.** The
  * kill case is why this exists: a process that dies without reporting
@@ -30,13 +28,11 @@ import { nativeStorage } from './storage';
  * generation with another under a new id and closes the one it superseded — so
  * the record must drop the old id as the new one arrives, or it accumulates
  * handles to sessions that are already gone and asks core to reconcile noise.
- * Whoever implements this next is most likely to miss that half.
  *
- * **The handback is not wired, and this is inert until it is.** Core owes the
- * reconcile call; when it lands, `orphanedSessions()` is what it takes and
- * `forgetSessions()` is what clears the ones it closed. Recording starts now
- * regardless, because the list has to pre-date the crash it describes — a
- * record written after the fact would describe nothing.
+ * **The handback is not wired.** Core owes the reconcile call;
+ * `orphanedSessions()` is what it takes and `forgetSessions()` is what clears
+ * the ones it closed. Recording runs regardless, because the list has to
+ * pre-date the crash it describes.
  */
 const KEY = 'macha-playback-live-sessions-v1';
 
@@ -44,16 +40,12 @@ const KEY = 'macha-playback-live-sessions-v1';
  * Bounded, so a reconcile that never arrives cannot grow this without end.
  *
  * **A sanity limit, not a derived truth, and the difference matters.** The
- * figure is the server's `max_sessions_per_account` off `GET /api/v1/status`,
- * 32 on all three nodes 2026-09-21 — but that cap is counted **per node**
- * (confirmed by the server via core the same day), so an install holding
- * sessions on three nodes could legitimately have more than 32 ids outstanding
- * and still be describing something true. This client plays one thing at a
- * time, so it cannot come near either number; the bound is here to stop an
+ * figure is the server's `max_sessions_per_account` off `GET /api/v1/status`
+ * (measured: 32 on every node), but that cap is counted **per node** (asserted
+ * by the server), so an install holding sessions on several nodes could
+ * legitimately have more than 32 ids outstanding. This client plays one thing
+ * at a time, so it cannot come near either number; the bound only stops an
  * unreconciled record growing forever, and nothing follows from hitting it.
- *
- * An earlier version of this comment claimed a longer list "cannot be true".
- * That was wrong, and corrected before anyone could cite it.
  */
 const MAX_REMEMBERED = 32;
 

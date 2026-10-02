@@ -4,8 +4,7 @@ import { errorText } from '../../text/viewerText';
 
 describe('failureCopy', () => {
   it('words an ordinary failure itself, never with the message', () => {
-    // Since core's cut (Tom, 2026-09-24) a message is log text; this one must
-    // not reach the screen.
+    // A message is log text; this one must not reach the screen.
     const error = new Error('No media delivered within 19000ms');
     const copy = failureCopy(error, () => false);
 

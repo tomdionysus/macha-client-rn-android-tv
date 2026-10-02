@@ -51,8 +51,8 @@ let created: FakeVideoPlayer[];
 
 vi.mock('expo-video', () => ({
   createVideoPlayer: (initial?: unknown) => {
-    // The first is the adapter's active player, which `fake` names so the
-    // tests written before standbys existed keep reading the right one.
+    // The first is the adapter's active player, which `fake` names; any later
+    // one is a standby.
     const player = created.length === 0 ? fake : new FakeVideoPlayer();
     player.initialSource = initial;
     created.push(player);
@@ -82,11 +82,10 @@ function source(overrides: Partial<PlaybackSource> = {}): PlaybackSource {
 /**
  * A node that serves: a playlist, then bytes for anything else.
  *
- * Module-scoped because `play()` now walks the manifest before handing the
- * source to the player, so *every* test that plays a manifest needs a node
- * that answers — not only the standby tests that stub it explicitly. The walk
- * is left real and only the transport is stubbed, so these tests still cover
- * the integration rather than mocking out the thing that was just added.
+ * Module-scoped because `play()` walks the manifest before handing the source
+ * to the player, so *every* test that plays a manifest needs a node that
+ * answers. The walk is left real and only the transport is stubbed, so these
+ * tests cover the integration.
  */
 function servable(): typeof fetch {
   const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
@@ -216,8 +215,7 @@ describe('what the adapter reports to core', () => {
     // or not, so the app-scoped player ticks position 0 every 250 ms between
     // films. Core's coordinator lets a player event overwrite its start
     // position until the session is presented, so a tick landing while a
-    // resume was being resolved started the film at 0:00 (reproduced against
-    // core 3a5dc56's dist, 2026-09-25).
+    // resume is being resolved would start the film at 0:00.
     const adapter = new ExpoVideoAdapter();
     const events: { positionMs: number }[] = [];
     adapter.subscribe((event) => events.push(event));
@@ -469,9 +467,8 @@ describe('the warm standby', () => {
   });
 
   it('treats an absent transition as a relocate, which is core\'s default', async () => {
-    // A host that ignores the argument must still be correct, and the
-    // behaviour every player had before seamless replacement existed is to
-    // attach and let it show.
+    // A host that ignores the argument must still be correct, and the safe
+    // default is to attach and let it show.
     const adapter = await withStandby();
     await adapter.play(alternate());
 
@@ -489,31 +486,12 @@ describe('the warm standby', () => {
 });
 
 /**
- * The hold-aware readiness walk.
- *
- * This is the behaviour lost when playback moved from the native engine to
- * `expo-video`: `PlayerEngine.kt:450` retried a `500` on the same node, and
- * `expo-video` has no such rule and no injection point to give it one. These
- * assert the replacement, because the failure it prevents — a spurious
- * failover that looks exactly like a node fault — is the one most likely to
- * be misread during the 5.1 downmix measurement.
- */
-/**
- * The stall budget belongs to the node, and the node now states it.
- *
- * Until core 0.14.0 the relationship "longer than the longest legitimate wait
- * this node can impose" could only be written against a compiled-in guess at
- * what that wait was. A node configured with a longer hold was called dead for
- * using it.
- */
-/**
  * A judgement about whether a node is failing the viewer may only be made while
  * there is a viewer to fail.
  *
- * The web client measured a pause ending on a failure screen two minutes in,
- * naming a node the viewer had never asked for, and answered it by parking the
- * load rather than judging it (`WebHlsPolicy`, `park-paused`). These assert the
- * same behaviour here, on a platform that cannot reach its loader to park it.
+ * The web client parks the load rather than judging it (`macha-client`
+ * `WebHlsPolicy`, `park-paused`). These assert the same behaviour here, on a
+ * platform that cannot reach its loader to park it.
  */
 describe('a terminal error raised while nobody is watching', () => {
   it('is not reported to core while the viewer is paused', async () => {
@@ -625,10 +603,9 @@ describe('a terminal error raised while nobody is watching', () => {
 /**
  * The player's own errors carry no status, so the node is asked what it says.
  *
- * The web client solved this on its Direct Play path — where a 404 body handed
- * to the element raises a generic decode error — by latching what the layer
- * that *does* see statuses learned, rather than by parsing the message. These
- * assert the same shape, with the readiness walk as that layer.
+ * Rather than parse the message, what the layer that *does* see statuses
+ * learned is latched — the web client's shape on its Direct Play path. These
+ * assert it, with the readiness walk as that layer.
  */
 describe('classifying a terminal error the player could not', () => {
   /** A node serving a playlist whose fragments answer `status`. */
@@ -691,9 +668,8 @@ describe('classifying a terminal error the player could not', () => {
   });
 
   it('leaves a held fragment unclassified rather than reading it as a fault', async () => {
-    // A node still producing is the node working. In this direction the errors
-    // are not symmetrical: `unknown` costs a spinner, a wrong `stream` costs a
-    // healthy node its place in the candidate list.
+    // A node still producing is the node working, so a hold is no evidence
+    // against it; `unknown` is the floor (see `reportTerminalPlayerFailure`).
     const adapter = new ExpoVideoAdapter();
     const failures: PlaybackSourceError[] = [];
     adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
@@ -786,9 +762,8 @@ describe('classifying a terminal error the player could not', () => {
   });
 
   it('does not spend cover that has drained since the element last spoke', async () => {
-    // A last known value does not decay and the buffer it describes does. Found
-    // by the core session, which has the same exposure at its own deferral
-    // decision: a stale sample grants a walk more time than the viewer has.
+    // A last known value does not decay and the buffer it describes does: a
+    // stale sample grants a walk more time than the viewer has.
     vi.useFakeTimers();
     try {
       const adapter = new ExpoVideoAdapter();
@@ -819,10 +794,9 @@ describe('classifying a terminal error the player could not', () => {
   });
 
   it('does not carry a verdict into the generation that replaces it', async () => {
-    // The latch lives for one attached source and no longer. The web session
-    // observes that a stream URL carries a per-generation index, which would
-    // make the URL alone sufficient — but core states the URL shape is the
-    // server's to change, so nothing here rests on it.
+    // The latch lives for one attached source and no longer. A stream URL may
+    // look generation-unique, but core states the URL shape is the server's to
+    // change, so nothing here rests on it.
     const adapter = new ExpoVideoAdapter();
     const failures: PlaybackSourceError[] = [];
     adapter.subscribeFailure((error) => failures.push(error as PlaybackSourceError));
@@ -943,7 +917,7 @@ describe('waiting for the node to serve the first fragment', () => {
   it('reports a failure and plays nothing when the node holds past the budget', async () => {
     // A node holding forever is, eventually, evidence — but it is reported
     // once the budget is spent rather than on the first refusal. Driven on
-    // fake timers because the budget is five server holds of real time.
+    // fake timers because the budget is many seconds of real time.
     vi.useFakeTimers();
     try {
       vi.stubGlobal('fetch', holding());
@@ -1009,10 +983,10 @@ describe('waiting for the node to serve the first fragment', () => {
   });
 
   it('reports a 404 as one session\'s absence, never as the node failing', async () => {
-    // Core 0.13.0: read as `stream` this is endpoint evidence, and the node
-    // that answered honestly is charged a failure and dropped while the viewer
-    // is sent to one that never held the session. Reported as `not-found`, core
-    // asks that same node whether the session is still there.
+    // Read as `stream` this would be endpoint evidence: the node that answered
+    // honestly would be charged a failure and dropped while the viewer is sent
+    // to one that never held the session. Reported as `not-found`, core asks
+    // that same node whether the session is still there.
     const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\nseg1.m4s';
     vi.stubGlobal('fetch', (async (url: string) => (url.endsWith('.m3u8')
       ? { ok: true, status: 200, headers: { get: () => null }, text: async () => playlist }
@@ -1063,9 +1037,9 @@ describe('waiting for the node to serve the first fragment', () => {
   });
 
   it('waits out the deadline the node itself states, not the local default', async () => {
-    // Core 0.14.0 carries the serving node's own acquisition deadline on the
-    // source. A host that keeps waiting past it is holding a viewer in front of
-    // a node core has already decided is worth leaving.
+    // Core carries the serving node's own acquisition deadline on the source.
+    // A host that keeps waiting past it is holding a viewer in front of a node
+    // core has already decided is worth leaving.
     vi.useFakeTimers();
     try {
       vi.stubGlobal('fetch', holding());
@@ -1101,9 +1075,9 @@ describe('waiting for the node to serve the first fragment', () => {
   });
 
   it('does not re-walk a standby that was already preflighted', async () => {
-    // A promotion happens because the picture has just frozen. Spending five
-    // server holds re-answering a settled question is the worst possible use
-    // of that moment.
+    // A promotion happens because the picture has just frozen. Spending server
+    // holds re-answering a settled question is the worst possible use of that
+    // moment.
     const adapter = new ExpoVideoAdapter();
     await adapter.play(source());
     const alternate = source({ url: 'https://node-b.test/generation/index.m3u8' });
@@ -1117,7 +1091,7 @@ describe('waiting for the node to serve the first fragment', () => {
   });
 
   it('abandons a walk core has superseded, without touching the player', async () => {
-    // `play()` can now await, so core is free to ask for something else while
+    // `play()` can await, so core is free to ask for something else while
     // it does. Finishing afterwards would overwrite what the viewer is on.
     vi.useFakeTimers();
     try {

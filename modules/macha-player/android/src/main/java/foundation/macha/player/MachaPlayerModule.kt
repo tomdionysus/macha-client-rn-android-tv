@@ -81,7 +81,7 @@ class MachaPlayerModule : Module() {
         // fragmented MP4 carries H.264/HEVC and AAC dependably, and little
         // else. Stated rather than left unset, because an absent list falls
         // back to the direct-play lists and would silently claim E-AC-3 in
-        // fMP4 — which is exactly the combination Tizen got wrong.
+        // fMP4.
         "hlsVideoCodecs" to listOf("h264", "hevc"),
         "hlsAudioCodecs" to listOf("aac"),
         "dash" to true,
@@ -102,9 +102,9 @@ class MachaPlayerModule : Module() {
      *
      * Not React Native's window: on `.133` that reads 1920x1080 (960x540 dp at
      * density 2) while the panel runs 3840x2160, and automatic play capped at
-     * the UI's size would refuse a 4K file on a 4K set. Tom, 2026-09-25: the
-     * display class this TV states is the panel's. `Display.getMode()` is API
-     * 23; the default display, because a television has one.
+     * the UI's size would refuse a 4K file on a 4K set. The display class this
+     * TV states is the panel's. `Display.getMode()` is API 23; the default
+     * display, because a television has one.
      */
     Function("displayMode") {
       val manager = appContext.reactContext?.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
@@ -159,8 +159,8 @@ class MachaPlayerModule : Module() {
      * Hold the screen awake for the duration of playback.
      *
      * Without this the set runs its dim/screensaver/sleep sequence straight
-     * through a film — the WebView client had no equivalent, and a wake lock on
-     * the CPU alone does not stop the display timing out.
+     * through a film; a wake lock on the CPU alone does not stop the display
+     * timing out.
      */
     Function("setKeepScreenOn") { enabled: Boolean ->
       engine.keepScreenOn(appContext.currentActivity, enabled)

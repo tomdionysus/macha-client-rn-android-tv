@@ -9,10 +9,9 @@ import {
  * calibrated against.
  *
  * They are declared here rather than only at their use sites so the
- * relationships between them can be asserted by a test. Four separate bugs in
- * this project have been two independently-chosen timeouts colliding, and the
- * pattern core uses for its own budgets is to guard the *relationship* rather
- * than the number — a test pinning `7000` fails when someone deliberately
+ * relationships between them can be asserted by a test: two independently
+ * chosen timeouts can collide, so the test guards the *relationship* rather
+ * than the number. A test pinning `7000` fails when someone deliberately
  * retunes it, whereas a test pinning "longer than the server's hold" fails
  * only when someone breaks it.
  *
@@ -23,14 +22,11 @@ import {
  */
 
 /**
- * Re-exported from core, which now owns it.
- *
- * It is the server's `streaming.segment_timeout` and every client is calibrated
- * against it, so it was never ours to declare — it briefly lived here only
- * because core had no home for it. Core's docblock carries the reasoning and
- * one qualification worth repeating: **it is the server's default, not a
- * negotiated value.** No node reports its real figure at runtime, so treat it
- * as a floor to stay above with margin, never a number to match.
+ * Re-exported from core, which owns it: the server's
+ * `streaming.segment_timeout`, which every client is calibrated against.
+ * **It is the server's default, not a negotiated value.** No node reports its
+ * real figure at runtime, so treat it as a floor to stay above with margin,
+ * never a number to match.
  */
 export { SERVER_SEGMENT_HOLD_MS };
 
@@ -54,20 +50,12 @@ export const HOLD_RETRY_CEILING_MS = 8_000;
  * How long a node is given to produce the first fragment of a fresh
  * generation before the wait becomes evidence against it.
  *
- * **Core's figure, for a node that cannot state its own** (Tom, 2026-09-19).
- * `generationAttemptBudgetMs()` is the same question answered from the server's
- * numbers rather than from this client's reasoning: the node's
- * `startup_timeout_ms` — what it is entitled to spend bringing a stream up —
- * plus core's allowance for the distance to it.
- *
- * *It was `SERVER_SEGMENT_HOLD_MS * 5` until then, and the five was mine.* The
- * argument was sound and the authority was not: a `500 segment_not_ready` is
- * the node stating it is already working on a fragment it promised, abandoning
- * it costs a cold start on a node that does not have it either, so the budget
- * should be generous — but "five holds" was a multiple chosen because the hold
- * was the only server figure a client could see. Now a node states the figure
- * that actually bounds it, and a client that keeps its own multiple is
- * overruling the node with arithmetic.
+ * **Core's figure, for a node that cannot state its own.**
+ * `generationAttemptBudgetMs()` answers from the server's numbers rather than
+ * from this client's reasoning: the node's `startup_timeout_ms` — what it is
+ * entitled to spend bringing a stream up — plus core's allowance for the
+ * distance to it. A client that applied its own multiple of the hold instead
+ * would be overruling the node with arithmetic.
  *
  * **Its relationship to `MEDIA_START_STARVATION_MS` (20 s) is not what makes
  * it safe — where it runs is.** The wait happens in
@@ -76,8 +64,7 @@ export const HOLD_RETRY_CEILING_MS = 8_000;
  * the player was given the source", which cannot begin until this has
  * finished. Arming the watchdog first and then waiting here would have the
  * watchdog fire at 20 s and report a spurious `stream` failure against a node
- * that was behaving exactly as the protocol says it should — which is the
- * precise bug this walk exists to remove, reintroduced by ordering.
+ * that was behaving exactly as the protocol says it should.
  */
 export const FIRST_FRAGMENT_TIMEOUT_MS = generationAttemptBudgetMs();
 
@@ -85,7 +72,7 @@ export const FIRST_FRAGMENT_TIMEOUT_MS = generationAttemptBudgetMs();
  * How long to spend acquiring a source from **this** node before the wait
  * becomes evidence against it.
  *
- * Both branches are core's now. A node states its own on
+ * Both branches are core's. A node states its own on
  * `PlaybackSource.budgets.deadlineMs`, and a node that cannot gets
  * `generationAttemptBudgetMs()` — the same derivation against the server's
  * published defaults. Core is explicit that **a host must not shorten either on
@@ -113,33 +100,21 @@ export function firstFragmentTimeoutMs(source?: PlaybackSource): number {
 /**
  * How often a resume point is written while a film is playing.
  *
- * **Tom's figure, 2026-09-22.** It is a bound on loss rather than a deadline:
- * nothing goes wrong when it elapses, and what it buys is that a process killed
- * without warning discards at most one interval — plus one tick — of the
- * viewer's place. The motivating kill is measured: the set replaced Android
- * System WebView at 20:42:15 and force-stopped this app in the foreground,
- * running no teardown of any kind (`TODO/COMPLETED.md`, 2026-09-22). The rule
- * that spends this interval is core's `progressWriteDue`.
+ * A chosen bound on loss rather than a deadline: nothing goes wrong when it
+ * elapses, and what it buys is that a process killed without warning discards
+ * at most one interval — plus one tick — of the viewer's place. Such kills
+ * happen (measured: a system WebView update force-stopped this app in the
+ * foreground with no teardown of any kind). The rule that spends this interval
+ * is core's `progressWriteDue`.
  *
  * **It is deliberately not calibrated against anything the server states, and
- * `SERVER_SESSION_IDLE_MS` in particular.** This was tied to it on the
- * reasoning that a kill which orphans a session is the kill that strands the
- * resume point, and core corrected it the same day — read back from
- * `macha-ts/src/playback/streamProtocol.ts`, whose docblock says the constant
- * is *the server's default*, that a node states its own `session_idle_ms` on
- * `/api/v1/status`, that core does not read it on purpose because "nothing here
- * should be timing against a session's erasure", and to "never let correctness
- * depend on it". A test asserting a relationship to it did exactly that.
- *
- * The relationship also did no work. What bounds the viewer's loss is this
- * interval alone: an unannounced kill lands when it lands, and the stored
- * position is stale by at most one interval whether the node reaps at thirty
- * minutes, at five, or never. Session reaping is the node reclaiming a
- * transcode slot; this is the device surviving a process kill. The incident
- * shares a *trigger* between the two and not a mechanism — the WebView install
- * killed the app, it reaped nothing. Anchored to the node, a cluster configured
- * to reap sooner would have become an argument for more AsyncStorage churn that
- * buys nobody anything.
+ * `SERVER_SESSION_IDLE_MS` in particular.** Core documents that constant
+ * (`macha-ts` `src/playback/streamProtocol.ts`) as the server's default, which
+ * a node may override, and says never to let correctness depend on it. Nor
+ * would a relationship do any work: the stored position is stale by at most
+ * one interval whether the node reaps a session at thirty minutes, at five, or
+ * never. Session reaping is the node reclaiming a transcode slot; this is the
+ * device surviving a process kill.
  *
  * So the question it answers is how much progress a viewer may lose, and that
  * has no counterpart in the protocol. The relationships worth guarding are with

@@ -6,9 +6,8 @@ import { type CurrentSession, type UsersApi } from '@machafoundation/core';
  *
  * Ported from `macha-client/src/app/useCurrentSession.ts` rather than shared:
  * it is a React hook, and core's scope stops at everything a client does that
- * is not presentation. `sessionLockedOut` below is the exception worth
- * noticing — it is a policy predicate with no React in it, and it is
- * duplicated in both clients. If the rule ever changes, it changes twice.
+ * is not presentation. Access decisions are in `access.ts`; this is identity,
+ * for display only.
  */
 
 export interface CurrentSessionState {
@@ -54,7 +53,7 @@ export function useCurrentSession(api: UsersApi, enabled: boolean): CurrentSessi
       async (session) => {
         if (controller.signal.aborted) return;
         setState({ session, known: true });
-        // Identity is not guaranteed on the session. A deployed 0.37.x node
+        // Identity is not guaranteed on the session. A 0.37.x node
         // answers this route with roles, an expiry and a policy and names no
         // user at all, so reading the signed-in name from the session alone
         // leaves every account anonymous-looking forever. The account record is
@@ -86,46 +85,3 @@ export function useCurrentSession(api: UsersApi, enabled: boolean): CurrentSessi
   const refresh = useCallback(() => setAttempt((value) => value + 1), []);
   return { ...state, refresh };
 }
-
-/*
- * `sessionLockedOut` used to live here, and it is core's now
- * (`sessionLockedOut(roles)`). It moved because this client and the web client
- * had written the same one-line rule independently, which was the argument that
- * carried it.
- *
- * Core's shape is better than the one it replaced: unknown is `undefined`
- * rather than a separate `known` argument, so a caller holding roles it has not
- * fetched gets the permissive answer by construction and cannot forget the
- * case. Roles also arrive with the token on every path now, so the whoami race
- * this file was built around no longer exists for access decisions — see
- * `access.ts`. What remains here is identity, for display only.
- */
-
-/*
- * There was a `useHasSession` here, locking the client whenever
- * `sessionManager.authorization()` came back empty. It was **removed the same
- * day it was written**, and the reason is worth keeping.
- *
- * It was built after watching `POST /api/v1/session` answer
- * `403 anonymous_disabled` on one node — which turned out to be a single
- * moment of a rolling deployment, not a configuration. The deployed servers
- * mint anonymously and return `roles: []`, which `sessionLockedOut` already
- * handles.
- *
- * The deeper fault is that it could not tell **"the server told us we may
- * not"** from **"we could not ask"**. `authorization()` is empty when the
- * cluster refuses anonymous *and* when no node could be reached at all, so a
- * network blip would have raised a login wall reading "this server requires an
- * account" — a sentence no server said — and told the viewer to do the one
- * thing that also cannot work without a reachable node.
- *
- * Worse, it re-checked on every `sessionManager` notification, and a failed
- * token refresh notifies. A blip **mid-film** would have flipped the whole
- * shell to a login screen and killed playback. That is the exact inverse of
- * what this project is for: invisible failover, and no component assuming any
- * other is healthy.
- *
- * An unreachable cluster is a connectivity condition. Core already publishes
- * it (`reportClusterUnreachable`), and the honest response is a notice over
- * what we already have, not a wall in front of it.
- */

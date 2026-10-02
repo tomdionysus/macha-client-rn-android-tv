@@ -5,16 +5,11 @@
  *
  * **`versionCode` is what Android actually compares.** It ignores
  * `versionName` entirely, so two builds sharing a code are the same build as
- * far as the package manager is concerned. Every APK this client produced up
- * to 2026-09-13 shipped `versionCode 1`, because nothing set
- * `android.versionCode` and the Expo default is 1 — five genuinely different
- * builds were installed on the television that day and the device could not
- * tell them apart. `install -r` hid it; the cost would have been a build that
- * failed to replace and an afternoon spent debugging bytecode that was no
- * longer the source on screen.
+ * far as the package manager is concerned. Expo defaults it to 1 when
+ * `android.versionCode` is unset, and `install -r` hides the collision until
+ * a build fails to replace.
  *
- * Raised by the phone client, which hit the same thing. The derivation is
- * theirs so the two Android clients read alike:
+ * The derivation is the phone client's, so the two Android clients read alike:
  *
  *     major * 10000 + minor * 100 + patch      0.1.0 -> 100, 0.4.1 -> 401
  *
@@ -65,13 +60,11 @@ if (actual === undefined) {
  * on its own.
  *
  * `android/` is produced by `expo prebuild` and gitignored, so a version bump in
- * `app.json` reaches an APK only after a regeneration. On 2026-09-13 that gap
- * shipped an APK carrying `versionCode 1` while `app.json` said 100 — and this
- * script passed, because it only ever compared two config files to each other.
- * It verified intent and never the artifact.
+ * `app.json` reaches an APK only after a regeneration. Comparing the two config
+ * files alone verifies intent, never the artifact.
  *
- * The install-time assertion does not catch it either: the APK and the device
- * would both read the stale number and agree.
+ * The install-time assertion does not catch a stale tree either: the APK and
+ * the device would both read the stale number and agree.
  *
  * Skipped rather than failed when `android/` is absent, since a clean checkout
  * has not prebuilt yet and that is not an error.
@@ -99,7 +92,7 @@ if (existsSync(gradle)) {
 /**
  * The version a reader sees first, under the README's title as `_v0.6.0_`.
  *
- * Tom, 2026-09-23: it goes there and it stays current. A hand-written copy of
+ * It must stay current. A hand-written copy of
  * a number is the kind that goes stale in silence, so it is checked here with
  * the others rather than trusted to be remembered at release time. Only the
  * first line after the title counts, so a version quoted in prose further down

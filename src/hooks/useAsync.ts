@@ -15,10 +15,8 @@ export interface RefreshableAsyncState<T> extends AsyncState<T> {
  * Ported from the web client's `useAsync`.
  *
  * The web version aborts with an explicit `DOMException` reason. `DOMException`
- * is not on `globalThis` in React Native — the same trap core hit, where a
- * `signal.reason ?? new DOMException(...)` fallback raised `ReferenceError`
- * here and never on the web — so this aborts with no reason and relies on the
- * spec default, which is already an `AbortError`.
+ * is not on `globalThis` in React Native, so this aborts with no reason and
+ * relies on the spec default, which is already an `AbortError`.
  */
 export function useAsync<T>(
   factory: (signal: AbortSignal) => Promise<T>,

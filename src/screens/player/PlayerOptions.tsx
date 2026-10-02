@@ -44,11 +44,9 @@ export const OPTIONS_SCOPE = 'player-options';
 /**
  * How a viewer leaves the panel downwards.
  *
- * **Back closed it and nothing else did**, so a viewer who had walked down to
- * the subtitle row and pressed Down again met a wall: the panel owns the D-pad
- * outright while it is open, so there was no candidate below and the press did
- * nothing at all. Reported off the set. Down from the last row now returns to
- * the transport, which is where Down from the bottom of anything should go.
+ * The panel owns the D-pad outright while it is open, so Down from the last
+ * row has no candidate below and would do nothing. It returns to the
+ * transport instead, which is where Down from the bottom of anything goes.
  *
  * Carried through context rather than threaded as a prop because the options
  * that need it are generated inside `map`s three groups deep, and only the last
@@ -79,7 +77,7 @@ export function PlayerOptions({
   /** Down from the last row, which is how the panel is left without Back. */
   onDismiss: () => void;
 }): React.JSX.Element {
-  // One row for versions and caps together (Tom, 2026-09-27); see `qualityChoices`.
+  // One row for versions and caps together; see `qualityChoices`.
   const qualityRow = qualityChoices(
     versions?.steps ?? [],
     session.options.qualityHeights,
@@ -103,7 +101,7 @@ export function PlayerOptions({
     : pendingPreferences?.subtitleStream ?? session.selected.subtitleStream;
 
   /**
-   * "Auto" is no longer a value the server understands — the client decides.
+   * "Auto" is not a value the server understands — the client decides.
    * `'choose'` is a core-side sentinel that never reaches the wire: the
    * coordinator re-runs the instruction chooser against this media's facts and
    * this platform's policy, then sends a concrete mode.
@@ -115,7 +113,7 @@ export function PlayerOptions({
    *
    * The mode is sent **alone**. Naming it clears the per-stream transforms and
    * the quality caps server-side, which is what lets the chooser re-derive them
-   * — see `playbackOptions.ts` for why restating them here was wrong.
+   * (see `playbackOptions.ts`).
    */
   const applyMode = (value: PlaybackMode | 'choose') => onApply({ preferences: { mode: value } });
   const chosenByViewer = effective.mode !== undefined && effective.mode !== 'choose';
@@ -148,10 +146,7 @@ export function PlayerOptions({
 
         {/*
           One Quality row: the item's versions (the detail page's buttons),
-          then any smaller cap the node offers. Tom, 2026-09-27: "The Quality
-          and Version controls are duplicated. These should all be one line
-          called 'Quality'." It also takes Source's old job, which server
-          0.58.0 left empty.
+          then any smaller cap the node offers.
         */}
         {hasQuality ? (
           <>
@@ -289,11 +284,8 @@ const styles = StyleSheet.create({
    * `.player-options { display: grid; gap: .65rem; max-height: min(34vh, 320px);
    * margin: 0 0 1rem; padding: .8rem 0 .2rem; overflow-y: auto }`.
    *
-   * **A block inside the chrome, above the scrubber — not a pane.** It was a
-   * 42%-wide panel pinned to the right edge until Tom read it against the web
-   * client on the set. The groups and their order were already right; what was
-   * wrong was that it covered the picture, sat somewhere the web client has
-   * nothing, and drew its own heading.
+   * **A block inside the chrome, above the scrubber — not a pane**, as on the
+   * web: it does not cover the picture and draws no heading of its own.
    */
   panel: {
     maxHeight: Math.min(vh(34), px(320)),
@@ -332,17 +324,13 @@ const styles = StyleSheet.create({
   /**
    * `.player-option-group button { border: 1px solid #3a3a40; border-radius: 999px;
    * padding: .42rem .7rem; background: #09090ab8; color: #bcbcc2; font-size: .82rem }`.
-   *
-   * A pill, which is the part that read as a different interface: these were
-   * rounded rectangles on a surface fill, with no border at all.
    */
   option: {
     paddingHorizontal: rem(0.7),
     paddingVertical: rem(0.42),
     borderRadius: radius.pill,
-    // `focusFrame.border`, not base.css's 1px: measured on `.133`, 2026-09-23,
-    // a one-pixel focus border on these chips could not be read from the sofa
-    // — three attempts to reach Transcode by D-pad landed elsewhere unseen.
+    // `focusFrame.border`, not base.css's 1px: measured on the TCL set, a
+    // one-pixel focus border on these chips cannot be read from the sofa.
     // Always present, so nothing moves when focus lands.
     borderWidth: focusFrame.border,
     borderColor: colour.inputBorder,
@@ -352,9 +340,8 @@ const styles = StyleSheet.create({
    * `:hover, :focus-visible, .selected { border-color: var(--focus);
    * background: var(--accent-surface-strong); color: #dedee2 }` — one rule for
    * all three on the web, and selected and focused are different things here, so
-   * the border carries focus and the fill carries selection — **only**. Focus
-   * used to take the fill too, which made a focused chip indistinguishable
-   * from a selected one.
+   * the border carries focus and the fill carries selection — **only**, or a
+   * focused chip is indistinguishable from a selected one.
    */
   optionSelected: {
     backgroundColor: colour.accentSurfaceStrong,

@@ -14,11 +14,10 @@ export const OFFLINE_SCOPE = 'offline';
  * cluster never stated, and would also be useless — signing in needs a
  * reachable node as much as watching does, so the button could only fail.
  *
- * It offers the two things that can actually help. Settings, because pointing
- * the set at a different cluster is the one repair available from a sofa and a
- * television has no address bar. And nothing else: core is already retrying on
- * its own timer, so recovery needs no button and the screen simply goes away
- * when a node comes back.
+ * It offers only Settings, because pointing the set at a different cluster is
+ * the one repair available from a sofa. Core is already retrying on its own
+ * timer, so recovery needs no button and the screen goes away when a node
+ * comes back.
  */
 export function OfflineScreen({
   onOpenSettings,

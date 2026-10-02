@@ -5,7 +5,7 @@ import { cardLines } from './cardLines';
 const music = { album: { id: 'al', title: 'Homogenic', year: 1997 }, artist: { id: 'ar', title: 'Björk' } };
 
 describe('cardLines', () => {
-  it('names an episode by its series, then S01E03 (Tom, 2026-09-27: "in all cases")', () => {
+  it('names an episode by its series, then S01E03, in every context', () => {
     const episode: MediaSummary = {
       id: 'e', kind: 'episode', title: 'Our Mrs. Reynolds', mediaIds: [], seasonNumber: 1, episodeNumber: 3,
       playbackContext: { series: { id: 's', title: 'Firefly' }, season: { id: 'x', title: 'Season 1', seasonNumber: 1 } },

@@ -3,9 +3,8 @@ let leaving: Promise<void> | undefined;
 /**
  * Leave the app once everything the viewer would miss has reached the device.
  *
- * Tom, 2026-09-28: Back from Home exits, "no confirmation - but the app
- * should make sure that currently watching etc is persisted before exit".
- * Storage writes land in memory at once and reach AsyncStorage through a
+ * Back from Home exits with no confirmation, so Continue Watching and the
+ * rest must be persisted first. Storage writes land in memory at once and reach AsyncStorage through a
  * chained queue (`src/state/storage.ts`), so an exit taken mid-queue could
  * lose the last of them; `flush` is that queue's end.
  *

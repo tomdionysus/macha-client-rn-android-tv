@@ -15,11 +15,10 @@ function snapshot(sessionMediaId: string | undefined, positionMs: number): Playb
 }
 
 /**
- * Measured on `.133` 2026-09-24: next from *Our Mrs. Reynolds* at 29:31, then
- * previous, resumed it at 0:16. Between the switch and React's next render the
- * route still named the old episode while the player reported the new one near
- * 0, and a write in that gap stored 0 under the old episode, which core then
- * drops (nothing below 30 s is kept) — erasing the place.
+ * Between a switch and React's next render the route still names the old
+ * episode while the player reports the new one near 0. A write in that gap
+ * would store 0 under the old episode, which core then drops (nothing below
+ * 30 s is kept), erasing the place.
  */
 describe('attributableProgress', () => {
   it('attributes the position to the episode actually playing', () => {
@@ -36,10 +35,9 @@ describe('attributableProgress', () => {
 });
 
 /**
- * Since server 0.58.0 a session names the *file* it plays (`mediaId:
- * "macha:…"`) and the item separately (`itemId`). Matching the file against the
- * item's id recorded nothing: measured on `.133` 2026-09-27, *The Martian*
- * watched to 1:24 and closed never reached Continue Watching.
+ * A session names the *file* it plays (`mediaId: "macha:…"`) and the item
+ * separately (`itemId`); matching the file against the item's id would record
+ * nothing.
  */
 describe('a session that names its file', () => {
   const film = { id: 'tmdb:movie:286217', kind: 'movie', title: 'The Martian', mediaIds: ['macha:uhd', 'macha:hd'] } as unknown as MediaSummary;

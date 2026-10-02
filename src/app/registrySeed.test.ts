@@ -17,15 +17,11 @@ function memoryStorage(): StorageLike {
 }
 
 /**
- * 2026-09-24, on `.133`: with its one configured node down, the set said
- * "Can't reach Macha" although it had streamed from two other nodes the night
- * before. The remembered list has to survive the restart that reads it, or it
- * is a fallback for exactly one start.
+ * With its one configured node down, a set must still reach the nodes it
+ * remembers. The remembered list has to survive the restart that reads it, or
+ * it is a fallback for exactly one start.
  *
- * Seen red against this client's old seeding (every URL as `bootstrap`), then
- * fixed here and moved into core as `seedEndpoints` (its `b47773d`). Kept
- * because `MachaProvider` seeds exactly this way; confirmed on `.133` the same
- * day with only a dead address configured, over two restarts.
+ * Exercises core's `seedEndpoints` in the way `MachaProvider` seeds.
  */
 describe('registry seeding', () => {
   it('keeps the remembered nodes remembered across a restart', () => {

@@ -261,25 +261,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.poster,
     overflow: 'hidden',
     /**
-     * **No fill of its own.** It had `surface-2`, which is the colour a poster
-     * with no artwork shows — and once this element gained padding to hold the
-     * focus border off the picture, that fill became a grey frame around every
-     * card on screen, focused or not. The fill belongs to what it stands in
-     * for, so it now sits on the artwork and the placeholder rather than on the
-     * frame around them.
+     * **No fill of its own.** The padding that holds the focus border off the
+     * picture would show a fill as a grey frame around every card, so
+     * `surface-2` sits on the artwork and the placeholder instead.
      */
     backgroundColor: 'transparent',
     /**
      * Thicker than the web client's, and standing off the artwork.
      *
-     * `outline: 1px solid var(--focus); outline-offset: 1px` is what base.css
-     * draws, and React Native has no outline at all — so the border was on the
-     * poster itself, one dp wide, touching the picture. At three metres that
-     * read as nothing: a hairline against a lit poster is the one place a thin
-     * line cannot be seen. Three dp with the artwork inset by two reproduces
-     * the *offset*, which is the part that makes it legible — a gap of
-     * background between the line and the image, so the line has something to
-     * be seen against. Tom's call off the set, twice.
+     * base.css draws `outline: 1px solid var(--focus); outline-offset: 1px`,
+     * and React Native has no outline. A one-dp border touching a lit poster
+     * cannot be seen at three metres. Three dp with the artwork inset by two
+     * reproduces the *offset*, which is what makes it legible: a gap of
+     * background between the line and the image.
      *
      * The border and the padding are both always present and only the colour
      * changes, so nothing moves on focus: the scorer reads these rectangles,
@@ -296,10 +290,10 @@ const styles = StyleSheet.create({
   /**
    * `.search-results .music-artwork { margin-top: 25%; margin-bottom: 25% }` —
    * the web centres a square in a poster's height with percentage margins.
-   * Measured on `.133`, 2026-09-24, those do not resolve here as they do in
-   * CSS: the art came out at about half size and its title started higher
-   * than the posters'. A box of the poster's own shape, centring the square,
-   * gives the same result without depending on how margins resolve.
+   * Measured on the TCL set, those do not resolve here as they do in CSS: the
+   * art comes out at about half size. A box of the poster's own shape,
+   * centring the square, gives the same result without depending on how
+   * margins resolve.
    */
   posterSlot: {
     width: '100%',

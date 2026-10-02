@@ -29,10 +29,9 @@ import { CARD_FRAME, colour, controlRow, focusFrame, layout, pageGutter, px, rem
 /**
  * Search, from the web client's screen of the same name.
  *
- * **The design was settled before it was built** (Tom, 2026-09-10): use the
- * television's own on-screen keyboard. A React Native `TextInput` raises the
- * leanback IME the viewer already knows, with its own voice input, and drawing
- * one would be larger and worse. `TvTextInput` is that field, and the reason
+ * Typing uses the television's own on-screen keyboard: a React Native
+ * `TextInput` raises the leanback IME the viewer already knows, with its own
+ * voice input. `TvTextInput` is that field, and the reason
  * `tvFocus.suspend()` exists — while the IME owns the D-pad the focus registry
  * must stand down, or selection wanders behind the keyboard.
  *
@@ -75,8 +74,8 @@ export function SearchScreen({
 
   useEffect(() => {
     const normalised = query.trim();
-    // Core's rule, not a local minimum (Tom, 2026-09-24): "the", "an" and "a"
-    // do not count towards it, because titles are not ordered by them.
+    // Core's rule, not a local minimum: "the", "an" and "a" do not count
+    // towards it, because titles are not ordered by them.
     if (!isSearchable(normalised)) {
       setResults([]);
       setError(undefined);
@@ -221,8 +220,7 @@ export function SearchScreen({
                 cards.current.set(index, { y: box.y, height: box.height });
                 // Focus restored by Back lands on a card before it has laid
                 // out, when there was nothing to scroll to. Reveal it once its
-                // box is known, if it still holds focus (Firefly half below
-                // the fold on `.133`, 2026-09-23).
+                // box is known, if it still holds focus.
                 if (tvFocus.selected() === mediaFocusId(item.id)) revealCard(index);
               }}
                 onFocusChange={(focused) => focused && revealCard(index)}
@@ -241,12 +239,9 @@ export function SearchScreen({
 /**
  * How long the field is left alone before the node is asked.
  *
- * The web client's figure, and the reason to keep it identical is the viewer
- * rather than the server: a search that feels quicker on one client and slower
- * on another is a difference nobody can explain from the outside. It is also
- * why it is not tuned up for a remote — an on-screen keyboard is slower to type
- * on than a physical one, so if anything each keystroke here is further apart
- * than the settle.
+ * The web client's figure, kept identical so search feels the same on both
+ * clients. Not tuned up for a remote: keystrokes on an on-screen keyboard are
+ * already further apart than the settle.
  */
 const SETTLE_MS = 180;
 
@@ -315,13 +310,11 @@ const styles = StyleSheet.create({
     color: colour.textDim,
     fontSize: rem(1.1),
   },
-  // `.media-grid { gap: 1.4rem 1rem }` — row gap then column gap.
+  // `.media-grid { gap: 1.4rem 1rem }`, with `.search-results { row-gap: 1rem }`.
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    // `.media-grid { gap: 1.4rem 1rem }`, less the focus frame each card holds
-    // inside its own box. See `layout.rowGap`.
-    // `.search-results { row-gap: 1rem }` — tighter than the libraries' 1.4.
+    // Less the focus frame each card holds inside its own box. See `layout.rowGap`.
     rowGap: Math.max(rem(0.4), rem(1) - CARD_FRAME * 2),
     columnGap: layout.rowGap,
     paddingHorizontal: pageGutter,

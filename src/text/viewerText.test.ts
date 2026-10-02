@@ -27,19 +27,14 @@ import {
   trackSearchLine,
 } from './viewerText';
 
-/**
- * The wording core composed until 2026-09-24, carried over unchanged; each
- * case is what a viewer saw before the cut and must still see after it.
- */
 describe('viewer text', () => {
-  it('words the sort choices and categories as Tom named them', () => {
+  it('words the sort choices and categories', () => {
     expect(sortChoiceLabel('title')).toBe('Sort By Title');
     expect(sortChoiceLabel('recent')).toBe('Sort By Recently added');
     expect(categoryLabel('shows')).toBe('TV Shows');
   });
 
   it('names episodes and tracks', () => {
-    // Tom, 2026-09-27: "S04E08 in all cases".
     expect(episodeLabel({ seasonNumber: 3, episodeNumber: 2 })).toBe('S03E02');
     expect(episodeLabel({ seasonNumber: 4, episodeNumber: 8 })).toBe('S04E08');
     // No season: the web client's `episodeCode` form.
@@ -75,7 +70,7 @@ describe('catalogueStatusText', () => {
     expect(catalogueStatusText(status(true, null, null))).toBeUndefined();
   });
 
-  it('words the server 0.56.0 code, never the sentence beside it', () => {
+  it("words the server's code, never the sentence beside it", () => {
     expect(catalogueStatusText(status(false, 'metadata store is converging', 'converging'))).toBe(
       'The catalogue is still being brought up to date.',
     );
@@ -91,11 +86,7 @@ describe('catalogueStatusText', () => {
   });
 });
 
-/**
- * §1.12, measured on `.133` 2026-09-23: signed out, Settings read "Server
- * online; catalogue unavailable" and PLAYBACK: Unavailable, an authentication
- * state worded as an outage.
- */
+/** Signed out is an authentication state, never to be worded as an outage. */
 describe('isSignedOut', () => {
   it('recognises a 401 or 403 anywhere down the chain', () => {
     expect(isSignedOut(new Error('x', { cause: Object.assign(new Error('401'), { status: 401 }) }))).toBe(true);
@@ -111,20 +102,20 @@ describe('isSignedOut', () => {
 describe('trackFacts', () => {
   const context = { album: { id: 'a', title: 'Homogenic', year: 1997 }, artist: { id: 'b', title: 'Björk' } };
 
-  it('gives the artist, the album with its year, and the place on the album (Tom, 2026-09-24)', () => {
+  it('gives the artist, the album with its year, and the place on the album', () => {
     expect(trackFacts({ trackNumber: 3, discNumber: 1, musicContext: context } as never)).toEqual({
       artist: 'Björk', album: 'Homogenic (1997)', track: 'Track 3',
     });
     expect(trackFacts({ trackNumber: 3, discNumber: 2, musicContext: context } as never).track).toBe('Disc 2 · Track 3');
   });
 
-  it('shows what it has for a track restored from before core 0.19.0 with no music context', () => {
+  it('shows what it has for a restored track with no music context', () => {
     expect(trackFacts({ trackNumber: 5 } as never)).toEqual({ artist: undefined, album: undefined, track: 'Track 5' });
   });
 });
 
 describe('playbackNoticeText', () => {
-  it("words core de86392's refusal of a choice this file does not have", () => {
+  it("words core's refusal of a choice this file does not have", () => {
     expect(playbackNoticeText({ code: 'update-failed', refusal: { status: 400, code: 'choice_not_available', choice: 'audio' } } as never)).toBe(
       "That track isn't in this file, so nothing was changed.",
     );
@@ -133,13 +124,13 @@ describe('playbackNoticeText', () => {
     );
   });
 
-  it('words a change back into transcode that found the slot taken (server 0.60.0)', () => {
+  it('words a change back into transcode that found the slot taken', () => {
     expect(playbackNoticeText({ code: 'update-failed', refusal: { status: 429, code: 'resource_limit' } } as never)).toBe(
       "This server is converting for another viewer right now, so that change wasn't made.",
     );
   });
 
-  it('words core e840d72 decode fallback beside the copy refusal it mirrors', () => {
+  it("words core's decode fallback beside the copy refusal it mirrors", () => {
     expect(playbackNoticeText({ code: 'decode-fallback', error: new Error('MediaCodecVideoRenderer error') })).toBe(
       'This television could not decode the original streams, so they are being converted.',
     );
@@ -149,7 +140,7 @@ describe('playbackNoticeText', () => {
 describe('errorText', () => {
   it('words a failed walk by whether any node answered', async () => {
     const { MachaClusterRouteError, MachaConnectionError } = await import('@machafoundation/core');
-    // The web client's sentence, word for word (macha-client 043fd81).
+    // The web client's sentence, word for word.
     const timedOut = new MachaConnectionError('Request to http://node/api/v1/manage/unmatched exceeded 8000 ms.');
     expect(errorText(new MachaClusterRouteError(['fi-1', 'gbni-1'], true, timedOut))).toBe(NO_NODE_ANSWERED_TEXT);
     expect(NO_NODE_ANSWERED_TEXT).toBe(
@@ -188,9 +179,8 @@ describe('errorText', () => {
 });
 
 /**
- * What a start or a change is doing (core `00ff3eb`, server 0.69.0), the web
- * client's `startProgressText` (`macha-client/src/text/viewerText.ts`, read
- * 2026-09-28 from its working tree) and its tests' cases.
+ * What a start or a change is doing: the web client's `startProgressText`
+ * (`macha-client/src/text/viewerText.ts`) and its tests' cases.
  */
 describe('startProgressText', () => {
   const progress = (over: Partial<PlaybackStartProgress>): PlaybackStartProgress =>
@@ -245,8 +235,8 @@ describe('startProgressText', () => {
 });
 
 /**
- * Server 0.56.0 codes, read from `macha` `src/service.cpp`, `src/playback.cpp`
- * at `60ce47a`: the ones that can answer `GET /api/v1/playback/status`.
+ * The codes that can answer `GET /api/v1/playback/status`, read from `macha`
+ * `src/service.cpp` and `src/playback.cpp`.
  */
 describe('serverStatusText', () => {
   const status = (httpStatus: number, code: string | null, detail: string | null = null) => ({
@@ -280,8 +270,8 @@ describe('serverStatusText', () => {
 });
 
 /**
- * Against lines read off `.133`'s screen on 2026-09-23/24, before core's cut:
- * Bushwhacked, direct; Arrival, video copied and DTS transcoded.
+ * Against lines read off the TCL set's screen: Bushwhacked, direct; Arrival,
+ * video copied and DTS transcoded.
  */
 describe('streamLines', () => {
   it('reads a direct play exactly as the set showed it', () => {
@@ -333,10 +323,9 @@ describe("a file's line", () => {
 });
 
 /**
- * Why Play chooses the file it does, as one sentence from every fact: the web
- * client's `qualityChoiceText` and its tests' cases
- * (`macha-client/src/text/viewerText.test.ts`, f512cdc), unchanged. Tom: every
- * client shows the same sentence.
+ * The web client's `qualityChoiceText` and its tests' cases
+ * (`macha-client/src/text/viewerText.test.ts`): every client shows the same
+ * sentence.
  */
 describe('why Play chooses the file it does, as one sentence from every fact', () => {
   const instruction = (video: 'copy' | 'transcode', audio: 'copy' | 'transcode') =>
@@ -370,8 +359,8 @@ describe('why Play chooses the file it does, as one sentence from every fact', (
     expect(only('ceiling-preference')).toBe('Play chooses 1080p. 4K is more than the most set in Settings. Pick a quality to play another.');
   });
 
-  // Server 0.70.0, core fb96757: a node's measured rate says the conversion
-  // is too slow to watch, not only needed. The web client's case.
+  // A node's measured rate says the conversion is too slow to watch, not
+  // only needed. The web client's case.
   it('says when the conversion is too slow to watch, not only needed', () => {
     const slow: PassedOverVersion = { quality: 2160, converts: { video: true, audio: true }, reasons: ['transcode-below-real-time'] };
     expect(qualityChoiceText({ files, automatic: automatic(1080), passedOver: slow }))
@@ -389,12 +378,12 @@ describe('why Play chooses the file it does, as one sentence from every fact', (
 });
 
 /**
- * The end of the failover loop (core d1069d2): the web client's
- * `tooSlowToPlayText` and `qualitySteppedDownText` and its tests' cases
- * (`macha-client/src/text/viewerText.test.ts`, working tree 2026-09-28).
+ * The end of the failover loop: the web client's `tooSlowToPlayText` and
+ * `qualitySteppedDownText` and its tests' cases
+ * (`macha-client/src/text/viewerText.test.ts`).
  */
 describe('a quality no node can convert fast enough', () => {
-  it("says which quality and which streams, from what was playing (Tom: 'Macha can't play this quality because...')", () => {
+  it("says which quality and which streams, from what was playing", () => {
     expect(tooSlowToPlayText(2160, { video: 'transcode', audio: 'transcode' }))
       .toBe("Macha can't play 4K because the server can't convert its video and audio fast enough to keep up.");
     expect(tooSlowToPlayText(1440, { video: 'transcode', audio: 'copy' }))
@@ -418,7 +407,6 @@ describe('a quality no node can convert fast enough', () => {
   });
 });
 
-/** Server 0.70.0: the operator's name for a node (Tom: "show the names the server sends"). */
 describe('statusNodeName', () => {
   it("shows the operator's name, and the address where there is none", () => {
     const node = (over: Record<string, unknown>) => ({ id: 'abcdef0123456789', host: '10.35.1.50', port: 7438, ...over }) as never;

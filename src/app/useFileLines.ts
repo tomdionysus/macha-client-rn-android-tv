@@ -4,10 +4,9 @@ import { fileLine } from '../text/viewerText';
 import { useMacha } from './MachaProvider';
 
 /**
- * Each of an item's files as one line, identical files combined: the web
- * client's detail page (`macha-client` e31635a), by Tom's ruling that every
- * client matches it (2026-09-27). The facts, their labels and the combining
- * are core's (`fileSummaries`, core 5622020); the line is laid out here.
+ * Each of an item's files as one line, identical files combined, matching the
+ * web client's detail page. The facts and the combining are core's
+ * (`fileSummaries`); the line is laid out here.
  *
  * TODO: files core combines are very likely one media stored twice (each
  * summary carries its `mediaIds`). Report them to the server as likely

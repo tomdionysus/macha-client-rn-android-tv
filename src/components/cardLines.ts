@@ -2,15 +2,15 @@ import type { MediaSummary } from '@machafoundation/core';
 import { episodeLabel, trackNumberLabel, trackSearchLine } from '../text/viewerText';
 
 /**
- * The lines under a card's title, in the web client's order (its Search
- * design language, 2026-09-24), composed here from core's data — core writes
- * no viewer text (Tom, 2026-09-24; the words are in `src/text/viewerText.ts`).
+ * The lines under a card's title, in the web client's order, composed here
+ * from core's data: core writes no viewer text, and the words are in
+ * `src/text/viewerText.ts`.
  *
- * - an episode: its series, then "Season 3 Episode 2" — not `S03E02`, and the
- *   same in Continue Watching. The web links each line to its page; a
- *   television card is one focus target, so here Back walks there instead.
+ * - an episode: its series, then `S03E02`, in every context. The web links
+ *   each line to its page; a television card is one focus target, so here
+ *   Back walks there instead.
  * - a season (from search): its series.
- * - an album: its artist, below the album's name (Tom's Music ruling).
+ * - an album: its artist, below the album's name.
  * - a track: "Artist - Album (year)", then its own "Track 9" /
  *   "Disc 2 · Track 3". Tracks are shown as cards only in search here.
  * - an artist: nothing beneath the name.

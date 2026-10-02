@@ -78,17 +78,13 @@ export function TvTextInput({
    * Release when the keyboard actually goes away, **because `onBlur` does not
    * fire on this platform.**
    *
-   * This is the bug that shipped in 0.3.0 and made the login screen
-   * unnavigable. On Android TV the leanback IME closes as its own window while
-   * the `ReactEditText` underneath **keeps native focus** — `mInputShown` goes
+   * On Android TV the leanback IME closes as its own window while the
+   * `ReactEditText` underneath **keeps native focus** — `mInputShown` goes
    * false, `mServedView` stays pointed at the field. React Native raises
    * `onBlur` from the native focus change, so no focus change means no blur,
-   * no release, and a suspension held for the life of the process.
-   *
-   * The consequence was total: `useTvNavigation` returns early on every key
-   * while suspended, so after typing once the D-pad did nothing at all, on a
-   * screen whose only other control is a second text field. Nothing on screen
-   * said why, and only restarting the app cleared it.
+   * no release, and a suspension held for the life of the process: the D-pad
+   * stops working entirely, since `useTvNavigation` ignores every key while
+   * suspended.
    *
    * Blurring as well as releasing is deliberate. Leaving the field natively
    * focused means Android goes on treating it as the key target, and a later

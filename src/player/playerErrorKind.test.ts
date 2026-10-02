@@ -4,9 +4,8 @@ import { decoderFailureKind } from './playerErrorKind';
 /**
  * expo-video hands JS only a sentence: "A playback exception has occurred: "
  * then ExoPlayer's message and its cause's (`expo-video`
- * `records/PlaybackError.kt`). The renderer message below is the one `.133`
- * logged on 2026-09-24 for *Classroom 216* (AVI, MPEG-4 Part 2), where the
- * failure reached core as `unknown`, was read as node evidence, and moved node.
+ * `records/PlaybackError.kt`). The renderer message below is one `.133`
+ * logged for an AVI with MPEG-4 Part 2 video.
  */
 const PREFIX = 'A playback exception has occurred: ';
 

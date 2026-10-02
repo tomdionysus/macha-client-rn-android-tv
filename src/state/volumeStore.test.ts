@@ -14,11 +14,10 @@ function fakeStorage(seed: Record<string, string> = {}) {
 }
 
 /**
- * Copied out of core on 2026-09-13. These exist so the copy cannot drift
- * silently — particularly the storage key, which carries a viewer's existing
- * volume across the move.
+ * Pins the behaviour the web client's copy shares, particularly the storage
+ * key, which carries a viewer's existing volume.
  */
-describe('VolumeStore, now this client\'s own', () => {
+describe('VolumeStore', () => {
   it('keeps core\'s storage key, so nobody\'s volume resets on upgrade', () => {
     const { store, map } = fakeStorage();
     new VolumeStore('client-a', store).save(0.4);

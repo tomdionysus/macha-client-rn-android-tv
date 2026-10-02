@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # On-device verification for the Macha Android TV client.
 #
-# Written before the first run so that run is complete rather than improvised.
-# The television is only intermittently available, and the three open questions
-# — the 5.1 downmix, what Media3 puts on the wire, and whether a promoted
-# standby plays — all want the same session. Missing one costs another wait.
+# The television is only intermittently available, and the open questions
+# (the 5.1 downmix, what Media3 puts on the wire, whether a promoted standby
+# plays) all want the same session, so every check is here and ready. Missing
+# one costs another wait.
 #
 # Staged deliberately. Stage 1 installs and stops, because the standing
 # instruction is to install without starting. Nothing after stage 1 runs unless
@@ -19,12 +19,11 @@
 #   ./scripts/verify-on-device.sh bundle <literal>...  # is this literal in the APK's bundle?
 set -uo pipefail
 
-# The set Tom controls, and therefore the one a bare invocation means.
-#
-# Both TCLs are targets (2026-09-20), but only this one can be switched on when
-# the work needs it; `10.34.1.115` is updated **opportunistically when it
-# happens to be up, and not run** — install on it, leave it alone, and take no
-# measurement from it unless somebody is standing in front of it.
+# The set that can be switched on when the work needs it, and therefore the one
+# a bare invocation means. Both TCLs are targets, but `10.34.1.115` is updated
+# **opportunistically when it happens to be up, and not run** — install on it,
+# leave it alone, and take no measurement from it unless somebody is standing
+# in front of it.
 TV="${TV:-10.35.1.133:5555}"
 PKG="foundation.macha.client.tv"
 APK="android/app/build/outputs/apk/release/app-release.apk"
@@ -51,11 +50,9 @@ install)
   # INSTALL FIRST, THEN REMOVE. The two packages have different ids and can
   # coexist, so there is never a moment with no Macha app on the set.
   #
-  # This is not hypothetical tidiness: doing it the other way round, the
-  # television dropped off the network between the uninstall and the install
-  # and left the outcome unknown — possibly a set with the WebView client
-  # removed and nothing put back. On a link this unreliable, order is the
-  # difference between a retryable step and a hole.
+  # Removing first risks the television dropping off the network between the
+  # uninstall and the install, leaving a set with nothing on it. On a link this
+  # unreliable, order is the difference between a retryable step and a hole.
   say "Installing $APK"
   [ -f "$APK" ] || { echo "APK missing — build it first." >&2; exit 1; }
   "$ADB" -s "$TV" install -r -d "$APK" || { echo "install failed — nothing removed" >&2; exit 1; }
@@ -67,15 +64,12 @@ install)
   fi
 
   # Present is not the same as *replaced*. `versionCode` is the only thing the
-  # package manager compares, and every build before 2026-09-13 shipped 1, so
-  # five different APKs were installed over each other indistinguishably in a
-  # single session. `install -r` hides a failed replace completely: the risk was
-  # never the install, it was reading new source while the set ran old bytecode.
+  # package manager compares, and `install -r` hides a failed replace
+  # completely: the risk is not the install, it is reading new source while the
+  # set runs old bytecode.
   #
-  # So assert rather than report — compare what the device now holds against
-  # what this APK actually declares. Raised by the phone client, which reads
-  # versionName back after installing; comparing both values against the
-  # artifact is the stronger form of the same check.
+  # So assert rather than report — compare both versionCode and versionName on
+  # the device against what this APK actually declares.
   say "Confirming the device is running THIS build"
   aapt2="$(ls "${ANDROID_HOME:-$HOME/Library/Android/sdk}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)"
   if [ -z "$aapt2" ]; then
@@ -189,17 +183,14 @@ bundle)
   # decides it is binary can skip it silently — this shell's `grep` is a
   # wrapper carrying `-I`, which exits 1 with no output on it. That is
   # indistinguishable from "the literal is missing", which is the exact wrong
-  # conclusion: it says the bundle is stale when it is fine. Cost an hour on
-  # 2026-09-21. `strings` is not the problem and is not needed.
+  # conclusion: it says the bundle is stale when it is fine. `strings` is not
+  # needed.
   #
-  # **And a second way to reach the same wrong conclusion, measured 2026-09-21
-  # on the sign-out build: Hermes stores a string containing any non-ASCII
-  # character as UTF-16.** A byte grep for `on this television only` found
-  # nothing while the string was plainly in the bundle, because its literal
-  # carries an em dash; `This signs ` — the ASCII part of the very same
-  # template — was found at once. Every sentence this client shows a viewer is
-  # a candidate: the house style uses `—` and `…` throughout, so the literals
-  # most worth checking are the ones this check was quietest about.
+  # **And a second way to reach the same wrong conclusion, measured: Hermes
+  # stores a string containing any non-ASCII character as UTF-16**, so a byte
+  # grep misses it even when the ASCII part of the same template is found.
+  # Every sentence this client shows a viewer is a candidate: the house style
+  # uses `—` and `…` throughout.
   #
   # So each literal is looked for in **both** encodings and counted as present
   # in either. Searching UTF-16 needs the needle transcoded rather than the
@@ -246,20 +237,11 @@ print(0, "-")
 logs)
   connect
   # **A release build prints no JavaScript here, and that is deliberate.**
-  #
-  # This stage used to claim that `ReactNativeJS` carried core's client log —
-  # the chosen instruction, the failover, the failure trail. It does not, in
-  # the only build that ever reaches a television: `playbackLog.ts` sets
-  # `console: __DEV__` on purpose, because the JS/native console bridge costs
-  # real CPU on this panel and nobody is attached to it with a cable.
-  #
-  # Measured 2026-09-21: 10,927 logcat lines across a full playback session on
-  # `10.35.1.133`, running the release APK, containing **zero** ReactNativeJS
-  # lines. A whole sitting went on diagnosing the silence rather than reading
-  # the instrument that was already there.
-  #
-  # So this stage is now honest about what it can and cannot see, and says
-  # where the client's own evidence actually lives.
+  # `ReactNativeJS` does not carry core's client log in the only build that
+  # reaches a television: `playbackLog.ts` sets `console: __DEV__`, because the
+  # JS/native console bridge costs real CPU on this panel and nobody is
+  # attached to it with a cable. Measured on `10.35.1.133` with the release
+  # APK: a full playback session's logcat holds **zero** ReactNativeJS lines.
   say "What the PLATFORM reports (decoder, audio routing, media3)"
   "$ADB" -s "$TV" logcat -c
   echo "Native only. For this client's own playback evidence — the chosen"

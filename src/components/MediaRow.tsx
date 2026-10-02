@@ -9,10 +9,8 @@ import { colour, font, layout, pageGutter, rem, type } from '../styles/theme';
  * A titled horizontal rail, from `.media-section` / `h2` / `.media-row`.
  *
  * The web client relies on `scrollIntoView` after each focus move; here the row
- * scrolls itself when one of its cards takes focus. The card's index is enough
- * — a card has a fixed width and a fixed gap, so its offset is arithmetic
- * rather than a measurement, which avoids a measure round-trip on every D-pad
- * press.
+ * scrolls itself when one of its cards takes focus, from that card's laid-out
+ * extent.
  */
 export function MediaRow({
   title,
@@ -54,14 +52,10 @@ export function MediaRow({
   if (items.length === 0) return null;
 
   /**
-   * Move the row only when the focused card is not already in view.
-   *
-   * **It used to scroll on every focus change**, from a stride: a card in plain
-   * sight still dragged the row under the viewer, and the first card of a row
-   * could never sit at the left edge because the arithmetic always subtracted
-   * one stride. Reported off the set as the eager half of the scrolling fault.
-   * The stride was also a guess — correct only while every card is exactly the
-   * same width, which is true today and is not a thing to depend on.
+   * Move the row only when the focused card is not already in view, so a card
+   * in plain sight does not drag the row under the viewer. Positions are
+   * measured rather than computed from a stride, which would hold only while
+   * every card is exactly the same width.
    *
    * The lead keeps a sliver of the neighbouring card visible, which is the same
    * signal the web row gives that there is more to one side.

@@ -81,8 +81,8 @@ describe('playbackFailureTrail', () => {
   });
 
   it('carries the elapsed time, which is what distinguishes the causes', () => {
-    // The §1.2 question is whether a failover followed a rewind or a hold, and
-    // that is answered by when the lines happened relative to each other.
+    // Whether a failover followed a rewind or a hold is answered by when the
+    // lines happened relative to each other.
     const trail = playbackFailureTrail([
       entry({ elapsedMs: 4_200, event: 'stalled' }),
       entry({ elapsedMs: 11_300, level: 'error', event: 'failure' }),

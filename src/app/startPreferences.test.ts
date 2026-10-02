@@ -3,7 +3,7 @@ import type { PlaybackProgress, VersionStep } from '@machafoundation/core';
 import { startPreferences } from './startPreferences';
 
 // Left playing the 1080p file by the viewer's choice of Direct, English
-// subtitles on: what "as if you'd never left" has to bring back.
+// subtitles on: what a resume has to bring back.
 const entry = {
   itemId: 'tmdb:movie:286217',
   fileMediaId: 'macha:hd',

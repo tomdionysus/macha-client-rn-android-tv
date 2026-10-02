@@ -3,14 +3,12 @@ import type { MediaSummary } from '@machafoundation/core';
 /**
  * What sits beneath a TV item, whichever way the viewer reached it.
  *
- * **Tom, 2026-09-23, business P0:** Back from an episode goes to its season,
- * Back from a season goes to its series, and Back from a series goes to TV
- * Shows — always, not only when the viewer happened to walk down that way. An
- * episode resumed from Continue Watching on Home, or a season found by Search,
- * has to land in the same place as one reached through the library.
- *
- * This supersedes, for episodes only, Tom's 2026-09-20 ruling that Back out of
- * a playing item arrives at that item's own detail screen. Films keep it.
+ * Back from an episode goes to its season, Back from a season goes to its
+ * series, and Back from a series goes to TV Shows — always, not only when the
+ * viewer happened to walk down that way. An episode resumed from Continue
+ * Watching on Home, or a season found by Search, has to land in the same place
+ * as one reached through the library. (A film's Back goes to its own detail
+ * screen instead.)
  *
  * So the stack is synthesised from what the item says about its ancestry
  * rather than from the path taken. An episode names its series and season in

@@ -61,9 +61,8 @@ describe('awaitFirstFragment', () => {
     // A probe that pulled a whole fragment would cost a television a segment
     // of traffic per attempt, on the node already struggling to produce it.
     //
-    // Asserted on the fragment leg only. Core currently sends the 64 KB
-    // preflight range on the *playlist* legs too — reported to the core
-    // session — and pinning that here would fail the suite when they fix it.
+    // Asserted on the fragment leg only: what core sends on the *playlist*
+    // legs is core's to change, and pinning it here would couple to that.
     const seen: [string, RequestInit][] = [];
     const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
       seen.push([url, init]);
@@ -137,8 +136,7 @@ describe('awaitFirstFragment', () => {
 
   it('asks core which status is a hold rather than hardcoding one', () => {
     // If core reassigns the hold status this client must follow without being
-    // edited. Core's own `Platform.ts` currently documents 503 where four
-    // other places say 500, so a local literal is a real hazard here.
+    // edited, so the status is core's answer, never a local literal.
     expect(playbackFailureKindForStatus(500)).toBe('not-ready');
     expect(playbackFailureKindForStatus(503)).toBe('stream');
   });
@@ -214,8 +212,7 @@ describe('awaitFirstFragment', () => {
     // Variants nested past one level leave core with no targets, which it
     // reports as `unassessable` rather than as a refusal. That is not a
     // finding against the node, and treating it as one would destroy a source
-    // the player might well have played — the same mistake that once made
-    // every Samsung standby fail its own validation.
+    // the player might well have played.
     const fetchImpl = vi.fn(async () => response(200, MASTER)) as unknown as typeof fetch;
 
     const readiness = await awaitFirstFragment(source(), { fetchImpl, ...fakeHost().options });
@@ -244,12 +241,8 @@ describe('the first-fragment budget against the server hold', () => {
   it('allows more than one hold, so a node is not abandoned as it speaks', () => {
     // One hold's worth of patience is no patience at all: the node answers at
     // the end of a hold, so a budget of one would abandon it just as it spoke.
-    //
-    // This said `* 3` while the budget was five holds by construction, where it
-    // asserted nothing the definition did not already say. The budget is core's
-    // now — the node's startup entitlement plus transport — so the multiple is
-    // no longer ours to choose, and what is worth pinning is the requirement
-    // rather than a number that happens to clear it.
+    // The budget is core's, so the requirement is pinned rather than a
+    // multiple.
     expect(FIRST_FRAGMENT_TIMEOUT_MS).toBeGreaterThan(SERVER_SEGMENT_HOLD_MS * 2);
   });
 

@@ -7,11 +7,8 @@ import { colour, font, radius, rem, type } from '../styles/theme';
  * base.css, focused the way every button here is — the standard 1px `--focus`
  * ring over the stronger accent fill.
  *
- * Extracted from the Settings screen on Tom's instruction (2026-09-24) that
- * the sign-in buttons "need to be the same as all other buttons". Each screen
- * had drawn its own, and sign-in's replaced the fill with `--surface-3` on
- * focus and drew no ring, so after a move it was not clear which one held
- * focus. Use this rather than a styled `Focusable` for any new text button.
+ * Every text button looks and focuses the same; use this rather than a styled
+ * `Focusable` for any new one.
  */
 export function Button({
   label,
@@ -32,8 +29,8 @@ export function Button({
   onFocusChange?: (focused: boolean) => void;
   /**
    * `.modal-danger-action`'s dark red fill, without its red border: on a
-   * television a red border is what focus looks like, and the unfocused
-   * destructive button read as focused (§1.12). Focus is the standard ring.
+   * television a red border is what focus looks like, so an unfocused
+   * destructive button would read as focused. Focus is the standard ring.
    */
   destructive?: boolean;
   /** Placement only — margins, alignment. Never colour. */

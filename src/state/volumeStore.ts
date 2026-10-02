@@ -1,21 +1,15 @@
 import { machaHost, type ReadWriteStorageLike } from '@machafoundation/core';
 
 /**
- * Where the volume level is remembered, copied out of core.
+ * Where the volume level is remembered.
  *
- * **Why it lives here now.** Tom's ruling, 2026-09-13: volume is player logic
- * and not core's — *"Don't second guess the client. If the user muted, or
- * starts with zero volume, that's what you do."* Core carried this class with
- * no internal consumer of its own; the only users were this client and the web
- * client, and the storage key was already per-client, so there was never
- * anything shared to share. Each client now owns a copy and core deletes its
- * original once both have confirmed.
+ * **Client-owned, not core's.** Volume is player logic: if the viewer muted,
+ * or starts at zero, that is what the client does. The storage key is
+ * per-client, so there is nothing to share; the web client keeps its own copy.
  *
  * **It persists a bare level, and that is deliberate.** The model above it —
- * `{ effective, setting, muted }` in `player/volume.ts` — is this client's and
- * core will never have it. The rule that matters when writing here is stated
- * there and repeated because this is where somebody could get it wrong with no
- * comment nearby to stop them:
+ * `{ effective, setting, muted }` in `player/volume.ts` — is this client's.
+ * The rule that matters when writing here is stated there and repeated here:
  *
  * > **Persist `setting`, never `effective`.** `effective` is 0 while muted, so
  * > writing it makes the next launch come up silent with nothing on screen
@@ -39,13 +33,10 @@ export class VolumeStore {
     private readonly storage: ReadWriteStorageLike = machaHost().storage,
   ) {
     /**
-     * **Unchanged from core's key, on purpose.**
-     *
-     * Same storage, same client id, so a viewer's existing volume survives the
-     * move and nobody notices it happened. Renaming it would silently reset
-     * every set to full volume on the next launch — the exact
+     * **The key core used, on purpose.** Renaming it would silently reset
+     * every set to full volume on the next launch — the
      * comes-up-wrong-with-no-explanation failure this file's own rule argues
-     * against. Keeping it means there is no migration to write.
+     * against.
      */
     this.key = `macha.volume.v1.${clientId}`;
   }
@@ -61,10 +52,9 @@ export class VolumeStore {
    * broken. `0` is a level a viewer may genuinely choose and must keep
    * meaning silence; `''` is not a value at all.
    *
-   * Whitespace goes the same way, for the same reason. Found by the web
-   * client while writing its own copy's tests; both copies match here
-   * deliberately, because a divergence would be invisible until a viewer's
-   * storage reached that state.
+   * Whitespace goes the same way, for the same reason. The web client's copy
+   * matches; keep the two in step, because a divergence would be invisible
+   * until a viewer's storage reached that state.
    */
   load(): number {
     const raw = this.storage.getItem(this.key);

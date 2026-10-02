@@ -8,10 +8,9 @@ import { sortChoiceLabel } from '../text/viewerText';
  * The sort choice, as one control that reads "Sort By Title" and moves to the
  * next choice on each press.
  *
- * **Tom's vocabulary** (2026-09-24, relayed by core): no separate "Sort by"
- * heading; each option reads "Sort By <label>", composed by core as
- * `MediaSort.choiceLabel`, from core's lists (`SEARCH_SORTS`,
- * `LIBRARY_SORTS`) — the same choices on all four clients.
+ * No separate "Sort by" heading; each option reads "Sort By <label>". The
+ * choices are core's lists (`SEARCH_SORTS`, `LIBRARY_SORTS`), the same on all
+ * four clients.
  *
  * The web client's control is a `<select>`, which shows exactly one of these
  * labels until it is opened. A drop-down has no D-pad form here — it needs its

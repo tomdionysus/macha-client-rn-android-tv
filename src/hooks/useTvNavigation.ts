@@ -50,10 +50,8 @@ export function useTvNavigation(options: TvNavigationOptions = {}): void {
    *
    * React Native's TV event path does not exist in a bridgeless build —
    * `useTVEventHandler` waits on `onHWKeyEvent`, which only the legacy
-   * `ReactRootView` emits. The consequence was not a subtle one: **the D-pad
-   * did nothing at all**, on a client whose entire interface is a D-pad, and
-   * nothing off-device could show it. `MachaTvInputModule.kt` records the full
-   * chain.
+   * `ReactRootView` emits, so the D-pad would do nothing at all.
+   * `MachaTvInputModule.kt` records the full chain.
    */
   useEffect(
     () =>
@@ -67,8 +65,7 @@ export function useTvNavigation(options: TvNavigationOptions = {}): void {
         // **Unless nothing actually owns it.** A suspension whose holder went
         // away cannot be released by anyone, and the symptom is a television
         // whose remote has stopped working entirely with nothing on screen to
-        // explain it — which is what 0.3.0 did after the first time anybody
-        // typed. So the claim is checked against the platform rather than
+        // explain it. So the claim is checked against the platform rather than
         // trusted: if we are suspended and there is demonstrably no keyboard
         // on screen, the suspension is stale and this key is ours.
         //
@@ -198,12 +195,11 @@ export function useFocusable(options: UseFocusableOptions = {}): UseFocusableRes
    * React re-runs a registration by calling the old cleanup first, which
    * deletes the entry and its rectangle, and a re-registered element then has
    * no geometry until something lays it out again: the scorer cannot move from
-   * it, and the screen drops to sequential order. Measured in a test of the
-   * registry, 2026-09-25, found while adding Continue Watching's remove
-   * button, which is enabled only while its card has focus.
+   * it, and the screen drops to sequential order. Continue Watching's remove
+   * button, enabled only while its card has focus, toggles this constantly.
    *
-   * What the unregister did that is still wanted: a selected element that
-   * becomes disabled gives the selection up, to the screen's default.
+   * A selected element that becomes disabled still gives the selection up, to
+   * the screen's default.
    */
   const firstDisabled = useRef(true);
   useLayoutEffect(() => {
@@ -220,11 +216,7 @@ export function useFocusable(options: UseFocusableOptions = {}): UseFocusableRes
 
   const onLayout = useCallback(
     (_event: LayoutChangeEvent) => {
-      // `measureInWindow` rather than the layout event's own coordinates: the
-      // scorer compares rectangles across the whole screen, and parent-relative
-      // positions would make items in different rows incomparable.
-      //
-      // Its callback routinely lands *before* this focusable has registered —
+      // The `measureInWindow` callback routinely lands *before* this focusable has registered —
       // the registry holds early rectangles rather than dropping them, which is
       // why it navigates by geometry at all. See `TvFocusRegistry.pendingRects`.
       ref.current?.measureInWindow((left, top, width, height) => {

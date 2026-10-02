@@ -111,11 +111,10 @@ describe('suspension', () => {
   });
 
   it('recovers from a suspension whose holder went away', () => {
-    // The 0.3.0 failure, as a test. Android TV keeps a ReactEditText natively
-    // focused after the IME closes, so `onBlur` never fired, the token stayed
-    // in a ref on an unreachable component, and the remote stopped working
-    // entirely with nothing on screen to explain it. Reference counting cannot
-    // recover from a lost token by construction, so there has to be a way out.
+    // Android TV keeps a ReactEditText natively focused after the IME closes,
+    // so `onBlur` may never fire and a token can be left in a ref on an
+    // unreachable component. Reference counting cannot recover from a lost
+    // token by construction, so there has to be a way out.
     tvFocus.suspend();
     tvFocus.suspend();
     expect(tvFocus.suspended).toBe(true);
@@ -146,11 +145,9 @@ describe('suspension', () => {
 });
 
 /**
- * The bug these exist for: on the first device run all 46 focusables measured
- * *before* they registered, every rectangle was discarded, and the scorer never
- * ran — focus fell back to registration order for the whole session. Nothing in
- * this file could have caught it, because nothing here exercised the order in
- * which the two arrive.
+ * On the device, focusables are routinely measured *before* they register. A
+ * rectangle discarded then leaves the scorer nothing to work with, and focus
+ * falls back to registration order.
  */
 describe('geometry arriving out of order', () => {
   beforeEach(() => {
@@ -192,7 +189,7 @@ describe('geometry arriving out of order', () => {
     tvFocus.update('toggle-button', { disabled: false });
     expect(tvFocus.handle('right')).toBe(true);
     expect(tvFocus.selected()).toBe('toggle-button');
-    // Moving back needs the button's own rectangle, which a re-registration lost.
+    // Moving back needs the button's own rectangle, which a re-registration loses.
     expect(tvFocus.handle('left')).toBe(true);
     expect(tvFocus.selected()).toBe('toggle-card');
     card();
@@ -212,7 +209,7 @@ describe('geometry arriving out of order', () => {
 
   it('scores by geometry rather than registration order once measured', () => {
     // Registered right-to-left, laid out left-to-right: a sequential fallback
-    // would move the wrong way, which is precisely what the television did.
+    // would move the wrong way.
     const right = tvFocus.register({ id: 'right' });
     const left = tvFocus.register({ id: 'left' });
     tvFocus.measure('right', { left: 500, top: 0, width: 100, height: 100 });
@@ -229,8 +226,8 @@ describe('geometry arriving out of order', () => {
   });
 
   it('prefers the element below over the next one registered, for a down press', () => {
-    // The exact television symptom: from a nav item, Down went sideways to the
-    // next nav item because that was next in registration order.
+    // In registration order, Down from a nav item would go sideways to the
+    // next nav item.
     const navA = tvFocus.register({ id: 'nav-a' });
     const navB = tvFocus.register({ id: 'nav-b' });
     const card = tvFocus.register({ id: 'card' });
@@ -252,8 +249,8 @@ describe('geometry arriving out of order', () => {
  *
  * `current()` invents an answer when `selectedId` names nothing reachable —
  * after a scope change, or after the screen that owned the selection
- * unmounted. Moving *from* that invented element skipped it, and in a
- * direction with no candidate selected nothing at all, which is a screen whose
+ * unmounted. Moving *from* that invented element would skip it, and in a
+ * direction with no candidate would select nothing at all: a screen whose
  * D-pad does nothing and shows no focus ring.
  */
 describe('the first press on a screen with no selection', () => {
@@ -279,8 +276,8 @@ describe('the first press on a screen with no selection', () => {
     const stop = mountRow();
     expect(tvFocus.selected()).toBeUndefined();
 
-    // Nothing is above either element. Before the fix this returned false and
-    // left the screen with no selection and no ring.
+    // Nothing is above either element; returning false here would leave the
+    // screen with no selection and no ring.
     expect(tvFocus.handle('up')).toBe(true);
     expect(tvFocus.selected()).toBeDefined();
 
@@ -316,12 +313,8 @@ describe('the first press on a screen with no selection', () => {
  * card — `mediaFocusId` — but the two events arrive in the wrong order: the
  * screen selects the remembered id while the grid is still fetching, and the
  * card registers a moment later. Selection survives that (it is only a
- * string), but the *card* never learns, because `select` notifies whatever is
- * registered at the time and registration notifies nothing.
- *
- * Measured on the television 2026-09-21: Back from a detail screen left the
- * highlight on the navigation bar, and the viewer's place in a grid of several
- * hundred films was gone.
+ * string), but the *card* would never learn unless registration tells it,
+ * because `select` notifies only whatever is registered at the time.
  */
 describe('an element that mounts into an existing selection', () => {
   beforeEach(() => {
@@ -354,10 +347,9 @@ describe('an element that mounts into an existing selection', () => {
  * A restore that outlives the fetch, which is what a library screen needs.
  *
  * `App` remembers the card Back should return to, but the screen it returns to
- * re-mounts and re-fetches: measured on the television 2026-09-21, the grid's
- * cards had not registered by the time the route effect ran, so a restore
- * attempted there found nothing and fell back to the default — the navigation
- * bar — which is the very fault it was written to fix.
+ * re-mounts and re-fetches: the grid's cards have not registered by the time
+ * the route effect runs (measured on the television), so a restore applied
+ * there would find nothing and fall back to the navigation bar.
  *
  * So the restore is armed rather than applied, and registration claims it. It
  * is abandoned the moment the viewer presses anything, because focus jumping
@@ -404,11 +396,9 @@ describe('a restore armed before its card exists', () => {
 })
 
 /**
- * Measured on `.133`, 2026-09-23: opening a series from TV Shows left focus on
- * the top bar's Home, so the viewer's next OK sent them Home. The screen's
- * default card — its first season — registers only after the series is
- * fetched, and `focusDefault` had already fallen back to the first thing on
- * screen by then.
+ * A series screen's default card — its first season — registers only after the
+ * series is fetched, by which time `focusDefault` has fallen back to the first
+ * thing on screen, the top bar's Home (measured on `.133`).
  */
 describe('a default that registers after the screen has fallen back', () => {
   beforeEach(() => {
@@ -465,14 +455,13 @@ describe('a default that registers after the screen has fallen back', () => {
 });
 
 /**
- * Search's control row, measured off `.133` on 2026-09-24 (1920-wide
- * screenshot): a field that takes most of the width, the sort control to its
- * right, and a row of result cards below.
+ * Search's control row, measured off `.133` (1920-wide screenshot): a field
+ * that takes most of the width, the sort control to its right, and a row of
+ * result cards below.
  *
- * Tom, the same night: "moving right on the D-pad from search drops into the
- * results". Scoring from centres made anything whose centre lay right of the
- * wide field's centre count as "right" of it, and a card one row down was
- * nearer than the sort control on the same row.
+ * Scoring from centres would count anything whose centre lay right of the wide
+ * field's centre as "right" of it, and a card one row down would be nearer
+ * than the sort control on the same row.
  */
 describe('a wide element beside smaller ones', () => {
   const field = { id: 'field', rect: rect(58, 172, 1264, 46) };
@@ -503,8 +492,8 @@ describe('a wide element beside smaller ones', () => {
 });
 
 /**
- * Tom, 2026-09-24: going down from a row and straight back up should land on
- * the control the viewer left, not on whatever happens to be nearest.
+ * Going down from a row and straight back up lands on the control the viewer
+ * left, not on whatever happens to be nearest.
  */
 describe('reversing a move', () => {
   beforeEach(() => {
@@ -552,11 +541,9 @@ describe('reversing a move', () => {
 });
 
 /**
- * Home, measured off `.133` on 2026-09-24: the top bar, a Continue Watching
- * row of three cards at the left, and a full Movies row below. Up from a
- * Movies card with nothing directly above it in Continue Watching went
- * straight to the top bar — the column-first reading of "row first" skipping a
- * whole row.
+ * Home, measured off `.133`: the top bar, a Continue Watching row of three
+ * cards at the left, and a full Movies row below. Up from a Movies card with
+ * nothing directly above it must not skip Continue Watching for the top bar.
  */
 describe('moving between rows', () => {
   const nav = [
@@ -580,9 +567,8 @@ describe('moving between rows', () => {
 });
 
 /**
- * `.133`, 2026-09-24: Left from Home — the first item in the top bar — left
- * the bar for the Arrival card below it, because with nothing further left in
- * its own row the move fell back to anything to the left in any row.
+ * Left from Home, the first item in the top bar, has nothing further left in
+ * its own row; it must stop rather than drop to the card below it.
  */
 describe('the end of a row', () => {
   const home = { id: 'nav-home', rect: rect(740, 20, 60, 40) };
@@ -599,11 +585,10 @@ describe('the end of a row', () => {
 });
 
 /**
- * Tom, 2026-09-24: "the focus always jumps to Home on this page regardless of
- * how it has been accessed". A screen's own default registers only after its
- * content is fetched, so the fallback was always the first thing on screen —
- * the top bar's Home. The fallback now prefers the nav item the viewer last
- * used, remembered for the life of the app.
+ * A screen's own default registers only after its content is fetched, so the
+ * fallback would otherwise always be the first thing on screen, the top bar's
+ * Home. It prefers the nav item the viewer last used, remembered for the life
+ * of the app.
  */
 describe('the fallback remembers the last nav item used', () => {
   beforeEach(() => {
@@ -658,9 +643,8 @@ describe('the fallback remembers the last nav item used', () => {
  * screen edge, shorter than the grid, so the grid's bottom row sits below
  * its last key. Geometry as on `.133`'s 960x540 dp viewport.
  *
- * Tom, 2026-09-29: "The side alphabetical index is not accessible by DPad
- * Right from movies when the cursor is on the bottom row." Right only takes
- * candidates sharing the row, and no key shares a row below the strip.
+ * Right only takes candidates sharing the row, and no key shares a row below
+ * the strip, so the rail must still be reachable from there.
  */
 describe('a side rail beside a grid', () => {
   const keys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((key, index) => ({

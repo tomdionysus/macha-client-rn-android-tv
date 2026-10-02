@@ -9,11 +9,12 @@
  *
  * **It is duplicated rather than shared, and that is not settled.** The rule in
  * `AGENTS.md` is that the dependency-free part of anything common belongs in
- * core, and this file has no dependencies at all. Core refused D-pad focus
- * scoring on the grounds that geometry deciding what a viewer looks at next is
- * presentation, and the same argument covers a ladder tuned to a remote's
- * auto-repeat. Two TV clients now hold the same numbers; the tests below pin
- * them on this side, as `tvFocus.test.ts` does for the focus weights.
+ * core, and this file has no dependencies at all. Core keeps D-pad focus
+ * scoring out on the grounds that geometry deciding what a viewer looks at
+ * next is presentation, and the same argument covers a ladder tuned to a
+ * remote's auto-repeat.
+ * Both TV clients hold the same numbers; the tests below pin them on this
+ * side, as `tvFocus.test.ts` does for the focus weights.
  *
  * A remote has no scrub wheel, so a fixed step is always wrong somewhere: 10s
  * is tedious across a film, 30s overshoots the moment you were looking for.

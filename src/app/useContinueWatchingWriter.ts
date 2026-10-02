@@ -17,11 +17,9 @@ import { attributableProgress } from './progressAttribution';
 /**
  * Keep the viewer's place on disk while they are still watching.
  *
- * **The rule is core's** (`progressWriteDue`, `nextWatermark`, core `5061a03`),
- * taken over from this client's `progressPersistence.ts` on 2026-09-24 with
- * identical logic, checked by diff. What stays here is platform: the tick, the
- * playback subscription, the app-scope placement, the interval Tom set, the
- * `isFinished` short-circuit and the reset between films.
+ * **The rule is core's** (`progressWriteDue`, `nextWatermark`). What stays here
+ * is platform: the tick, the playback subscription, the app-scope placement,
+ * the interval, the `isFinished` short-circuit and the reset between films.
  *
  * **At app scope rather than the player screen's, for the reason
  * `usePlaybackRuntime` gives for the live-session record**: the whole job of
@@ -31,10 +29,8 @@ import { attributableProgress } from './progressAttribution';
  * one tracks what the *node* is still holding, this one tracks where the
  * *viewer* was.
  *
- * Until this existed the only write was in `closePlayer`, which runs when a
- * viewer leaves deliberately and never when the process is killed. `SIGKILL`
- * runs nothing; see `docs/HISTORY.md` / `COMPLETED.md` for the measured kill
- * that prompted it.
+ * `closePlayer` also writes, but only when a viewer leaves deliberately;
+ * `SIGKILL` runs nothing, so a killed process relies on this.
  *
  * Two triggers, because neither is sufficient alone: every playback snapshot,
  * so a pause is recorded when it happens rather than up to five minutes later;
@@ -63,11 +59,9 @@ export function useContinueWatchingWriter(
         // full interval for its first attempt.
         //
         // It does **not** put the next film into Continue Watching
-        // immediately, and an earlier version of this comment claimed it did:
-        // core stores nothing below 30 s of position, so the earliest a film
-        // can appear is the first tick after that — which is the right
-        // behaviour, since something opened and abandoned inside half a minute
-        // is not unfinished business.
+        // immediately: core stores nothing below 30 s of position, so the
+        // earliest a film can appear is the first tick after that. Something
+        // opened and abandoned inside half a minute is not unfinished business.
         watermark.current = { paused: true, wroteAtMs: 0, attemptedAtMs: 0 };
         return;
       }

@@ -12,50 +12,19 @@ import type {
  * The rules behind the options panel, separated from the panel itself.
  *
  * All of this is plain data and none of it needs a renderer, which matters
- * because two of the rules below are the kind that fail silently: a mode press
- * that omits its transforms is refused by the server, and a missing note turns
- * the chooser's worst failure into no symptom at all.
+ * because a missing note fails silently: it turns the chooser's worst failure
+ * into no symptom at all.
  */
 
 /*
- * `MODE_TRANSFORMS` lived here and has been **deleted**, not moved to core.
+ * A mode press sends `{ mode }` alone. The server resets `video`, `audio`,
+ * `max_height` and `max_bitrate` the moment `mode` is named, and what a mode
+ * implies per stream is the server's judgement, not this client's.
  *
- * It restated `video`/`audio` alongside `mode` on every mode press, justified
- * by a comment carried over from the web client: that the session keeps the
- * previous instruction's per-stream transforms, so a bare mode is judged
- * against them and refused as contradictory.
- *
- * **That was inherited, not observed.** This client never sent such a PATCH and
- * never saw the refusal. Two independent readings say the guard is unnecessary:
- * core investigated it at server 0.34.0 and concluded the fields should be left
- * to clear, and the server session has since confirmed against 0.39.1 that
- * `parse_preferences` resets `video`, `audio`, `max_height` and `max_bitrate`
- * the moment `mode` is named, before reading the rest of the object. The
- * contradiction it guarded against cannot be assembled.
- *
- * The stronger reason to delete rather than keep it harmlessly: it **asserted
- * what a mode implies per stream**, and that is the server's judgement, not
- * ours. A panel built to expose the 5.1 decision must not quietly pre-state it.
- *
- * The map's `remux: { audio: 'copy' }` happened to be correct, and the example
- * first given for why it was not — "a remux can carry transcoded audio" — was
- * wrong. Core's chooser is explicit (`choosePlaybackInstruction.ts:394-401`):
- * remux means the container changed and *every* stream was copied, and the
- * server refuses a remux with any quality conversion, by contract rather than
- * by capability. Re-encoding one stream makes it a transcode that copies the
- * video.
- *
- * That distinction is the one to carry into §1.2, not this map. **A 5.1 downmix
- * arrives as `mode: 'transcode', video: 'copy', audio: 'transcode'`** — the
- * mode says transcode while the video is untouched. Reading the mode alone
- * would call that a video re-encode. Read `session.transform`, which is the
- * per-stream answer stated by the node that served it, and which is what
- * `audioProcessingNote` below already shows.
- *
- * A mode press now sends `{ mode }` alone and lets the server re-derive. If a
- * refusal ever appears, capture the body, status and `code` — the server
- * session wants them, and it would be a genuine regression rather than a
- * reason to restore this.
+ * Read the per-stream answer, not the mode: **a 5.1 downmix arrives as
+ * `mode: 'transcode', video: 'copy', audio: 'transcode'`**, which the mode
+ * alone would call a video re-encode. `session.transform` is stated by the
+ * node that served it, and is what `audioProcessingNote` below shows.
  */
 
 export const MODE_LABELS: Record<PlaybackMode, string> = {
@@ -85,7 +54,7 @@ const REASON_TEXT: Record<PlaybackDecisionReason, string> = {
   'executor-cannot-copy-video': 'this server cannot repackage the video',
   'executor-cannot-copy-audio': 'this server cannot repackage the audio',
   'player-could-not-decode': 'this television could not decode the original streams',
-  // Server 0.70.0, core fb96757: a node's measured rate. The web client's words.
+  // A node's measured conversion rate. The web client's words.
   'transcode-below-real-time': 'the server cannot convert this picture fast enough to play',
 };
 
@@ -109,8 +78,7 @@ export function streamLabel(stream: PlaybackStreamInfo, fallback: string): strin
  *
  * That argument is the web client's, and it applies **harder here**: a
  * television has no console anyone will open, so this panel is the only place
- * on this platform where the difference can show. It is also the reason this
- * whole component is wanted during the 5.1 measurement rather than after it.
+ * on this platform where the difference can show.
  */
 export function instructionNote(instruction: PlaybackInstructionReport | undefined): string | undefined {
   if (!instruction) return undefined;
@@ -125,9 +93,8 @@ export function instructionNote(instruction: PlaybackInstructionReport | undefin
 /**
  * Inputs nobody supplied, named rather than left to a reasonable default.
  *
- * A reasonable default produces a plausible instruction, which is how three
- * separate fields could be declared, consumed and populated by nobody without
- * anything ever looking wrong. This client intends to wire all of them, so
+ * A reasonable default produces a plausible instruction, so a field populated
+ * by nobody never looks wrong. This client intends to wire all of them, so
  * anything listed here is a defect and not a note.
  */
 export function assumptionNote(instruction: PlaybackInstructionReport | undefined): string | undefined {
@@ -161,11 +128,11 @@ export interface ModeChoice {
 /**
  * The modes to offer: the node's, less those this set cannot play.
  *
- * Tom, 2026-09-25: limit to the device's capabilities, with a setting to turn
- * the limit off. Core's `offeredModes` decides per mode for the file playing;
- * with the setting on it offers every mode and still says why the device
- * objects, which `modeObjectionNote` shows. Without facts there is nothing to
- * reason from, so every mode the node offers stays, as before this rule.
+ * Limited to the device's capabilities, with a setting to turn the limit off.
+ * Core's `offeredModes` decides per mode for the file playing; with the
+ * setting on it offers every mode and still says why the device objects,
+ * which `modeObjectionNote` shows. Without facts there is nothing to reason
+ * from, so every mode the node offers stays.
  */
 export function modeChoices(
   serverModes: readonly PlaybackMode[],
@@ -195,14 +162,13 @@ export type QualityChoice =
   | { kind: 'original' };
 
 /**
- * The player's one Quality row. Tom, 2026-09-27: "The Quality and Version
- * controls are duplicated. These should all be one line called 'Quality'."
+ * The player's one Quality row: versions and quality caps are one control.
  *
  * With several versions, the versions (4K, 2K, 1080p, 720p: a file, or a
  * capped transcode of a larger one), then any smaller cap the node offers
  * below the smallest version (480p, 360p). "Original" goes: a version already
  * plays a file at its own size, and picking one clears any cap. With one
- * version or none, the node's caps as before, Original first. Caps only while
+ * version or none, the node's caps, Original first. Caps only while
  * the node can change quality (a transcode); versions whatever the mode.
  */
 export function qualityChoices(

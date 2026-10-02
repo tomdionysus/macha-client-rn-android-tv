@@ -1,24 +1,14 @@
 import { configureClientDiagnostics, createClientLogger } from '@machafoundation/core';
 
 /**
- * The diagnostics buffer this client had, unread, until now.
+ * The diagnostics buffer: core's `createClientLogger` and its in-memory ring.
  *
- * Core has shipped `createClientLogger` and an in-memory ring buffer since
- * before this client existed, and this client called neither. That was
- * survivable on a desktop and is not survivable here: **a television has no
- * console.** Every fault this project has diagnosed so far was diagnosed by
- * reasoning from source, rebuilding, reinstalling, and asking whoever was
- * watching the screen what changed — while the one line that would have
- * answered it sat in memory on the set, reachable only from a developer
- * console the panel does not have.
- *
- * The reason it matters *now* is specific. When a film finally plays
- * (`TODO/ACTIVE.md` §1.2), an unexplained mid-playback failover has three
- * candidate causes and they are distinguishable only by their evidence: the
- * missing hold-aware `500` retry, core's backward-seek eviction (the tell is
- * a rewind immediately before the failover), or a genuine node fault. Without
- * a trail, all three look identical from three metres away, and the
- * measurement this repository exists to make comes back ambiguous.
+ * **A television has no console**, so this buffer, read out by the failure
+ * trail, is the only place on the set where the evidence behind a fault can
+ * be seen. An unexplained mid-playback failover has several candidate causes
+ * that are distinguishable only by their evidence: a node holding a fragment,
+ * core's backward-seek eviction (the tell is a rewind immediately before the
+ * failover), or a genuine node fault.
  */
 
 /**
@@ -56,14 +46,11 @@ configure();
 /**
  * Lift the buffer to `info` while Diagnostics is on, and drop it back after.
  *
- * **Added 2026-09-20 because `warn` hid the one span that mattered.** A
- * reaped session took core's regenerate path and the viewer sat frozen on
- * "Preparing new stream" for minutes with **no line at all** on the trail —
- * not because nothing happened, but because everything that happened between
- * `session-reaped-regenerating` and the hang is logged at `info`:
- * `generation-regenerate`, `failed-session-closed`, `session-created`,
- * `session-regenerated`, `source-activate`, `first-fragment`. The trail could
- * say a recovery had started and nothing else.
+ * **`warn` hides the span that matters in a recovery.** Everything core's
+ * regenerate path does after `session-reaped-regenerating` is logged at
+ * `info`: `generation-regenerate`, `failed-session-closed`, `session-created`,
+ * `session-regenerated`, `source-activate`, `first-fragment`. At `warn` the
+ * trail can say a recovery has started and nothing else.
  *
  * `info` is not periodic in core — the health monitor has one info site, the
  * coordinator's are all event-driven — so the cost is bounded by how much

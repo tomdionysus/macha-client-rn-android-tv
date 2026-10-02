@@ -16,12 +16,10 @@ import { tvFocus } from './tvFocus';
  * that is re-derived here.
  *
  * **Where this parts company with the web client.** There, `jumpTo` calls
- * `scrollIntoView` on the target element and stops. On a television that is
- * not enough and is arguably worse than nothing: focus would still be sitting
- * on whatever card it was on before, so the viewer's next D-pad press would
- * scroll straight back and the jump would appear to undo itself. So this moves
- * *focus* to the first title in the bucket, and the library's existing
- * scroll-on-focus does the revealing.
+ * `scrollIntoView` on the target element and stops. On a television focus
+ * would stay on the previous card, so the next D-pad press would scroll
+ * straight back and undo the jump. So this moves *focus* to the first title in
+ * the bucket, and the library's scroll-on-focus does the revealing.
  *
  * That is why focusables can be addressed by a stable id: the registry has to
  * be able to select a specific card by name.
@@ -32,8 +30,8 @@ import { tvFocus } from './tvFocus';
  *
  * `rail` names the row, for a screen that can show one title in two of them:
  * Home's Continue Watching and Movies, say. Each copy then has an id of its
- * own, so Back can return to the one opened (Tom, 2026-09-27: "it's more
- * intuitive") where one shared id would keep only one of them.
+ * own, so Back can return to the one opened, where one shared id would keep
+ * only one of them.
  */
 export function mediaFocusId(mediaId: string, rail?: string): string {
   return rail ? `media:${rail}:${mediaId}` : `media:${mediaId}`;
@@ -46,8 +44,7 @@ export function mediaFocusId(mediaId: string, rail?: string): string {
  * the next time the screen mounts. That distinction is what `App` needs before
  * it tries to put focus back where Back found it: restoring a generated id
  * selects something that will never exist, and the registry then shows no
- * highlight at all until the next key press. Measured on the television
- * 2026-09-21 — the Home rows, whose cards are deliberately not addressable.
+ * highlight at all until the next key press (measured on the television).
  */
 export function isMediaFocusId(id: string | undefined): id is string {
   return id !== undefined && id.startsWith('media:');

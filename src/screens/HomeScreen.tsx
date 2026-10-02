@@ -42,9 +42,6 @@ export function HomeScreen({
     );
   }
 
-  // An episode card names its series and its S04E08 mark on two lines
-  // (`MediaCard`'s `cardLines`, from the stored `playbackContext`), so entries
-  // saved before Tom's ruling read the same as new ones.
   const progressItems = continueWatching.flatMap((entry) => (entry.media ? [entry.media] : []));
   const progressById = new Map(continueWatching.map((entry) => [entry.itemId, entry]));
 
@@ -59,9 +56,8 @@ export function HomeScreen({
     <ScrollView
       ref={scroller}
       contentContainerStyle={styles.page}
-      // A television has no touch. The page follows focus instead — without
-      // this the rows below the fold could be focused and never seen, which is
-      // how the selector came to sit on a card cut off by the bottom edge.
+      // A television has no touch: the page follows focus instead, so a row
+      // below the fold is scrolled into view when it takes focus.
       scrollEnabled={false}
     >
       <PageTitle>Home</PageTitle>

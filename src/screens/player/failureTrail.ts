@@ -3,9 +3,8 @@ import { clientDiagnosticsConsole, type ClientLogEntry } from '@machafoundation/
 /**
  * The evidence behind a playback failure, in the failure's own words.
  *
- * Ported from the web client (`screens/player/failureTrail.ts`), where it was
- * written for the Samsung set for the same reason it is needed here: there is
- * no console on a television, so the failure screen reads the buffer out.
+ * Ported from the web client (`screens/player/failureTrail.ts`): there is no
+ * console on a television, so the failure screen reads the buffer out.
  *
  * Deliberately only warnings and errors. The buffer is configured at `warn`
  * (`diagnostics/playbackLog.ts`) so it holds nothing else anyway, but the
@@ -79,10 +78,10 @@ export function playbackFailureTrail(
  * Fewer than the failure overlay's twelve, and for the opposite reason: the
  * overlay is the only thing on screen and has the viewer's whole attention,
  * while this sits over a running picture and is read in glances. Eight lines
- * spans a recovery **with its `info` steps included** — since 2026-09-20 the
- * live trail shows `info` while Diagnostics is on, because the regenerate
- * path's every step between "started" and "attached" is logged at that level
- * and six lines of `warn` could only say a recovery had begun.
+ * spans a recovery **with its `info` steps included**: the live trail shows
+ * `info` while Diagnostics is on, because the regenerate path's every step
+ * between "started" and "attached" is logged at that level, and `warn` alone
+ * could only say a recovery had begun.
  */
 export const LIVE_TRAIL_ENTRIES = 8;
 
@@ -108,12 +107,10 @@ export function trailSignature(trail: readonly PlaybackFailureTrailEntry[]): str
 /**
  * How much of a line the live trail keeps, against the overlay's 110.
  *
- * Measured, not chosen: the first failover read on hardware (2026-09-20) cut
- * `playback.api http-error-response` at
- * `…?idempotency_key=mua0un2b-yk561ok4qj","elapsed…` — one field short of the
- * status code, which was the only thing on the line anybody needed. A node
- * refusing a session and a node that is simply slow are the same line at 110
- * characters.
+ * Measured, not chosen: on hardware, 110 characters cuts a failover's
+ * `playback.api http-error-response` line one field short of the status code,
+ * the only thing on it anybody needs. A node refusing a session and a node
+ * that is simply slow are the same line at 110 characters.
  *
  * The overlay's limit stays where it is. It sits under a failure message with
  * the viewer's whole attention on it and wraps into the middle of the screen;

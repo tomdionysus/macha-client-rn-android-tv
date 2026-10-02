@@ -4,17 +4,12 @@
  * The web client sets `html { font-size: 87.5% }`, so one rem is 14 CSS px,
  * and every size in that stylesheet is expressed in rem.
  *
- * **This file claimed dp and the web client's CSS px were the same unit, and
- * that was wrong on the hardware.** The claim was that Android TV runs its UI
- * on a 1920x1080 dp grid whatever the panel is. Measured on the TCL
- * `G10_4K_GB_NF_32BIT` (Android 12) on 2026-09-19: `wm size` reports a 1920x1080
- * surface and `wm density` reports **320**, so React Native's viewport is
- * **960x540 dp** — half the web client's CSS px viewport in each axis. Every
- * `rem()` therefore drew at twice its intended size, and every `clamp()` floor
- * expressed in px won where the web client's ceiling wins, so the cards were
- * both too large and too few to a row. Reported by Tom from the set as
- * "all too big", which is exactly what a factor of two looks like when nothing
- * is blurry.
+ * **dp and the web client's CSS px are not the same unit.** Measured on the TCL
+ * `G10_4K_GB_NF_32BIT` (Android 12): `wm size` reports a 1920x1080 surface and
+ * `wm density` reports **320**, so React Native's viewport is **960x540 dp** —
+ * half the web client's CSS px viewport in each axis. Unconverted, every
+ * `rem()` draws at twice its intended size, and every `clamp()` floor expressed
+ * in px wins where the web client's ceiling wins.
  *
  * So there is one conversion and everything goes through it: `px()` takes a
  * length as `base.css` states it and returns dp for **this** viewport,
@@ -33,18 +28,16 @@ const screen = Dimensions.get('window');
 /**
  * The viewport `base.css` is read against: the TV WebView's CSS px width.
  *
- * Not a guess — the web client's own clamps resolve against it, and this file
- * already documented which side of each `clamp()` wins "at a 1920-wide TV
- * viewport". Those resolutions are only correct if the conversion below is.
+ * The web client's own clamps resolve against it, and the notes below on which
+ * side of each `clamp()` wins assume it.
  */
 export const DESIGN_WIDTH = 1920;
 
 /**
  * CSS px to dp for this set.
  *
- * `1` on a device whose dp grid really is 1920 wide, which is what this file
- * used to assume of every television; `0.5` on the 4K TCL, which reports a
- * 1920x1080 surface at density 320.
+ * `1` on a device whose dp grid really is 1920 wide; `0.5` on the 4K TCL, which
+ * reports a 1920x1080 surface at density 320.
  */
 export const scale = screen.width / DESIGN_WIDTH;
 
@@ -196,7 +189,7 @@ export const radius = {
  *
  * `.player-button-row button:disabled { opacity: .35 }` — the player's own row,
  * which is where the episode buttons live and which greys them out rather than
- * hiding them (Tom, 2026-09-23: the buttons always appear).
+ * hiding them: the buttons always appear.
  */
 export const disabledOpacity = {
   playerButton: 0.35,
@@ -207,9 +200,8 @@ export const disabledOpacity = {
  * there and only changes colour, standing off the artwork by a gap, and a
  * card-level wash and scale.
  *
- * **One definition, because Tom asked for one look** (2026-09-23): episodes
- * and search results are to be focused "the same as the movie selector". The
- * border is thicker than base.css's 1px outline and the gap reproduces its
+ * **One definition, so there is one look**: episodes and search results are
+ * focused the same as film cards. The border is thicker than base.css's 1px outline and the gap reproduces its
  * `outline-offset` — see `MediaCard`'s `poster` for why a hairline touching
  * the picture read as nothing at three metres. The scale and wash are
  * `.media-card:focus-visible { transform: scale(1.04); background:
@@ -254,10 +246,9 @@ export const layout = {
    * `.media-card { flex: 0 0 clamp(145px, 13vw, 225px) }`.
    *
    * **The bound is in CSS px and the preferred value is in viewport units**, so
-   * only one of the three converts. Getting that wrong is what made the cards
-   * too wide: unconverted, the 145 floor is 145 dp — 290 px on this set — and
-   * beats a `13vw` that is already correct, so the row drew cards larger than
-   * the web client's ceiling and fitted fewer of them.
+   * only one of the three converts. Unconverted, the 145 floor is 145 dp — 290
+   * px on this set — and beats a `13vw` that is already correct, drawing cards
+   * larger than the web client's ceiling.
    */
   mediaCardWidth: clamp(px(145), vw(13), px(225)),
   /** `.episode-rail-item { flex: 0 0 clamp(300px, 31vw, 480px) }`. */
@@ -265,12 +256,10 @@ export const layout = {
   /**
    * `.media-row { gap: 1rem }`, less what the focus frame takes.
    *
-   * **The declared gap is no longer the visible one.** Each card carries a 3 dp
+   * **The declared gap is not the visible one.** Each card carries a 3 dp
    * focus border and 2 CSS px of padding *inside* its width, so the artwork
    * stands about 4 dp in from the card's edge on every side and two neighbours
-   * sit eight dp further apart than the stylesheet says. That is what Tom read
-   * as too much space between titles, and it appeared the moment the border was
-   * thickened rather than being there all along.
+   * would sit eight dp further apart than the stylesheet says.
    *
    * So the gap is stated against the *artwork*, which is what a viewer actually
    * sees the space between. A negative result would mean the frame alone

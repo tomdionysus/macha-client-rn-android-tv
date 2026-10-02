@@ -88,11 +88,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   /**
-   * **The movie card's focus, not the web client's episode focus** (Tom,
-   * 2026-09-23: episodes are selected "the same as the movie selector").
-   * base.css gives `.episode-still-link` a 1px outline and a 1.018 scale; at
-   * three metres that read as a thin line, so the card now takes
-   * `focusFrame`'s wash and scale, like `MediaCard`.
+   * **The movie card's focus, not the web client's episode focus**: episodes
+   * are selected the same way as movies. base.css gives `.episode-still-link` a
+   * 1px outline and a 1.018 scale, which at three metres reads as a thin line,
+   * so the card takes `focusFrame`'s wash and scale, like `MediaCard`.
    */
   cardFocused: {
     backgroundColor: colour.accentFocusWash,
@@ -102,8 +101,8 @@ const styles = StyleSheet.create({
    * `.episode-still { aspect-ratio: 16/9; border-radius: .62rem }`, as the
    * frame rather than the picture: the border is always present and only its
    * colour changes, standing off the still by `focusFrame.gap`, exactly as
-   * `MediaCard`'s poster does. The fill moved onto the image and placeholder
-   * so the gap reads as background, not as a grey frame.
+   * `MediaCard`'s poster does. The fill is on the image and placeholder so the
+   * gap reads as background, not as a grey frame.
    */
   still: {
     aspectRatio: 16 / 9,

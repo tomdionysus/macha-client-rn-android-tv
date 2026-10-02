@@ -9,9 +9,8 @@ import {
  * Wait for a node to actually serve the first fragment, instead of failing
  * over the moment it says it is still producing one.
  *
- * **This is the single largest thing lost when playback moved to
- * `expo-video`.** `PlayerEngine.kt:450` retried an HTTP `500` on the *same*
- * node with exponential backoff, because core's protocol is explicit that
+ * `expo-video`'s loader does not retry an HTTP `500` on the *same* node, as
+ * `PlayerEngine.kt` does, though core's protocol is explicit that
  * `500 segment_not_ready` is the node stating it has not produced this
  * fragment yet and is working correctly. Failing over cannot help: the next
  * node is producing a *different* generation and does not have that fragment
@@ -24,13 +23,10 @@ import {
  * player is ever handed the URL.
  *
  * **The walk itself is core's** (`probeHlsReadiness`), and only the retry
- * policy is here. That split is deliberate and was agreed with the core
- * session rather than assumed: what a `500` *means*, how deep to descend and
- * which URI a tag carries are protocol and vary by nothing, while how long
- * this particular client is willing to wait in front of this particular
- * viewer is a budget and belongs to the client. This file briefly contained
- * its own copy of the descent; core absorbed it, along with the same walk
- * from the web client, so there is now one implementation instead of three.
+ * policy is here: what a `500` *means*, how deep to descend and which URI a
+ * tag carries are protocol and vary by nothing, while how long this
+ * particular client is willing to wait in front of this particular viewer is
+ * a budget and belongs to the client.
  */
 
 export interface FirstFragmentReadiness {
@@ -112,10 +108,10 @@ export async function awaitFirstFragment(
   const started = now();
   const deadline = started + timeoutMs;
   // One controller for the whole sequence of attempts. Core applies its own
-  // per-request deadline inside each walk — since 0.14.0 derived from the
-  // hold this node states, and `HLS_WALK_TIMEOUT_MS` only for one that cannot
-  // — and this one bounds the total, or a node could hold every attempt right
-  // up to core's deadline and never exceed ours.
+  // per-request deadline inside each walk — derived from the hold this node
+  // states, and `HLS_WALK_TIMEOUT_MS` only for one that cannot — and this one
+  // bounds the total, or a node could hold every attempt right up to core's
+  // deadline and never exceed ours.
   const controller = new AbortController();
   const expiry = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -145,7 +141,7 @@ export async function awaitFirstFragment(
         // response at all, and it is the line that makes the on-screen
         // failure trail worth having: without it every transport fault reads
         // as "the node did not answer", which cannot be told apart from a
-        // node that answered badly. Core added it at this client's request.
+        // node that answered badly.
         status = outcome.status;
         reason = outcome.status !== undefined
           ? `the node answered ${outcome.status}`

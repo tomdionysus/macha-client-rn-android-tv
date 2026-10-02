@@ -5,17 +5,12 @@
  * only one of them is ours.** `tvFocus` moves focus by geometry across every
  * registered rectangle, including rectangles that are off screen — which is
  * correct, and is how the web client behaves — so a scroller that does not
- * follow leaves focus somewhere nobody can see. On the Settings screen that
- * shipped a control which could be focused, toggled and never observed: the
- * Diagnostics switch sits below the fold, and Down and centre both appeared
- * dead because their effect was invisible rather than absent.
+ * follow leaves focus somewhere nobody can see.
  *
- * **Both axes, and the horizontal one was wrong in the other direction.**
- * `MediaRow` scrolled from a stride on *every* focus change, so a card already
- * in plain sight still dragged the row under the viewer — the eager half of the
- * same fault, reported off the set alongside the sticky one. Vertical sections
- * cannot use a stride at all, since they are as tall as their content. One rule
- * serves both: move only when the focused thing is not fully in view.
+ * One rule serves both axes: move only when the focused thing is not fully in
+ * view. Scrolling on every focus change drags a card already in plain sight
+ * under the viewer, and vertical sections cannot use a fixed stride since they
+ * are as tall as their content.
  *
  * Kept as a pure function rather than living inside the component so the rule
  * can be tested without a renderer — this project has no React test
@@ -65,11 +60,10 @@ export function scrollTarget(
 
 /**
  * Where a jump scrolls to: the item at the top, with `lead` above it, whether
- * or not it was already in view. For the alphabet strip (Tom, 2026-09-29:
- * "the titles that start with that letter should come to the top of the
- * screen, not the bottom"): a jump is a new place to read from, and
- * `scrollTarget`'s least movement left a forward jump's titles on the bottom
- * row. Near the last titles they come as high as the page allows:
+ * or not it was already in view. For the alphabet strip: a jump is a new place
+ * to read from, so its titles come to the top of the screen, where
+ * `scrollTarget`'s least movement would leave a forward jump's titles on the
+ * bottom row. Near the last titles they come as high as the page allows:
  * `maxOffset` is the page's last scroll position, so the offset answered is
  * the one the scroller actually reaches.
  */

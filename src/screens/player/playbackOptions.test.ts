@@ -22,19 +22,6 @@ function report(overrides: Partial<PlaybackInstructionReport> = {}): PlaybackIns
   } as PlaybackInstructionReport;
 }
 
-/*
- * The `MODE_TRANSFORMS` tests that were here are gone with the map. They pinned
- * a rule this client inherited from the web client and never observed: that a
- * bare mode is judged against the previous instruction's per-stream transforms
- * and refused. The server clears those fields the moment `mode` is named, so
- * the contradiction cannot be assembled — confirmed in core at 0.34.0 and in
- * the server source at 0.39.1.
- *
- * Four tests passed against a rule that should not have existed, which is worth
- * remembering: they tested that the map said what it said, never that the
- * server needed it to.
- */
-
 /**
  * The chooser's worst failure has no symptom without these notes: a facts
  * lookup that fails falls back to transcode, the viewer sees a working picture,

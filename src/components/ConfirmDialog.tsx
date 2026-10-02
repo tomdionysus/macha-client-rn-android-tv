@@ -19,8 +19,8 @@ export const CONFIRM_SCOPE = 'confirm';
  * **Not a general modal**, deliberately. The web client's `Modal` also backs a
  * `FormModal` that this client has no use for yet, and the focus-trap work it
  * does with `Tab` has no analogue here — the registry's scopes do that job
- * outright. When music needs `Modal` and `OverflowMenu` (`TODO/ACTIVE.md`
- * §4.6), this is the piece to generalise rather than to copy.
+ * outright. When a general `Modal` is needed, this is the piece to generalise
+ * rather than to copy.
  */
 export function ConfirmDialog({
   title,

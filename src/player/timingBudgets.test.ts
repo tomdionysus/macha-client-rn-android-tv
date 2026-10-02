@@ -90,7 +90,7 @@ describe('Kotlin player engine agrees with the declared budgets', () => {
 });
 
 /**
- * Which deadline applies to acquiring a source, now that nodes state their own.
+ * Which deadline applies to acquiring a source, when a node may state its own.
  *
  * The division core draws is that it owns *when to stop* and this client owns
  * *what happens until then*. These assert this client's side of that line: it
@@ -129,16 +129,14 @@ describe('the acquisition deadline a node states for itself', () => {
   });
 
   it('still clears the hold it must outlast, for a node that cannot say', () => {
-    // The relationship that survives, and the only one that was ever load
-    // bearing: waiting less than a hold aborts mid-hold and reports a node
-    // answering the protocol correctly as a fault.
+    // Waiting less than a hold aborts mid-hold and reports a node answering
+    // the protocol correctly as a fault.
     expect(FIRST_FRAGMENT_TIMEOUT_MS).toBeGreaterThan(SERVER_SEGMENT_HOLD_MS);
   });
 
   it('is core\'s figure for a node that cannot state one, not a local multiple', () => {
-    // It was `SERVER_SEGMENT_HOLD_MS * 5` until 2026-09-19 — sound reasoning
-    // from the one server constant a client could see, and no authority beside
-    // that. Core answers the same question from the server's own numbers.
+    // Core answers the question from the server's own numbers; a local
+    // multiple of the hold would have no authority beside it.
     expect(FIRST_FRAGMENT_TIMEOUT_MS).toBe(generationAttemptBudgetMs());
   });
 });
@@ -151,7 +149,7 @@ describe('the acquisition deadline a node states for itself', () => {
  * "a 500 is a hold, retry the same node" rule has to exist in Kotlin as well as
  * in core, and no amount of restructuring changes that.
  *
- * Everything else moved: the native side now reports the raw status and the
+ * Everything else is core's: the native side reports the raw status and the
  * adapter applies `playbackFailureKindForStatus`. This asserts the residue
  * still agrees with core, so if core ever reassigns the hold status the Kotlin
  * copy fails loudly rather than silently retrying the wrong thing.
@@ -177,14 +175,10 @@ describe('the unavoidable Kotlin copy of the hold rule', () => {
   });
 
   it('does not treat the terminal statuses as holds', () => {
-    // The statuses themselves come from core now. They were written here as
-    // literals, which made this test a second copy of the thing it was guarding
-    // — core 0.14.0 exports them precisely because adapters were restating them
-    // (four copies of one server fact, by its count).
-    //
-    // `SOURCE_SUPERSEDED_STATUS` joined them for server 0.48.0: it is terminal
-    // in exactly the same way, and a Kotlin retry arm on it would retry a
-    // generation this node has already superseded until the loader gave up.
+    // The statuses come from core, so this test is not a second copy of the
+    // thing it guards. A Kotlin retry arm on `SOURCE_SUPERSEDED_STATUS` would
+    // retry a generation this node has already superseded until the loader
+    // gave up.
     for (const status of [
       BROKEN_GENERATION_STATUS,
       SOURCE_NOT_FOUND_STATUS,
@@ -196,31 +190,22 @@ describe('the unavoidable Kotlin copy of the hold rule', () => {
   });
 
   it('keeps the two terminal statuses saying different things about the node', () => {
-    // This asserted `stream` for both until core 0.13.0, and the pair being
-    // indistinguishable was the defect: a `503` is a broken generation and
-    // endpoint evidence, while a `404` is one session's existence and must
-    // never cost the node that answered it honestly its place in the candidate
-    // list. `ExpoVideoAdapter.nodeWillServe` is the consumer that depends on
-    // the difference.
+    // A `503` is a broken generation and endpoint evidence, while a `404` is
+    // one session's existence and must never cost the node that answered it
+    // honestly its place in the candidate list. `ExpoVideoAdapter.nodeWillServe`
+    // is the consumer that depends on the difference.
     expect(playbackFailureKindForStatus(BROKEN_GENERATION_STATUS)).toBe('stream');
     expect(playbackFailureKindForStatus(SOURCE_NOT_FOUND_STATUS)).toBe('not-found');
   });
 
   it('inherits the superseded-generation tolerance from core rather than branching locally', () => {
-    // Server 0.48.0 ships `410 generation_superseded` rather than holding it for
-    // a second flag day, so this arrives on the television at the cutover. Core
-    // answers it `not-found` deliberately rather than as a seventh kind: what a
-    // host must do is identical — the object is gone, the node is fine, re-read
-    // the session — and a kind no shipped host handles would be read as
-    // unhandled and condemn a healthy node, which is the failure the tolerance
-    // exists to stop.
+    // Core answers `410 generation_superseded` as `not-found` deliberately
+    // rather than as a kind of its own: what a host must do is identical — the
+    // object is gone, the node is fine, re-read the session — and a kind no
+    // host handles would be read as unhandled and condemn a healthy node.
     //
-    // This client gets it for free because `ExoPlayerAdapter.ts:67` hands core
-    // the raw status instead of classifying locally. The web client could not,
-    // because hls.js raises a segment `410` below the layer that sees a status
-    // and it needed its own branch — asserted, relayed by the core session on
-    // 2026-09-21 and not read in that tree from here. This assertion is what
-    // keeps this client on the free side of that difference.
+    // This client inherits that because `ExoPlayerAdapter.ts` hands core the
+    // raw status instead of classifying locally; this assertion keeps it so.
     expect(playbackFailureKindForStatus(SOURCE_SUPERSEDED_STATUS)).toBe('not-found');
 
     // Stated as relationships, because the values are core's to choose: a `410`
@@ -237,9 +222,9 @@ describe('the unavoidable Kotlin copy of the hold rule', () => {
     );
   });
 
-  it('no longer maps statuses to kinds in Kotlin', () => {
-    // The mapping moved to core. If these strings come back, protocol knowledge
-    // has leaked into the platform layer again.
+  it('maps no statuses to kinds in Kotlin', () => {
+    // The mapping is core's. If these strings appear, protocol knowledge has
+    // leaked into the platform layer.
     expect(engine).not.toContain('"not-ready"');
   });
 });
@@ -247,7 +232,7 @@ describe('the unavoidable Kotlin copy of the hold rule', () => {
 /**
  * The resume-point cadence, as relationships rather than as numbers.
  *
- * Both figures are choices — Tom's five minutes and the tick that evaluates it
+ * Both figures are choices — the five-minute interval and the tick that evaluates it
  * — so what is pinned here is what would actually be broken by changing them
  * carelessly, not the values themselves.
  */
@@ -255,18 +240,12 @@ describe('the resume-point cadence', () => {
   const timingBudgetsSource = readFileSync(join(__dirname, 'timingBudgets.ts'), 'utf8');
 
   it('is not tied to anything the server states', () => {
-    // It was tied to `SERVER_SESSION_IDLE_MS` for a day, and core corrected it:
-    // that constant is the server's *default*, a node states its own
-    // `session_idle_ms` on `/api/v1/status`, and core deliberately does not read
-    // it — "never let correctness depend on it"
-    // (`macha-ts/src/playback/streamProtocol.ts`, read 2026-09-22). This repo
-    // carries the same warning for `SERVER_SEGMENT_HOLD_MS` a few lines up and
-    // it was missed anyway.
-    //
-    // The relationship also did no work: this interval alone bounds what a kill
-    // discards, whether the node reaps at thirty minutes or never. Guarded as
-    // an absence, because re-deriving it is the easy mistake — the budget must
-    // stay a plain number, not a function of a server figure.
+    // `SERVER_SESSION_IDLE_MS` is the server's *default*, a node states its
+    // own, and core says never to let correctness depend on it
+    // (`macha-ts` `src/playback/streamProtocol.ts`). And this interval alone
+    // bounds what a kill discards, whether the node reaps at thirty minutes or
+    // never. Guarded as an absence: the budget must stay a plain number, not a
+    // function of a server figure.
     // Asserted on the declaration rather than on the file: the docblock names
     // the constant in order to say why it is not used, and a test that forbade
     // the word would forbid the explanation. What must hold is that the value
@@ -287,8 +266,8 @@ describe('the resume-point cadence', () => {
 
   it('does not tick faster than the stall watchdog it shares a device with', () => {
     // Not a correctness coupling, a cost one: this timer runs for the whole of
-    // every film on a television with a load average that reached 30 during the
-    // WebView update. It has no business being the busiest thing in the app.
+    // every film on a television whose load average can reach 30 (measured).
+    // It has no business being the busiest thing in the app.
     expect(CONTINUE_WATCHING_TICK_MS).toBeGreaterThanOrEqual(MEDIA_STALL_TIMEOUT_MS);
   });
 });

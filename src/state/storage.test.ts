@@ -20,11 +20,8 @@ const { shouldHydrate } = await import('./storage');
  * conclusion. `clientId()` mints a fresh identity; the Continue Watching
  * migration decides there is nothing to adopt.
  *
- * The filter previously matched `macha.` and missed every hyphenated key,
- * including the client id. These tests exist so that cannot recur quietly:
- * they are driven by core's own registry rather than by a list copied here,
- * so a key added in a later release fails this suite instead of failing on a
- * television.
+ * Driven by core's own registry rather than by a list copied here, so a key
+ * core adds fails this suite instead of failing on a television.
  */
 describe('hydrate filter, against core\'s key registry', () => {
   it('loads every complete key core owns', () => {
@@ -44,7 +41,7 @@ describe('hydrate filter, against core\'s key registry', () => {
   });
 
   it('covers both of core\'s naming conventions', () => {
-    // Named explicitly because matching only one of these was the defect.
+    // Named explicitly: matching only one of these drops the other silently.
     expect(shouldHydrate('macha.session.v1')).toBe(true);
     expect(shouldHydrate('macha-client-id')).toBe(true);
   });
@@ -62,11 +59,9 @@ describe('hydrate filter, against core\'s key registry', () => {
     // here, which is why the filter is not delegated to it.
     //
     // Asserted by literal rather than through core's exported prefixes, because
-    // both of these are ours and core's registry is not a record of them.
-    // `macha.volume.v1.` is the case that proves the point: core carried the
-    // volume store until 2026-09-13, this client owns the copy now, and a core
-    // release that drops the prefix from its registry must not quietly drop it
-    // from this suite along with it.
+    // both of these are ours and core's registry is not a record of them: a
+    // core release that drops `macha.volume.v1.` from its registry must not
+    // drop it from this suite.
     expect(shouldHydrate('macha-playback-failure-trail-v1')).toBe(true);
     expect(shouldHydrate('macha.volume.v1.some-client-id')).toBe(true);
   });

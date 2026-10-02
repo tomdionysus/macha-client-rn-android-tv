@@ -148,9 +148,8 @@ class PlayerEngine(private val context: Context) {
 
     // `handleAudioFocus = true` makes ExoPlayer request AUDIOFOCUS_GAIN when it
     // starts and abandon it when it stops, pausing on permanent loss and
-    // ducking on transient. The WebView client held no focus at all, so a
-    // system sound or a voice assistant played over the film instead of
-    // interrupting it.
+    // ducking on transient. Without it a system sound or a voice assistant
+    // plays over the film instead of interrupting it.
     created.setAudioAttributes(
       AudioAttributes.Builder()
         .setUsage(C.USAGE_MEDIA)
@@ -377,8 +376,8 @@ class PlayerEngine(private val context: Context) {
    * **The status-to-kind mapping below is protocol, not platform, and does not
    * belong in this file.** It is specified in `writing-a-player.md` and then
    * reimplemented by every client — the web one against hls.js, this one
-   * against media3. It has been proposed for `@machafoundation/core` as
-   * `playbackFailureKindForStatus(status)`. When that lands, this class should
+   * against media3. It belongs in `@machafoundation/core` as
+   * `playbackFailureKindForStatus(status)`; once core has it, this class should
    * report the raw HTTP status as evidence and let the TypeScript adapter apply
    * core's rule, so no protocol knowledge remains on the platform side. The
    * decoder-error branches below are genuinely ours and stay.

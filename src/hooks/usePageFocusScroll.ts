@@ -5,19 +5,16 @@ import { scrollTarget, type ScrollExtent } from './focusScroll';
 /**
  * A vertical page scroller that follows focus.
  *
- * **Three screens needed this and none of them had it.** `tvFocus` moves focus
- * by geometry across every registered rectangle, on or off screen — correctly,
- * and identically to the web client — so a page that does not scroll leaves the
- * selector somewhere nobody can see. On the set that showed up as focus
- * "sticking" to a card cut off by the bottom edge, and as a Settings toggle
- * that could be operated but never observed.
+ * `tvFocus` moves focus by geometry across every registered rectangle, on or
+ * off screen — correctly, and identically to the web client — so a page that
+ * does not scroll leaves the selector somewhere nobody can see.
  *
  * Every scroller on a television has `scrollEnabled={false}`: there is no touch,
  * so this is the only thing that moves the page.
  *
- * Measured rather than computed. The grid's previous attempt multiplied a row
- * index by a card height derived from the poster ratio, which a wrapping title
- * makes wrong by a line, and the error accumulates down the page.
+ * Measured rather than computed: a row height derived from the poster ratio is
+ * wrong by a line whenever a title wraps, and the error accumulates down the
+ * page.
  */
 export function usePageFocusScroll(lead = 0): {
   scroller: React.RefObject<ScrollView | null>;
@@ -25,10 +22,9 @@ export function usePageFocusScroll(lead = 0): {
    * `onLayout` for a plain `View` wrapping the scroller.
    *
    * **Not the `ScrollView`'s own `onLayout`, which reports nothing here.**
-   * Measured on the TCL: it left the viewport at `0`, so every decision
-   * abstained and no page ever scrolled — the guard behaving exactly as
-   * written, on an input that never arrived. A wrapping `View` does report,
-   * and its height is the scroller's because the scroller fills it.
+   * Measured on the TCL: it leaves the viewport at `0`, so every decision
+   * abstains and no page scrolls. A wrapping `View` does report, and its
+   * height is the scroller's because the scroller fills it.
    */
   measureViewport: (event: LayoutChangeEvent) => void;
   /** `onLayout` for a measured block, keyed. Its `y` must be content-relative. */

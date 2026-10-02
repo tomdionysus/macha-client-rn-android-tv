@@ -7,9 +7,8 @@ import type { StorageLike } from '@machafoundation/core';
  * The core's storage interface is synchronous by design — making it async
  * would push `await` into every state read in the core, most of which sit on
  * paths that must not yield — so the bridge belongs here. This is the shape
- * documented in `macha-ts/docs/async-storage.md` and already device-validated
- * in the phone client: hydrate once at startup, read from memory, write
- * through a serialized chain.
+ * documented in `macha-ts/docs/async-storage.md`: hydrate once at startup,
+ * read from memory, write through a serialized chain.
  */
 
 /**
@@ -17,20 +16,13 @@ import type { StorageLike } from '@machafoundation/core';
  *
  * **Both of core's conventions, deliberately.** Core names state stores with a
  * dotted `macha.<name>.v<n>` and its runtime and cluster layers with a
- * hyphenated `macha-<name>`; `MACHA_STORAGE_KEY_PREFIXES` lists both. This
- * filter was `macha.` alone, which is one convention exactly and the other not
- * at all — the same filter, and the same fault, core's `storageKeys.ts`
- * attributes to the phone client.
+ * hyphenated `macha-<name>`; `MACHA_STORAGE_KEY_PREFIXES` lists both.
  *
- * **What it cost here is worse than a missing value.** `macha-client-id` is
- * hyphenated, so it was written on every launch and never read back;
- * `MachaClientConfiguration.clientId()` cannot tell an unhydrated key from an
- * absent one and mints a fresh id. Every per-client store — Continue Watching,
- * volume, playlists, the playback queue — is keyed `…v1.<clientId>`, so those
- * keys hydrated correctly and were then read under an identity that changed
- * every cold start. The endpoint registry, the bandwidth evidence the routing
- * cascade ranks on, and this client's own failure-trail setting went the same
- * way.
+ * **A missed key is worse than a missing value.** `macha-client-id` is
+ * hyphenated, and `MachaClientConfiguration.clientId()` cannot tell an
+ * unhydrated key from an absent one, so it would mint a fresh id; every
+ * per-client store (`…v1.<clientId>`) would then be read under an identity
+ * that changes every cold start.
  *
  * **A caching host has an obligation a read-through host does not.** Core's
  * `StorageLike` is synchronous, so on React Native the store must be hydrated

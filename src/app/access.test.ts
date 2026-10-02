@@ -14,12 +14,9 @@ const unreachable: SessionMintFailure = {
 };
 
 /**
- * The distinction this whole file exists for, and the one this client got wrong
- * once: **"the server told us we may not" is not "we could not ask".**
- *
- * An earlier gate derived access from an absent token, could not tell them
- * apart, and would have raised a login wall on a network blip — telling the
- * viewer to sign in, which also cannot work with no reachable node.
+ * **"The server told us we may not" is not "we could not ask".** A login wall on
+ * a network blip tells the viewer to sign in, which cannot work with no
+ * reachable node.
  */
 describe('refused versus unreachable', () => {
   it('offers a sign-in when a node answered and said no', () => {
@@ -94,14 +91,10 @@ describe('precedence', () => {
  * A wall raised *after* the viewer was admitted, which the latch exists to
  * prevent — and the two cases where preventing it is wrong.
  *
- * Measured on the cluster 2026-09-21, and it is the reason this exists: a
- * re-mint presenting no credentials returns `username: anonymous` with
- * `roles: []`, and `/catalogue/items` then answers
- * `403 requires the 'media_viewer' role`. The same account minted with the
- * nested credentials envelope comes back `media_viewer, view_status`. So the
- * degraded session is not a blip to be ridden out; it is a session that can do
- * nothing, and the latch was holding the viewer inside a shell where every
- * screen failed with no way to sign out.
+ * Measured on the cluster: a re-mint presenting no credentials returns
+ * `username: anonymous` with `roles: []`, and `/catalogue/items` then answers
+ * `403 requires the 'media_viewer' role`. That session is not a blip to be
+ * ridden out; it can do nothing.
  */
 describe('admission ending', () => {
   it('raises the wall when the viewer asked to be signed out', () => {
@@ -135,9 +128,8 @@ describe('admission ending', () => {
 /**
  * The latch itself, as a value rather than through a renderer.
  *
- * Its purpose is unchanged: a failed *refresh* must never replace a player
- * mid-film with a login screen. What is new is that two states are not that,
- * and must get through it.
+ * A failed *refresh* must never replace a player mid-film with a login screen,
+ * but two states are not that, and must get through it.
  */
 describe('the latch', () => {
   it('admits once allowed, and stays admitted through a later refusal', () => {
@@ -151,9 +143,7 @@ describe('the latch', () => {
   });
 
   it('lets a lapsed identity through', () => {
-    // The known deferral this file recorded — "a genuine demotion mid-session
-    // will not lock a viewer out until the app restarts" — closed for the one
-    // case core can actually report.
+    // A demotion mid-session locks the viewer out when core can report it.
     expect(stillAdmitted(true, { kind: 'sign-in', because: 'identity-changed' })).toBe(false);
   });
 

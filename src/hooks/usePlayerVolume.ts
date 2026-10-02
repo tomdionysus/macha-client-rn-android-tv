@@ -12,9 +12,8 @@ import {
 /**
  * The player's volume, persisted across sessions.
  *
- * Wires `VolumeStore`, which has been constructed in `MachaProvider` and read
- * by nothing since the day it was added. The rule about what gets written is in
- * `player/volume.ts`: the setting persists, the mute does not.
+ * Wires `VolumeStore`, constructed in `MachaProvider`. The rule about what gets
+ * written is in `player/volume.ts`: the setting persists, the mute does not.
  */
 export interface PlayerVolume extends VolumeState {
   step: (direction: 'up' | 'down') => void;

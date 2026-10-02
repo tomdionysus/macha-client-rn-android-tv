@@ -29,14 +29,10 @@ import {
 /**
  * Every word this client shows a viewer, composed from core's data.
  *
- * **Tom, 2026-09-24: core handles no viewer text at all.** Core carries
- * numbers, keys, contexts and codes; the words are the client's (AGENTS.md).
- * They are kept in this one module so the wording is in one place and can be
- * read, changed and one day translated without hunting through screens.
- *
- * The wording is what core used to compose, carried over unchanged when core
- * cut it (its `826e38a`, `f016815`, `8db0a12`, `f75b2bd`), so the cut changed
- * nothing a viewer sees.
+ * **Core handles no viewer text at all.** Core carries numbers, keys, contexts
+ * and codes; the words are the client's (AGENTS.md). They are kept in this one
+ * module so the wording is in one place and can be read, changed and one day
+ * translated without hunting through screens.
  */
 
 // ── Sort and search categories ────────────────────────────────────────────
@@ -48,7 +44,7 @@ const SORT_LABELS: Record<MediaSortKey, string> = {
   recent: 'Recently added',
 };
 
-/** "Sort By Title" — Tom's wording: no separate heading, each choice says it. */
+/** "Sort By Title": there is no separate heading, so each choice says it. */
 export function sortChoiceLabel(key: MediaSortKey): string {
   return `Sort By ${SORT_LABELS[key]}`;
 }
@@ -67,9 +63,8 @@ export function categoryLabel(key: SearchCategoryKey): string {
 
 /**
  * An episode's mark: "S04E08", or "Episode 8" with no season (the web client's
- * `episodeCode`). Tom, 2026-09-27: "it should be S04E08 in all cases", on
- * the season page, the player, and the Continue Watching and search cards,
- * which had read "Season 4 Episode 8" and "4×08".
+ * `episodeCode`). The same everywhere: the season page, the player, and the
+ * Continue Watching and search cards.
  */
 export function episodeLabel(item: Pick<MediaSummary, 'seasonNumber' | 'episodeNumber'>): string | undefined {
   const { seasonNumber, episodeNumber } = item;
@@ -96,9 +91,9 @@ export function albumLabel(context: MusicHierarchyContext): string {
 
 /**
  * What a track is, for the lines under its artwork in the player: the artist,
- * the album with its year, and where it sits on the album. Tom's request,
- * 2026-09-24, matching the web client's `TrackFacts`. A track restored from
- * before core 0.19.0 may carry no music context; it shows what it has.
+ * the album with its year, and where it sits on the album, matching the web
+ * client's `TrackFacts`. A track may carry no music context; it shows what it
+ * has.
  */
 export function trackFacts(
   track: Pick<MediaSummary, 'musicContext' | 'discNumber' | 'trackNumber'>,
@@ -133,8 +128,8 @@ export function formatPlaybackTime(ms: number): string {
 /** The line the player shows for one of core's notice codes. */
 export function playbackNoticeText(notice: PlaybackNotice, quality?: QualityClass): string {
   switch (notice.code) {
-    // Core d1069d2: its own choice stepped down to a quality a node keeps up
-    // with. `quality` is the one now playing.
+    // Core's own choice stepped down to a quality a node keeps up with.
+    // `quality` is the one now playing.
     case 'quality-stepped-down':
       return qualitySteppedDownText(quality);
     case 'copy-refused':
@@ -150,15 +145,15 @@ export function playbackNoticeText(notice: PlaybackNotice, quality?: QualityClas
     case 'subtitles-loading':
       return 'Loading subtitles…';
     case 'update-failed':
-      // Core `de86392` carries the node's refusal as data. Server 0.58.0
-      // refuses a track the file does not have instead of falling back, and
-      // that one a viewer can act on; anything else keeps the plain sentence.
+      // Core carries the node's refusal as data. A node refuses a track the
+      // file does not have instead of falling back, and that one a viewer can
+      // act on; anything else keeps the plain sentence.
       if (notice.refusal?.code === 'choice_not_available') {
         return "That track isn't in this file, so nothing was changed.";
       }
-      // Server 0.60.0 releases the transcode slot on a PATCH out of
-      // transcode, so a change back into it (a Mode, Quality or Version pick)
-      // can find another viewer holding the slot: 429 `resource_limit`.
+      // A node releases the transcode slot on a PATCH out of transcode, so a
+      // change back into it (a Mode, Quality or Version pick) can find another
+      // viewer holding the slot: 429 `resource_limit`.
       if (notice.refusal?.code === 'resource_limit') {
         return "This server is converting for another viewer right now, so that change wasn't made.";
       }
@@ -172,8 +167,8 @@ export function playbackNoticeText(notice: PlaybackNotice, quality?: QualityClas
 
 /**
  * Under the spinner once a start runs long: the web client's sentence. A node
- * that reports its start's progress (server 0.69.0) names the stage, which
- * replaces the general words; the seconds stay where they are.
+ * that reports its start's progress names the stage, which replaces the
+ * general words; the seconds stay where they are.
  */
 export function startWaitText(elapsedMs: number, stage?: string): string {
   return `${stage ?? 'Waiting for the node to start the stream'} — ${Math.floor(elapsedMs / 1_000)}s`;
@@ -186,8 +181,7 @@ function measuredPercent(done: number | undefined, total: number | undefined): n
 }
 
 /**
- * What a start or a change is doing, from core's counters (server 0.69.0):
- * the stage, and how far through it when the node measured that. Never an
+ * What a start or a change is doing, from core's counters: the stage, and how far through it when the node measured that. Never an
  * estimate: a counter the node did not report shows no figure at all.
  *
  * The web client's `startProgressText` (`macha-client/src/text/viewerText.ts`),
@@ -221,7 +215,7 @@ export function startProgressText(progress: PlaybackStartProgress, node?: string
  * serving, so that node is named. A failover arrives as a *start*, on a node
  * this line cannot name: the endpoint it holds is the one being replaced. So a
  * start is worded as a new stream with no node, and a node that reports no
- * progress keeps the sentence it always had.
+ * progress gets the plain sentence.
  */
 export function preparingStreamText(progress: PlaybackStartProgress | undefined, node?: string): string {
   const staged = progress && startProgressText({ ...progress, kind: 'change' }, progress.kind === 'change' ? node : undefined, true);
@@ -232,10 +226,9 @@ export function preparingStreamText(progress: PlaybackStartProgress | undefined,
 
 /**
  * Quality names ("4K", "2K", "1080p") are core's `qualityLabel`, as are every
- * file's technical facts (`technicalSummary`): Tom, 2026-09-27, "Format,
- * codec, bitrate etc details are non i18n and technical. They are core's
- * responsibility ... The client should still 'format' them, in terms of
- * layout." Re-exported here so the screens take all their words from one
+ * file's technical facts (`technicalSummary`): they are technical rather than
+ * translatable, so core owns them and the client only lays them out.
+ * Re-exported here so the screens take all their words from one
  * module. The sentence below is this client's.
  */
 export { qualityLabel };
@@ -247,10 +240,9 @@ function convertedStreams(video: boolean, audio: boolean): string | undefined {
 
 /**
  * A quality the viewer chose that no node can convert at real speed (core's
- * `TOO_SLOW_TO_PLAY_CODE`, d1069d2), built from the facts where they are
- * known: the quality playing, and which streams the session converts. Tom:
- * "clear, concise, and visible 'Macha can't play this quality because...'".
- * The web client's `tooSlowToPlayText`, word for word.
+ * `TOO_SLOW_TO_PLAY_CODE`), built from the facts where they are known: the
+ * quality playing, and which streams the session converts. The web client's
+ * `tooSlowToPlayText`, word for word.
  */
 export function tooSlowToPlayText(quality?: QualityClass, transform?: { video: string; audio: string }): string {
   const streams = transform && convertedStreams(transform.video === 'transcode', transform.audio === 'transcode');
@@ -265,14 +257,12 @@ export function qualitySteppedDownText(quality?: QualityClass): string {
 /**
  * Why Play chooses the file it does, as one sentence built from every fact
  * core gives (`PlaybackVersions`): the file chosen, a larger one passed over
- * because it would need converting (`passedOver`, core 03b0bdb), and a ceiling
- * that kept a larger one out (`limitedBy`, with its reason). Tom: automatic
- * play is capped "with context to the user as to why", and the facts are
- * parsed into one sentence rather than a line each.
+ * because it would need converting (`passedOver`), and a ceiling that kept a
+ * larger one out (`limitedBy`, with its reason), in one sentence rather than a
+ * line each.
  *
- * The web client's `qualityChoiceText` (`macha-client/src/text/viewerText.ts`,
- * f512cdc) word for word, by Tom's ruling that every client shows the same.
- * "Which plays without converting" is said only when a larger file was passed
+ * The web client's `qualityChoiceText` (`macha-client/src/text/viewerText.ts`)
+ * word for word: every client shows the same. "Which plays without converting" is said only when a larger file was passed
  * over for needing it, since only then is it the reason. Undefined when Play
  * is choosing the largest file there is, which needs no explaining.
  */
@@ -284,8 +274,8 @@ export function qualityChoiceText(
   const clauses: string[] = [];
   const { video, audio } = passedOver?.converts ?? { video: false, audio: false };
   const converted = video && audio ? 'its video and audio' : video ? 'its video' : audio ? 'its audio' : undefined;
-  // A node's measured rate for this kind of picture (server 0.70.0): the
-  // conversion is not only needed but too slow to watch.
+  // A node's measured rate for this kind of picture: the conversion is not
+  // only needed but too slow to watch.
   const tooSlow = passedOver?.reasons.includes('transcode-below-real-time');
   if (passedOver && converted) {
     clauses.push(`${qualityLabel(passedOver.quality)} needs ${converted} converted${tooSlow ? ", which the server can't do fast enough" : ''}`);
@@ -313,8 +303,7 @@ export function qualityChoiceText(
  * separator every client uses. The facts, their labels, the class after the
  * resolution ("3840×2160 (4K)"), the channels after the codec ("TRUEHD · 7.1")
  * and the files' order (largest picture first) are core's (`technicalSummary`,
- * `fileSummaries`, core 29fa878, from Tom's ask of 2026-09-27); the layout is
- * the client's.
+ * `fileSummaries`); the layout is the client's.
  */
 export function fileLine(summary: TechnicalSummary): string {
   return summary.parts.join(' · ');
@@ -347,7 +336,7 @@ export const SERVER_UNREACHABLE_TEXT =
  * Every node was tried and none answered: refused, gone, or slower than core
  * waits for one (8 s each). Usually a passing slowness, so it says to try
  * again before it says to check anything. The web client's sentence, word for
- * word (`macha-client` `src/text/viewerText.ts`, `043fd81`).
+ * word (`macha-client` `src/text/viewerText.ts`).
  */
 export const NO_NODE_ANSWERED_TEXT =
   'No Macha server answered. Try again in a moment; if it keeps happening, check that the servers are running.';
@@ -355,8 +344,7 @@ export const NO_NODE_ANSWERED_TEXT =
 /**
  * A sentence for any error a viewer might be shown.
  *
- * **Never the error's message.** Since core's cut (`8db0a12`, `e28d6ad`)
- * every message is log text; what can be shown is decided from the class, the
+ * **Never the error's message.** Every message is log text; what can be shown is decided from the class, the
  * HTTP status and the server's code, through core's accessors, so a reworded
  * log line can never change what a viewer reads.
  */
@@ -370,8 +358,7 @@ export function errorText(error: unknown): string {
   if (error instanceof MachaConnectionError) return SERVER_UNREACHABLE_TEXT;
   if (error instanceof SessionAuthError) return SESSION_ENDED_TEXT;
   if (playbackFailureCode(error) === NOT_PLAYABLE_CODE) return "This can't be played on this television.";
-  // Core's own, when a start that reports progress (server 0.69.0) stops
-  // reporting any: no server sentence behind it, and its 504 would otherwise
+  // Core's own, when a start that reports progress stops reporting any: no server sentence behind it, and its 504 would otherwise
   // read as the server being unable to answer, which is not what happened.
   // The fact-free form; the player builds the full one from what was playing.
   if (playbackFailureCode(error) === TOO_SLOW_TO_PLAY_CODE) return tooSlowToPlayText();
@@ -386,11 +373,11 @@ export function errorText(error: unknown): string {
 /**
  * The note under Settings > Server, or nothing while the node is serving.
  *
- * Worded from the server's code (core's `ServerStatus.code`, from server
- * 0.56.0), never from its `detail` sentence. The codes are the ones that can
- * answer `GET /api/v1/playback/status`, read from `macha` `src/service.cpp`
- * and `src/playback.cpp` at `60ce47a`; any other, and an older node's
- * missing code, falls back to the HTTP status as `errorText` does.
+ * Worded from the server's code (core's `ServerStatus.code`), never from its
+ * `detail` sentence. The codes are the ones that can answer
+ * `GET /api/v1/playback/status`, read from `macha` `src/service.cpp` and
+ * `src/playback.cpp`; any other, and the missing code of a node older than
+ * 0.56.0, falls back to the HTTP status as `errorText` does.
  */
 export function serverStatusText(status: ServerStatus): string | undefined {
   if (status.playbackAvailable) return undefined;
@@ -416,9 +403,9 @@ export function serverStatusText(status: ServerStatus): string | undefined {
 /**
  * The note under Settings > Catalogue, or nothing while it is ready.
  *
- * Worded from server 0.56.0's `error_code` (`converging`, `unavailable`),
- * never from `error`, which is the server's English. An older node sends only
- * the English; it gets this client's own sentence instead.
+ * Worded from the server's `error_code` (`converging`, `unavailable`), never
+ * from `error`, which is the server's English. A node older than 0.56.0 sends
+ * only the English; it gets this client's own sentence instead.
  */
 export function catalogueStatusText(status: CatalogueStatus): string | undefined {
   if (status.ready) return undefined;
@@ -429,7 +416,7 @@ export function catalogueStatusText(status: CatalogueStatus): string | undefined
 
 /**
  * Whether this failure means the viewer is signed out, not that anything is
- * down. §1.12: signed out, Settings used to report a `401` as an outage.
+ * down, so a `401` is never reported as an outage.
  */
 export function isSignedOut(error: unknown): boolean {
   if (error instanceof SessionAuthError) return true;
@@ -468,10 +455,9 @@ export const SIGN_OUT_REVOKE_FAILED =
  * 5.6 Mb/s", "AUDIO TRANSCODE · SOURCE · ENG · DTS · 5.1 · 48 kHz → AAC ·
  * 5.1 · 48 kHz" — composed from `describePlaybackSession`'s data.
  *
- * Core composed these until its `8db0a12`; the formatting below is its
- * composer carried over, so the lines read exactly as they did. **Every field
- * must be a string by the time it reaches a `<Text>`**: the description's
- * `video` and `audio` are objects now, and rendering one would throw.
+ * **Every field must be a string by the time it reaches a `<Text>`**: the
+ * description's `video` and `audio` are objects, and rendering one would
+ * throw.
  */
 export interface StreamLines {
   container?: string;
@@ -572,9 +558,8 @@ function formatSampleRate(sampleRate?: number): string {
 
 /**
  * A node's name on the Status screen: the operator's own name for it where
- * the server sends one (server 0.70.0, `node_name`; Tom: "show the names the
- * server sends"), else its address as this screen always showed it, else the
- * start of its id. An empty or blank name counts as none. The web client's
+ * the server sends one (`node_name`), else its address, else the start of its
+ * id. An empty or blank name counts as none. The web client's
  * `statusNodeName` (`macha-client/src/screens/StatusScreen.tsx`), keeping this
  * screen's `host:port` where the web shows the host alone.
  */

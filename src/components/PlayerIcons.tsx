@@ -26,10 +26,8 @@ export type PlayerIconName =
 export function PlayerIcon({
   name,
   // `<svg width="20" height="20">` on the web client's `PlaybackIcons`. A raw
-  // number here is CSS px drawn as dp, which on this panel is twice the size —
-  // the same fault `theme.ts` carried, in the one place that does not go
-  // through it. It filled the transport buttons where the web client's glyph
-  // sits inside one.
+  // number here would be CSS px drawn as dp, twice the size on this panel, and
+  // would fill the transport button the web client's glyph sits inside.
   size = px(20),
   color = colour.heading,
 }: {

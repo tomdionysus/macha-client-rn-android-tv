@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { jumpTarget, scrollTarget } from './focusScroll';
 
 /**
- * The fault these are written against shipped: a control that could be focused,
- * toggled and never seen, because focus moves by geometry and the scroller did
- * not follow. The on-screen failure trail was unreachable for a week behind it.
+ * Focus moves by geometry, including onto rectangles off screen; a scroller that
+ * does not follow leaves a control that can be focused and toggled but not seen.
  */
 describe('bringing a focused item into view', () => {
   const viewport = 1000;
@@ -54,9 +53,8 @@ describe('bringing a focused item into view', () => {
 });
 
 /**
- * Tom, 2026-09-29: "when an alphabetic index is selected, the titles that
- * start with that letter should come to the top of the screen, not the
- * bottom." A jump is a new place to read from, not a nudge.
+ * When a letter of the alphabet index is chosen, the titles that start with it
+ * come to the top of the screen: a jump is a new place to read from, not a nudge.
  */
 describe('jumpTarget', () => {
   it('brings the item to the top, with the lead above it, even when it is already in view', () => {

@@ -14,9 +14,9 @@ import {
  *
  * `PlaybackRuntime` wraps `PlaybackCoordinator`, and going through it is the
  * single most important architectural decision in this client. Driving
- * `ClusterPlaybackResolver` directly — as the phone app does — skips the
- * coordinator, and with it node failover, stall detection, standby promotion
- * and the segment-container handling. Those are not features to add later;
+ * `ClusterPlaybackResolver` directly skips the coordinator, and with it node
+ * failover, stall detection, standby promotion and the segment-container
+ * handling. Those are not features to add later;
  * they are what the coordinator already does for any host that hands it a
  * `Player`.
  */

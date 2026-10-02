@@ -27,8 +27,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
  *
  * **Why the window callback and not `MainActivity`.** Overriding
  * `dispatchKeyEvent` on the activity would mean editing generated code under
- * `android/`, which `expo prebuild` regenerates — the exact way this project
- * has already lost its leanback flags once and its ABI pin twice. Wrapping
+ * `android/`, which `expo prebuild` regenerates and discards. Wrapping
  * `Window.Callback` needs no generated file and survives a prebuild untouched.
  *
  * **Back is deliberately not handled here.** It goes to React Native's
@@ -82,9 +81,8 @@ class MachaTvInputModule : Module() {
   private fun handleKeyEvent(event: KeyEvent): Boolean {
     val command = COMMANDS[event.keyCode] ?: return false
 
-    // Emitted on ACTION_DOWN only. The legacy helper this replaces emitted on
-    // both down and up, and `useTvNavigation` never inspected `eventKeyAction`
-    // — so every press would have moved focus twice had that path ever run.
+    // Emitted on ACTION_DOWN only: `useTvNavigation` does not inspect the
+    // action, so emitting both would move focus twice per press.
     //
     // `repeatCount` is passed rather than filtered: a held direction is how a
     // viewer crosses a long row on a D-pad, and JavaScript decides whether to
@@ -120,8 +118,7 @@ class MachaTvInputModule : Module() {
      * `select` covers Enter as well as D-pad centre because television remotes
      * and the emulator disagree about which one the OK button sends. The media
      * keys are here because a television remote has transport buttons and a
-     * viewer will press them — the WebView client on this set never handled
-     * them at all.
+     * viewer will press them.
      */
     val COMMANDS: Map<Int, String> =
       mapOf(

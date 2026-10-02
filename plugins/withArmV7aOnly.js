@@ -12,14 +12,8 @@ const { withGradleProperties } = require('expo/config-plugins');
  * **Why this is a plugin and not an edit.** `reactNativeArchitectures` lives in
  * `android/gradle.properties`, which `expo prebuild` generates and `.gitignore`
  * excludes — so pinning it by hand works until the next prebuild silently
- * restores all four. That is exactly what happened here: `COMPLETED.md` records
- * the pin as verified in the artifact on 2026-09-10, and the build on
- * 2026-09-12 produced a universal APK because `android/` had been regenerated
- * in between.
- *
- * It is the second setting this project has lost that way — `withAndroidTvOnly`
- * exists because the leanback flags went the same route. Anything that must
- * survive belongs in `app.json` and a plugin, never in the generated tree.
+ * restores all four. Anything that must survive belongs in `app.json` and a
+ * plugin, never in the generated tree.
  */
 const withArmV7aOnly = (config) =>
   withGradleProperties(config, (config) => {

@@ -6,10 +6,8 @@ import { colour, px } from '../styles/theme';
  *
  * Both are its own geometry rather than a lookalike: `AccountMenu`'s `UserIcon`
  * and `ManageIcons`'s `SettingsIcon`, with the same paths, the same stroke
- * weight and the same 24-unit viewBox. A cog drawn from spokes reads as
- * brightness at three metres, which is why that file draws the tooth profile as
- * the outline — the note is worth keeping because the mistake is easy to repeat
- * when redrawing an icon from memory.
+ * weight and the same 24-unit viewBox. The cog is the tooth profile as an
+ * outline because a cog drawn from spokes reads as brightness at three metres.
  *
  * Sized in CSS px through `px()`, like every other glyph here: the web client
  * draws the user at 18 and the cog at 18, and a raw number would be twice that

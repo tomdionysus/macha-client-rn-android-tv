@@ -7,9 +7,9 @@ import { artworkSources, forgetArtworkUrl, rememberArtworkUrl } from './artworkS
  * Artwork that survives a node refusing it, and does not re-download on every
  * catalogue refresh.
  *
- * Two behaviours the web client has and this client did not. Both are worse on
- * a television than on a desktop, because a library screen here is a grid of
- * posters reached over wifi and re-entered constantly.
+ * Both behaviours are the web client's. Both matter more on a television than
+ * on a desktop, because a library screen here is a grid of posters reached
+ * over wifi and re-entered constantly.
  */
 
 export function LazyArtwork({

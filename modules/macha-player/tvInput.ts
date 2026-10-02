@@ -6,8 +6,7 @@ import { requireNativeModule } from 'expo-modules-core';
  * Shares the `macha-player` Gradle module rather than standing up a second one:
  * the directory is a build container, and a separate Expo module would be a new
  * `build.gradle`, a new autolinking entry and a new way for the release build
- * to differ from the debug build — which this project has already been bitten
- * by twice. The Kotlin lives in its own `foundation.macha.tvinput` package, so
+ * to differ from the debug build. The Kotlin lives in its own `foundation.macha.tvinput` package, so
  * nothing about key input is mixed into the player.
  *
  * See `MachaTvInputModule.kt` for why React Native cannot deliver these events

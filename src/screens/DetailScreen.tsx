@@ -15,8 +15,7 @@ import { qualityChoiceText, qualityLabel } from '../text/viewerText';
  * beside the copy — with the backdrop washed in behind at 28% under a fade
  * mask. React Native has no mask-image, so the backdrop is drawn at a reduced
  * opacity and the copy sits on the page background below it; at three metres
- * the difference is not visible, and inventing a gradient library for one
- * element would not earn its place.
+ * the difference is not visible.
  */
 export function DetailScreen({
   media,
@@ -35,7 +34,7 @@ export function DetailScreen({
   const canResume = resumePositionMs > 0;
   const { versions } = usePlaybackVersions(media);
   const lines = useFileLines(media);
-  // Tom, 2026-09-25: the quality buttons show only when there is a choice.
+  // The quality buttons show only when there is a choice.
   const steps = versions && versions.steps.length > 1 ? versions.steps : [];
 
   return (
@@ -74,9 +73,7 @@ export function DetailScreen({
           {media.year ? <Text style={styles.subtitle}>{media.year}</Text> : null}
           {/*
             One line per file, under the title and above the synopsis: the web
-            client's `.media-profile-summary`, by Tom's ruling that every
-            client matches it (2026-09-27). It replaced the pills built here
-            the same morning.
+            client's `.media-profile-summary`, which every client matches.
           */}
           {lines.map((line) => (
             <Text key={line} style={styles.fileLine}>
@@ -85,12 +82,10 @@ export function DetailScreen({
           ))}
 
           {/*
-            `.play-actions.detail-play-controls` — **round icon buttons, not
-            labelled pills**. The web client draws a play glyph, and a restart
-            glyph beside it when there is a position to resume from; this had
-            "Resume", "Play from start" and "Back" as text, which is a different
-            control in the same place. Same `.media-control-button` the transport
-            row uses, which is why they look alike there and now here.
+            `.play-actions.detail-play-controls`: round icon buttons, not
+            labelled pills, as the web client draws them. A play glyph, and a
+            restart glyph beside it when there is a position to resume from, on
+            the same `.media-control-button` the transport row uses.
           */}
           <View style={styles.actions}>
             <ControlButton
@@ -100,7 +95,7 @@ export function DetailScreen({
             />
             {canResume ? <ControlButton icon="restart" onSelect={() => onPlay(0)} /> : null}
             {/*
-              Per-quality Play (Tom, 2026-09-25): the generic Play above means
+              Per-quality Play: the generic Play above means
               "decide for me", and beside it one button per quality, each playing
               that version as the viewer's choice. One row, crossed with
               Left/Right, Play first and focused. Each plays from the same place
@@ -121,10 +116,10 @@ export function DetailScreen({
       </View>
 
       {/*
-        The synopsis below the poster, across the page (Tom, 2026-09-27, for
-        the TV). A TV divergence from the web client, which keeps it in the
-        copy column: at ten feet the column beside the poster is short, and
-        the title, file lines and buttons read better together without it.
+        The synopsis below the poster, across the page. A TV divergence from
+        the web client, which keeps it in the copy column: at ten feet the
+        column beside the poster is short, and the title, file lines and
+        buttons read better together without it.
       */}
       {media.synopsis ? (
         <Text style={styles.synopsisBelow} numberOfLines={6}>
@@ -166,9 +161,8 @@ function ControlButton({
 
 /**
  * One version, labelled by its quality alone, as the web client's
- * `.media-quality-button` is (Tom, 2026-09-27: match the web client).
+ * `.media-quality-button` is.
  *
- * No web rule to port yet; no client had drawn these when this was written.
  * It takes the transport button's frame and fill so the row reads as one
  * control group, at the same height, stretched to a pill for its two words.
  */
