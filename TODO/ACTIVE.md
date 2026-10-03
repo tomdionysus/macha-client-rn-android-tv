@@ -49,10 +49,12 @@ calls neither reset route). Pushing the branch is Tom's word.
 ### The set
 
 - **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel, 960x540 dp.
-  **Installed 2026-09-29:** develop `54c64ce` on core 0.21.0's code
-  (`553e9e4`, linked at `ede402f`), md5 `7c0419607009b9bb2d06cb9b7dd2aeaf`, read back off the set. Left on
-  a *Sons of Anarchy* season page from a mispress, Diagnostics **On**, screen
-  timeout `600000`. It drops off the network for hours at a time; `adb mdns
+  **Installed 2026-10-04 00:03:** `experiment/object-ledger` `5c2d2cb`
+  (0.9.1, versionCode 901) on linked core `1251cb2`, md5
+  `ecc962a139ff34102e7451a1e1b7d72c`, read back off the set. Installed over
+  Macha playing (about 17 minutes in), on Tom's word; not launched after.
+  Carries the availability markers, which show nothing until server 0.83.0 is
+  deployed. Diagnostics **On**, screen timeout `600000` as last recorded. It drops off the network for hours at a time; `adb mdns
   services` and a ping say whether it is back.
 - Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1, "Corvus
   FI-1") and `http://10.44.1.50:7438` (gbni-1, "Corvus GBNI-1"); remembered
