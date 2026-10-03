@@ -26,3 +26,17 @@ function isMarkerKind(code: string | undefined): code is AvailabilityMarkerKind 
 export function firstAvailableIndex(items: readonly Pick<MediaSummary, 'availability'>[]): number {
   return items.findIndex(availableToPlay);
 }
+
+/**
+ * How a card answers the D-pad. An unavailable title never opens or plays on
+ * OK, and takes no focus, except where focus is the only way to its remove
+ * button (Continue Watching): there it can be focused, so the viewer can clear
+ * it, and OK still does nothing.
+ */
+export function cardInteraction(
+  media: Pick<MediaSummary, 'availability'>,
+  removable: boolean,
+): { focusable: boolean; selectable: boolean } {
+  const available = availableToPlay(media);
+  return { focusable: available || removable, selectable: available };
+}

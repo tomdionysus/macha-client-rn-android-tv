@@ -4,7 +4,7 @@ import type { MediaSummary } from '@machafoundation/core';
 import { cardLines } from './cardLines';
 import { Focusable } from './Focusable';
 import { AvailabilityMarker } from './AvailabilityMarker';
-import { availableToPlay } from '@machafoundation/core';
+import { cardInteraction } from './availability';
 import { LazyArtwork } from './LazyArtwork';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { tvFocus } from '../hooks/tvFocus';
@@ -73,9 +73,10 @@ export function MediaCard({
   const artwork = media.artwork?.poster ?? media.artwork?.thumbnail;
   const isSquare = media.kind === 'album' || media.kind === 'artist' || media.kind === 'track';
   const lines = cardLines(media);
-  // An unavailable title is greyed out and takes no focus, so OK cannot open
-  // or play it.
-  const playable = availableToPlay(media);
+  // An unavailable title is greyed out and OK does nothing on it; see
+  // `cardInteraction` for when it may still take focus.
+  const interaction = cardInteraction(media, Boolean(onRemove));
+  const playable = interaction.selectable;
   // The remove button's focus pairing; see `CardCloseButton`.
   const [cardFocused, setCardFocused] = useState(false);
   const [closeFocused, setCloseFocused] = useState(false);
@@ -86,8 +87,8 @@ export function MediaCard({
     <Focusable
       ring={false}
       {...(cardId ? { focusId: cardId } : {})}
-      onSelect={onSelect}
-      disabled={!playable}
+      onSelect={playable ? onSelect : undefined}
+      disabled={!interaction.focusable}
       defaultFocus={defaultFocus}
       onFocusChange={(focused) => {
         setCardFocused(focused);
