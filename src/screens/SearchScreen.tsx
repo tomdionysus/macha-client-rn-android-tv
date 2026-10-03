@@ -20,6 +20,7 @@ import { CategoryToggles } from '../components/CategoryToggles';
 import { Focusable } from '../components/Focusable';
 import { RefreshIcon } from '../components/NavIcons';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
+import { isPlayable } from '../components/availability';
 import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { ErrorMessage, Loading, PageTitle } from '../components/Status';
 import { jumpTarget, scrollTarget } from '../hooks/focusScroll';
@@ -63,7 +64,8 @@ export function SearchScreen({
   // The A-Z index, as on Movies and TV Shows, and like theirs only in title
   // order, where a letter marks a run of the grid.
   const indexed = sort === 'title';
-  const alphabet = useAlphabetIndex(indexed ? ordered : []);
+  // A letter leads only to titles that can take focus.
+  const alphabet = useAlphabetIndex(useMemo(() => (indexed ? ordered.filter(isPlayable) : []), [indexed, ordered]));
 
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);

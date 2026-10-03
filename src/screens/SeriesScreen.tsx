@@ -4,6 +4,7 @@ import type { Episode, MediaApi, MediaSummary, SeasonDetails, ShowDetails } from
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaRow } from '../components/MediaRow';
+import { firstPlayableIndex } from '../components/availability';
 import { EpisodeCard } from '../components/EpisodeCard';
 import { colour, layout, pageGutter, rem, type } from '../styles/theme';
 
@@ -30,7 +31,7 @@ export function SeriesScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.page} scrollEnabled={false}>
-      <PageTitle>{shown.title}</PageTitle>
+      <PageTitle media={shown}>{shown.title}</PageTitle>
       {shown.synopsis ? (
         <Text style={styles.synopsis} numberOfLines={3}>
           {shown.synopsis}
@@ -65,6 +66,7 @@ export function SeasonScreen({
 }): React.JSX.Element {
   const details = useRefreshableAsync(() => api.details(season.id), [api, season.id]);
   const episodes = (details.value as SeasonDetails | undefined)?.episodes ?? [];
+  const firstFocus = firstPlayableIndex(episodes);
   const scroller = useRef<ScrollView | null>(null);
 
   const scrollToIndex = (index: number) => {
@@ -74,7 +76,7 @@ export function SeasonScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.page} scrollEnabled={false}>
-      <PageTitle>{season.title}</PageTitle>
+      <PageTitle media={details.value ?? season}>{season.title}</PageTitle>
       {details.error ? (
         details.value ? <RefreshError error={details.error} /> : <ErrorMessage error={details.error} />
       ) : null}
@@ -92,7 +94,7 @@ export function SeasonScreen({
             key={episode.id}
             episode={episode}
             onSelect={() => onPlayEpisode(episode)}
-            defaultFocus={index === 0}
+            defaultFocus={index === firstFocus}
             progress={progressFor?.(episode.id)}
             onFocusChange={(focused) => focused && scrollToIndex(index)}
           />

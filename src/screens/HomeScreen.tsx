@@ -7,6 +7,7 @@ import {
 } from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
+import { withoutStoredAvailability } from '../components/availability';
 import { MediaRow } from '../components/MediaRow';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { rem } from '../styles/theme';
@@ -42,7 +43,8 @@ export function HomeScreen({
     );
   }
 
-  const progressItems = continueWatching.flatMap((entry) => (entry.media ? [entry.media] : []));
+  // A stored copy's availability is as old as the entry; see `withoutStoredAvailability`.
+  const progressItems = continueWatching.flatMap((entry) => (entry.media ? [withoutStoredAvailability(entry.media)] : []));
   const progressById = new Map(continueWatching.map((entry) => [entry.itemId, entry]));
 
   const progressFor = (media: MediaSummary): number | undefined => {

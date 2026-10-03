@@ -24,6 +24,7 @@ import { libraryTrail, type KnownAncestry } from './app/libraryTrail';
 import { SIGN_OUT_REVOKE_FAILED } from './text/viewerText';
 import { useEpisodeNeighbours } from './app/useEpisodeNeighbours';
 import { episodeToPlayOnEnd } from './app/autoAdvance';
+import { isPlayable } from './components/availability';
 import { startPreferences } from './app/startPreferences';
 import { attributableProgress } from './app/progressAttribution';
 import { orphanedSessions } from './state/liveSessions';
@@ -416,6 +417,12 @@ function Shell(): React.JSX.Element {
    */
   const play = useCallback(
     (media: MediaSummary, startPositionMs: number, known?: KnownAncestry, version?: VersionStep) => {
+      // An unavailable title never starts, whichever control asked: every
+      // screen already withholds it, and this is the one path they all share.
+      if (!isPlayable(media)) {
+        playbackLog.info('play-refused-unavailable', { mediaId: media.id });
+        return;
+      }
       // A version the viewer picked starts as their choice: never capped, and
       // no fallback overrides it. Without one, core decides.
       const start = () =>

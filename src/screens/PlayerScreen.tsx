@@ -36,6 +36,8 @@ import { failureCopy } from './player/failureCopy';
 import { playbackLog } from '../diagnostics/playbackLog';
 import { usePlayerVolume } from '../hooks/usePlayerVolume';
 import { useMacha } from '../app/MachaProvider';
+import { AvailabilityMarker } from '../components/AvailabilityMarker';
+import { isPlayable } from '../components/availability';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
@@ -596,9 +598,12 @@ export function PlayerScreen({
           {/* `.player-titlebar` */}
           <View style={styles.titlebar}>
             <View style={styles.titleCopy}>
-              <Text style={styles.title} numberOfLines={1}>
-                {media.title}
-              </Text>
+              <View style={styles.titleRow}>
+                <AvailabilityMarker media={media} />
+                <Text style={styles.title} numberOfLines={1}>
+                  {media.title}
+                </Text>
+              </View>
               {media.kind === 'episode' && episodeLabel(media) ? (
                 <Text style={styles.subtitle} numberOfLines={1}>
                   {episodeLabel(media)}
@@ -699,8 +704,8 @@ export function PlayerScreen({
             {/*
               * **Previous and next episode, on every episode**, whether it was
               * started from Continue Watching or from its season. Always
-              * drawn, and greyed out when there is no neighbour or core has
-              * not answered yet, so the row never changes shape under the
+              * drawn, and greyed out when there is no neighbour, it is
+              * unavailable, or core has not answered yet, so the row never changes shape under the
               * viewer's thumb. A greyed button takes no focus, so the D-pad
               * steps over it.
               *
@@ -711,8 +716,8 @@ export function PlayerScreen({
             {isEpisode ? (
               <ChromeButton
                 icon="previous"
-                disabled={!episodeNav?.previous}
-                onSelect={() => episodeNav?.previous && onPlayEpisode?.(episodeNav.previous)}
+                disabled={!episodeNav?.previous || !isPlayable(episodeNav.previous)}
+                onSelect={() => episodeNav?.previous && isPlayable(episodeNav.previous) && onPlayEpisode?.(episodeNav.previous)}
               />
             ) : null}
             {/*
@@ -730,8 +735,8 @@ export function PlayerScreen({
             {isEpisode ? (
               <ChromeButton
                 icon="next"
-                disabled={!episodeNav?.next}
-                onSelect={() => episodeNav?.next && onPlayEpisode?.(episodeNav.next)}
+                disabled={!episodeNav?.next || !isPlayable(episodeNav.next)}
+                onSelect={() => episodeNav?.next && isPlayable(episodeNav.next) && onPlayEpisode?.(episodeNav.next)}
               />
             ) : null}
             {/*
@@ -829,7 +834,13 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   // `.player-titlebar strong { font-size: clamp(1.3rem,2.2vw,2rem); color: #dedee2 }`
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rem(0.6),
+  },
   title: {
+    flexShrink: 1,
     fontSize: type.playerTitle,
     color: colour.heading,
     fontWeight: font.weightMedium,

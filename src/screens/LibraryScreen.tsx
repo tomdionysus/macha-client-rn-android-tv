@@ -14,6 +14,7 @@ import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/St
 import { MediaCard } from '../components/MediaCard';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
 import { SortControl } from '../components/SortControl';
+import { firstPlayableIndex, isPlayable } from '../components/availability';
 import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { jumpTarget, scrollTarget } from '../hooks/focusScroll';
 import { tvFocus } from '../hooks/tvFocus';
@@ -51,6 +52,7 @@ export function LibraryScreen({
   );
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_LIBRARY_SORT);
   const items = useMemo(() => orderMedia(result.value ?? [], sort, LIBRARY_SORTS), [result.value, sort]);
+  const firstFocus = firstPlayableIndex(items);
   const indexed = sort === 'title';
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);
@@ -61,7 +63,8 @@ export function LibraryScreen({
   // Jumping moves focus to the first title in the bucket; the grid's existing
   // scroll-on-focus below does the revealing. See `useAlphabetIndex` for why
   // scrolling alone is the wrong behaviour on a D-pad.
-  const alphabet = useAlphabetIndex(items);
+  // A letter leads only to titles that can take focus.
+  const alphabet = useAlphabetIndex(useMemo(() => items.filter(isPlayable), [items]));
 
   const title = kind === 'movies' ? 'Movies' : 'TV Shows';
   if (!result.value) {
@@ -153,7 +156,7 @@ export function LibraryScreen({
               media={item}
               addressable
               onSelect={() => onOpen(item)}
-              defaultFocus={index === 0}
+              defaultFocus={index === firstFocus}
               onExtent={(box) => {
                 cardExtents.current.set(index, { y: box.y, height: box.height });
                 // Focus restored by Back lands on a card before it has laid

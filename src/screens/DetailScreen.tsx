@@ -2,6 +2,8 @@ import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary, VersionStep } from '@machafoundation/core';
 import { usePlaybackVersions } from '../app/usePlaybackVersions';
+import { AvailabilityMarker } from '../components/AvailabilityMarker';
+import { isPlayable } from '../components/availability';
 import { Focusable } from '../components/Focusable';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { clamp, colour, font, pageGutter, px, radius, rem, type, vw } from '../styles/theme';
@@ -32,6 +34,8 @@ export function DetailScreen({
   const poster = media.artwork?.poster ?? media.artwork?.thumbnail;
   const backdrop = media.artwork?.backdrop;
   const canResume = resumePositionMs > 0;
+  // An unavailable title offers nothing to play; Back keeps the focus.
+  const playable = isPlayable(media);
   const { versions } = usePlaybackVersions(media);
   const lines = useFileLines(media);
   // The quality buttons show only when there is a choice.
@@ -63,6 +67,7 @@ export function DetailScreen({
               <Text style={styles.posterGlyph}>{media.title.charAt(0).toUpperCase()}</Text>
             </View>
           )}
+          <AvailabilityMarker media={media} overlay />
         </View>
 
         <View style={styles.copy}>
@@ -87,29 +92,31 @@ export function DetailScreen({
             restart glyph beside it when there is a position to resume from, on
             the same `.media-control-button` the transport row uses.
           */}
-          <View style={styles.actions}>
-            <ControlButton
-              icon="play"
-              defaultFocus
-              onSelect={() => onPlay(canResume ? resumePositionMs : 0)}
-            />
-            {canResume ? <ControlButton icon="restart" onSelect={() => onPlay(0)} /> : null}
-            {/*
-              Per-quality Play: the generic Play above means
-              "decide for me", and beside it one button per quality, each playing
-              that version as the viewer's choice. One row, crossed with
-              Left/Right, Play first and focused. Each plays from the same place
-              Play would.
-            */}
-            {steps.map((step) => (
-              <VersionButton
-                key={step.quality}
-                step={step}
-                onSelect={() => onPlay(canResume ? resumePositionMs : 0, step)}
+          {playable ? (
+            <View style={styles.actions}>
+              <ControlButton
+                icon="play"
+                defaultFocus
+                onSelect={() => onPlay(canResume ? resumePositionMs : 0)}
               />
-            ))}
-          </View>
-          {steps.length > 0 && versions && qualityChoiceText(versions) ? (
+              {canResume ? <ControlButton icon="restart" onSelect={() => onPlay(0)} /> : null}
+              {/*
+                Per-quality Play: the generic Play above means
+                "decide for me", and beside it one button per quality, each playing
+                that version as the viewer's choice. One row, crossed with
+                Left/Right, Play first and focused. Each plays from the same place
+                Play would.
+              */}
+              {steps.map((step) => (
+                <VersionButton
+                  key={step.quality}
+                  step={step}
+                  onSelect={() => onPlay(canResume ? resumePositionMs : 0, step)}
+                />
+              ))}
+            </View>
+          ) : null}
+          {playable && steps.length > 0 && versions && qualityChoiceText(versions) ? (
             <Text style={styles.versionNote}>{qualityChoiceText(versions)}</Text>
           ) : null}
         </View>

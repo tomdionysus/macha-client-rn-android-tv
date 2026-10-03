@@ -1,5 +1,6 @@
 import type { Episode, MediaSummary } from '@machafoundation/core';
 import type { EpisodeNavigation } from './useEpisodeNeighbours';
+import { isPlayable } from '../components/availability';
 
 /**
  * The episode to play when the one playing reaches its end, or undefined.
@@ -12,6 +13,7 @@ import type { EpisodeNavigation } from './useEpisodeNeighbours';
  * interruption for recovery, not as an end (`isPrematurePlaybackEnd`), so this
  * never skips an episode the viewer has not finished. Nothing while the
  * neighbour lookup is still pending; the caller asks again when it settles.
+ * Nothing either when the next episode is unavailable: playback stops there.
  */
 export function episodeToPlayOnEnd(
   media: MediaSummary | undefined,
@@ -19,5 +21,5 @@ export function episodeToPlayOnEnd(
   neighbours: EpisodeNavigation,
 ): Episode | undefined {
   if (!ended || media?.kind !== 'episode' || neighbours.loading) return undefined;
-  return neighbours.next;
+  return neighbours.next && isPlayable(neighbours.next) ? neighbours.next : undefined;
 }

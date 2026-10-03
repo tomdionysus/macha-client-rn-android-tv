@@ -3,6 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@machafoundation/core';
 import { cardLines } from './cardLines';
 import { Focusable } from './Focusable';
+import { AvailabilityMarker } from './AvailabilityMarker';
+import { isPlayable } from './availability';
 import { LazyArtwork } from './LazyArtwork';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { tvFocus } from '../hooks/tvFocus';
@@ -71,6 +73,9 @@ export function MediaCard({
   const artwork = media.artwork?.poster ?? media.artwork?.thumbnail;
   const isSquare = media.kind === 'album' || media.kind === 'artist' || media.kind === 'track';
   const lines = cardLines(media);
+  // An unavailable title is greyed out and takes no focus, so OK cannot open
+  // or play it.
+  const playable = isPlayable(media);
   // The remove button's focus pairing; see `CardCloseButton`.
   const [cardFocused, setCardFocused] = useState(false);
   const [closeFocused, setCloseFocused] = useState(false);
@@ -82,6 +87,7 @@ export function MediaCard({
       ring={false}
       {...(cardId ? { focusId: cardId } : {})}
       onSelect={onSelect}
+      disabled={!playable}
       defaultFocus={defaultFocus}
       onFocusChange={(focused) => {
         setCardFocused(focused);
@@ -114,6 +120,7 @@ export function MediaCard({
               focused && styles.posterFocused,
             ]}
           >
+            <View style={[styles.fill, !playable && styles.greyed]}>
             {artwork ? (
               // Not `<Image source={{ uri: artwork.url }} />`: the server
               // re-signs that URL on every catalogue fetch, so handing it
@@ -127,18 +134,20 @@ export function MediaCard({
                 <Text style={styles.placeholderGlyph}>{media.title.charAt(0).toUpperCase()}</Text>
               </View>
             )}
+            </View>
             {progress !== undefined && progress > 0 && (
               <View style={styles.progressTrack}>
                 <View style={[styles.progressValue, { width: `${Math.min(100, progress * 100)}%` }]} />
               </View>
             )}
+            <AvailabilityMarker media={media} overlay />
           </View>
           </View>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, !playable && styles.greyed]} numberOfLines={1}>
             {media.title}
           </Text>
           {lines.map((line) => (
-            <Text key={line} style={styles.subtitle} numberOfLines={1}>
+            <Text key={line} style={[styles.subtitle, !playable && styles.greyed]} numberOfLines={1}>
               {line}
             </Text>
           ))}
@@ -250,6 +259,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     backgroundColor: 'transparent',
   },
+  /**
+   * An unavailable title, greyed out. On the artwork and the text rather than
+   * the card, so the marker keeps its full colour, and in place so the grid
+   * keeps its shape.
+   */
+  greyed: {
+    opacity: 0.4,
+  },
   // `.media-card:focus-visible { transform: scale(1.04); background: var(--accent-focus-wash) }`
   cardFocused: {
     backgroundColor: colour.accentFocusWash,
@@ -299,6 +316,10 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 2 / 3,
     justifyContent: 'center',
+  },
+  fill: {
+    width: '100%',
+    height: '100%',
   },
   posterFocused: {
     borderColor: colour.focus,

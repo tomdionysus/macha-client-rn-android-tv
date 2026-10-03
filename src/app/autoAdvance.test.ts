@@ -24,6 +24,12 @@ describe('the episode played when one ends', () => {
     expect(episodeToPlayOnEnd(episode, true, { loading: true })).toBeUndefined();
   });
 
+  it('is nothing when the next episode is unavailable, and plays a partial or unknown one', () => {
+    expect(episodeToPlayOnEnd(episode, true, { loading: false, next: { ...next, availability: 'unavailable' } })).toBeUndefined();
+    expect(episodeToPlayOnEnd(episode, true, { loading: false, next: { ...next, availability: 'partial' } })?.id).toBe(next.id);
+    expect(episodeToPlayOnEnd(episode, true, { loading: false, next: { ...next, availability: 'unknown' } })?.id).toBe(next.id);
+  });
+
   it('is nothing for anything but an episode', () => {
     expect(episodeToPlayOnEnd(film, true, { loading: false, next })).toBeUndefined();
   });

@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Episode } from '@machafoundation/core';
+import { AvailabilityMarker } from './AvailabilityMarker';
+import { isPlayable } from './availability';
 import { Focusable } from './Focusable';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { px, colour, focusFrame, font, layout, radius, rem, type } from '../styles/theme';
@@ -27,6 +29,8 @@ export function EpisodeCard({
   onFocusChange?: (focused: boolean) => void;
 }): React.JSX.Element {
   const still = episode.artwork?.thumbnail ?? episode.artwork?.backdrop ?? episode.artwork?.poster;
+  // An unavailable episode is greyed out and takes no focus, so OK cannot play it.
+  const playable = isPlayable(episode);
 
   return (
     <Focusable
@@ -36,6 +40,7 @@ export function EpisodeCard({
       // first — `App.tsx` seeds the season level's focus memory with it.
       focusId={mediaFocusId(episode.id)}
       onSelect={onSelect}
+      disabled={!playable}
       defaultFocus={defaultFocus}
       onFocusChange={onFocusChange}
       style={styles.card}
@@ -44,21 +49,24 @@ export function EpisodeCard({
       {({ focused }) => (
         <>
           <View style={[styles.still, focused && styles.stillFocused]}>
-            {still?.url ? (
-              <Image source={{ uri: still.url }} style={styles.image} contentFit="cover" transition={120} />
-            ) : (
-              <View style={styles.placeholder}>
-                <Text style={styles.placeholderGlyph}>{episode.episodeNumber}</Text>
-              </View>
-            )}
+            <View style={[styles.fill, !playable && styles.greyed]}>
+              {still?.url ? (
+                <Image source={{ uri: still.url }} style={styles.image} contentFit="cover" transition={120} />
+              ) : (
+                <View style={styles.placeholder}>
+                  <Text style={styles.placeholderGlyph}>{episode.episodeNumber}</Text>
+                </View>
+              )}
+            </View>
             {progress !== undefined && progress > 0 && (
               <View style={styles.progressTrack}>
                 <View style={[styles.progressValue, { width: `${Math.min(100, progress * 100)}%` }]} />
               </View>
             )}
+            <AvailabilityMarker media={episode} overlay />
           </View>
 
-          <View style={styles.copy}>
+          <View style={[styles.copy, !playable && styles.greyed]}>
             <View style={styles.heading}>
               <Text style={styles.title} numberOfLines={1}>
                 {episode.title}
@@ -80,6 +88,14 @@ export function EpisodeCard({
 }
 
 const styles = StyleSheet.create({
+  /** An unavailable episode, greyed out on everything but its marker. */
+  greyed: {
+    opacity: 0.4,
+  },
+  fill: {
+    width: '100%',
+    height: '100%',
+  },
   // `.episode-card { padding: .45rem }` at `.episode-rail-item` width.
   card: {
     width: layout.episodeCardWidth,

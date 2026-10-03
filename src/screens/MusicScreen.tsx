@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { sortMediaByIndexedTitle, type MediaApi, type MediaSummary } from '@machafoundation/core';
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
+import { firstPlayableIndex } from '../components/availability';
 import { MediaCard } from '../components/MediaCard';
 import { scrollTarget } from '../hooks/focusScroll';
 import { CARD_FRAME, layout, pageGutter, rem } from '../styles/theme';
@@ -31,6 +32,7 @@ export function MusicScreen({
 }): React.JSX.Element {
   const result = useRefreshableAsync(() => api.albums(), [api]);
   const items = useMemo(() => sortMediaByIndexedTitle(result.value ?? []), [result.value]);
+  const firstFocus = firstPlayableIndex(items);
 
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);
@@ -82,7 +84,7 @@ export function MusicScreen({
               key={item.id}
               media={item}
               onSelect={() => onOpen(item)}
-              defaultFocus={index === 0}
+              defaultFocus={index === firstFocus}
               onExtent={(box) => cards.current.set(index, { y: box.y, height: box.height })}
               onFocusChange={(focused) => focused && revealCard(index)}
             />
