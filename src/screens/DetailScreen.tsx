@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary, VersionStep } from '@machafoundation/core';
 import { usePlaybackVersions } from '../app/usePlaybackVersions';
 import { AvailabilityMarker } from '../components/AvailabilityMarker';
-import { isPlayable } from '../components/availability';
+import { availableToPlay } from '@machafoundation/core';
 import { Focusable } from '../components/Focusable';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { clamp, colour, font, pageGutter, px, radius, rem, type, vw } from '../styles/theme';
@@ -35,7 +35,7 @@ export function DetailScreen({
   const backdrop = media.artwork?.backdrop;
   const canResume = resumePositionMs > 0;
   // An unavailable title offers nothing to play; Back keeps the focus.
-  const playable = isPlayable(media);
+  const playable = availableToPlay(media);
   const { versions } = usePlaybackVersions(media);
   const lines = useFileLines(media);
   // The quality buttons show only when there is a choice.

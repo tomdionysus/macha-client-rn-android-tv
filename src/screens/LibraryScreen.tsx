@@ -14,7 +14,8 @@ import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/St
 import { MediaCard } from '../components/MediaCard';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
 import { SortControl } from '../components/SortControl';
-import { firstPlayableIndex, isPlayable } from '../components/availability';
+import { firstAvailableIndex } from '../components/availability';
+import { availableToPlay } from '@machafoundation/core';
 import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { jumpTarget, scrollTarget } from '../hooks/focusScroll';
 import { tvFocus } from '../hooks/tvFocus';
@@ -52,7 +53,7 @@ export function LibraryScreen({
   );
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_LIBRARY_SORT);
   const items = useMemo(() => orderMedia(result.value ?? [], sort, LIBRARY_SORTS), [result.value, sort]);
-  const firstFocus = firstPlayableIndex(items);
+  const firstFocus = firstAvailableIndex(items);
   const indexed = sort === 'title';
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);
@@ -64,7 +65,7 @@ export function LibraryScreen({
   // scroll-on-focus below does the revealing. See `useAlphabetIndex` for why
   // scrolling alone is the wrong behaviour on a D-pad.
   // A letter leads only to titles that can take focus.
-  const alphabet = useAlphabetIndex(useMemo(() => items.filter(isPlayable), [items]));
+  const alphabet = useAlphabetIndex(useMemo(() => items.filter(availableToPlay), [items]));
 
   const title = kind === 'movies' ? 'Movies' : 'TV Shows';
   if (!result.value) {

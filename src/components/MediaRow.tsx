@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@machafoundation/core';
-import { firstPlayableIndex } from './availability';
+import { firstAvailableIndex } from './availability';
 import { MediaCard } from './MediaCard';
 import { scrollTarget } from '../hooks/focusScroll';
 import { colour, font, layout, pageGutter, rem, type } from '../styles/theme';
@@ -51,7 +51,7 @@ export function MediaRow({
   const cards = useRef(new Map<number, { offset: number; length: number }>());
 
   if (items.length === 0) return null;
-  const firstFocus = firstPlayableIndex(items);
+  const firstFocus = firstAvailableIndex(items);
 
   /**
    * Move the row only when the focused card is not already in view, so a card

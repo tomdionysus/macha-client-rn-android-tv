@@ -122,11 +122,12 @@ export const colour = {
   /** `.search-type-pill { color: #9a9aa2 }` — a type toggle that is off. */
   toggleOff: '#9a9aa2',
   /**
-   * The availability markers' red and yellow. base.css has no rule for them
-   * yet; these are this client's, to follow the web client's once it has one.
+   * The availability markers' red (unavailable) and yellow (partial and
+   * unknown). base.css has no rule for them yet; these are this client's, and
+   * the web client has been given them to match.
    */
-  availabilityWarning: '#ff4d4f',
-  availabilityUnknown: '#ffc53d',
+  availabilityRed: '#ff4d4f',
+  availabilityYellow: '#ffc53d',
   /** The dark disc behind a marker, so it reads against any artwork: `.card-close-button`'s fill. */
   markerSurface: '#08080ac9',
   scrubberTrack: '#e7e7ea',

@@ -24,7 +24,7 @@ import { libraryTrail, type KnownAncestry } from './app/libraryTrail';
 import { SIGN_OUT_REVOKE_FAILED } from './text/viewerText';
 import { useEpisodeNeighbours } from './app/useEpisodeNeighbours';
 import { episodeToPlayOnEnd } from './app/autoAdvance';
-import { isPlayable } from './components/availability';
+import { availableToPlay } from '@machafoundation/core';
 import { startPreferences } from './app/startPreferences';
 import { attributableProgress } from './app/progressAttribution';
 import { orphanedSessions } from './state/liveSessions';
@@ -419,7 +419,7 @@ function Shell(): React.JSX.Element {
     (media: MediaSummary, startPositionMs: number, known?: KnownAncestry, version?: VersionStep) => {
       // An unavailable title never starts, whichever control asked: every
       // screen already withholds it, and this is the one path they all share.
-      if (!isPlayable(media)) {
+      if (!availableToPlay(media)) {
         playbackLog.info('play-refused-unavailable', { mediaId: media.id });
         return;
       }
@@ -529,6 +529,7 @@ function Shell(): React.JSX.Element {
   ) : route.name === 'home' ? (
     <HomeScreen
       api={services.mediaApi}
+      catalogue={services.catalogueApi}
       continueWatching={progress}
       onOpen={open}
       onResume={(media) => play(media, continueWatching.positionFor(media.id))}

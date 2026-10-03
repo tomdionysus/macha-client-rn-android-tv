@@ -4,7 +4,7 @@ import type { MediaSummary } from '@machafoundation/core';
 import { cardLines } from './cardLines';
 import { Focusable } from './Focusable';
 import { AvailabilityMarker } from './AvailabilityMarker';
-import { isPlayable } from './availability';
+import { availableToPlay } from '@machafoundation/core';
 import { LazyArtwork } from './LazyArtwork';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { tvFocus } from '../hooks/tvFocus';
@@ -75,7 +75,7 @@ export function MediaCard({
   const lines = cardLines(media);
   // An unavailable title is greyed out and takes no focus, so OK cannot open
   // or play it.
-  const playable = isPlayable(media);
+  const playable = availableToPlay(media);
   // The remove button's focus pairing; see `CardCloseButton`.
   const [cardFocused, setCardFocused] = useState(false);
   const [closeFocused, setCloseFocused] = useState(false);

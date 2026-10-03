@@ -4,7 +4,7 @@ import type { Episode, MediaApi, MediaSummary, SeasonDetails, ShowDetails } from
 import { useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
 import { MediaRow } from '../components/MediaRow';
-import { firstPlayableIndex } from '../components/availability';
+import { firstAvailableIndex } from '../components/availability';
 import { EpisodeCard } from '../components/EpisodeCard';
 import { colour, layout, pageGutter, rem, type } from '../styles/theme';
 
@@ -66,7 +66,7 @@ export function SeasonScreen({
 }): React.JSX.Element {
   const details = useRefreshableAsync(() => api.details(season.id), [api, season.id]);
   const episodes = (details.value as SeasonDetails | undefined)?.episodes ?? [];
-  const firstFocus = firstPlayableIndex(episodes);
+  const firstFocus = firstAvailableIndex(episodes);
   const scroller = useRef<ScrollView | null>(null);
 
   const scrollToIndex = (index: number) => {

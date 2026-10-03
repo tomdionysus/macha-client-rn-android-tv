@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Episode } from '@machafoundation/core';
 import { AvailabilityMarker } from './AvailabilityMarker';
-import { isPlayable } from './availability';
+import { availableToPlay } from '@machafoundation/core';
 import { Focusable } from './Focusable';
 import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { px, colour, focusFrame, font, layout, radius, rem, type } from '../styles/theme';
@@ -30,7 +30,7 @@ export function EpisodeCard({
 }): React.JSX.Element {
   const still = episode.artwork?.thumbnail ?? episode.artwork?.backdrop ?? episode.artwork?.poster;
   // An unavailable episode is greyed out and takes no focus, so OK cannot play it.
-  const playable = isPlayable(episode);
+  const playable = availableToPlay(episode);
 
   return (
     <Focusable

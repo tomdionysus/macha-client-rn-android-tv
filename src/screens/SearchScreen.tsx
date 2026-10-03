@@ -20,7 +20,7 @@ import { CategoryToggles } from '../components/CategoryToggles';
 import { Focusable } from '../components/Focusable';
 import { RefreshIcon } from '../components/NavIcons';
 import { AlphabetIndex, alphabetStripWidth } from '../components/AlphabetIndex';
-import { isPlayable } from '../components/availability';
+import { availableToPlay } from '@machafoundation/core';
 import { mediaFocusId, useAlphabetIndex } from '../hooks/useAlphabetIndex';
 import { ErrorMessage, Loading, PageTitle } from '../components/Status';
 import { jumpTarget, scrollTarget } from '../hooks/focusScroll';
@@ -65,7 +65,7 @@ export function SearchScreen({
   // order, where a letter marks a run of the grid.
   const indexed = sort === 'title';
   // A letter leads only to titles that can take focus.
-  const alphabet = useAlphabetIndex(useMemo(() => (indexed ? ordered.filter(isPlayable) : []), [indexed, ordered]));
+  const alphabet = useAlphabetIndex(useMemo(() => (indexed ? ordered.filter(availableToPlay) : []), [indexed, ordered]));
 
   const scroller = useRef<ScrollView | null>(null);
   const viewportHeight = useRef(0);

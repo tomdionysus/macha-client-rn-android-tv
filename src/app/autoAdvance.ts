@@ -1,6 +1,6 @@
 import type { Episode, MediaSummary } from '@machafoundation/core';
 import type { EpisodeNavigation } from './useEpisodeNeighbours';
-import { isPlayable } from '../components/availability';
+import { availableToPlay } from '@machafoundation/core';
 
 /**
  * The episode to play when the one playing reaches its end, or undefined.
@@ -21,5 +21,5 @@ export function episodeToPlayOnEnd(
   neighbours: EpisodeNavigation,
 ): Episode | undefined {
   if (!ended || media?.kind !== 'episode' || neighbours.loading) return undefined;
-  return neighbours.next && isPlayable(neighbours.next) ? neighbours.next : undefined;
+  return neighbours.next && availableToPlay(neighbours.next) ? neighbours.next : undefined;
 }

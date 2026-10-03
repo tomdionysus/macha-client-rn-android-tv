@@ -37,7 +37,7 @@ import { playbackLog } from '../diagnostics/playbackLog';
 import { usePlayerVolume } from '../hooks/usePlayerVolume';
 import { useMacha } from '../app/MachaProvider';
 import { AvailabilityMarker } from '../components/AvailabilityMarker';
-import { isPlayable } from '../components/availability';
+import { availableToPlay } from '@machafoundation/core';
 import { PlayerIcon, type PlayerIconName } from '../components/PlayerIcons';
 import { tvFocus } from '../hooks/tvFocus';
 import { attachPlaybackHost } from '../app/usePlaybackRuntime';
@@ -716,8 +716,8 @@ export function PlayerScreen({
             {isEpisode ? (
               <ChromeButton
                 icon="previous"
-                disabled={!episodeNav?.previous || !isPlayable(episodeNav.previous)}
-                onSelect={() => episodeNav?.previous && isPlayable(episodeNav.previous) && onPlayEpisode?.(episodeNav.previous)}
+                disabled={!episodeNav?.previous || !availableToPlay(episodeNav.previous)}
+                onSelect={() => episodeNav?.previous && availableToPlay(episodeNav.previous) && onPlayEpisode?.(episodeNav.previous)}
               />
             ) : null}
             {/*
@@ -735,8 +735,8 @@ export function PlayerScreen({
             {isEpisode ? (
               <ChromeButton
                 icon="next"
-                disabled={!episodeNav?.next || !isPlayable(episodeNav.next)}
-                onSelect={() => episodeNav?.next && isPlayable(episodeNav.next) && onPlayEpisode?.(episodeNav.next)}
+                disabled={!episodeNav?.next || !availableToPlay(episodeNav.next)}
+                onSelect={() => episodeNav?.next && availableToPlay(episodeNav.next) && onPlayEpisode?.(episodeNav.next)}
               />
             ) : null}
             {/*

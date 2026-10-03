@@ -9,7 +9,8 @@ import { colour, rem } from '../styles/theme';
  *
  * `overlay` places it at the artwork's top left, mirroring the Continue
  * Watching remove button at the top right; without it, it sits inline before
- * a heading. Icons only: a television has no hover to carry the web client's
+ * a heading. Outlines, stroked and never filled; the dots are round-capped
+ * strokes. Icons only: a television has no hover to carry the web client's
  * tooltip.
  */
 export function AvailabilityMarker({
@@ -35,16 +36,15 @@ function MarkerIcon({ kind, size }: { kind: AvailabilityMarkerKind; size: number
     case 'partial':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path d="M12 3 22 20.5H2Z" stroke={colour.availabilityWarning} strokeWidth={2} strokeLinejoin="round" />
-          <Path d="M12 9.5v5" stroke={colour.availabilityWarning} strokeWidth={2.2} strokeLinecap="round" />
-          <Circle cx="12" cy="17.6" r="1.25" fill={colour.availabilityWarning} />
+          <Path d="M12 3 22 20.5H2Z" stroke={colour.availabilityYellow} strokeWidth={2} strokeLinejoin="round" />
+          <Path d="M12 9.5v4.6M12 17.4v.2" stroke={colour.availabilityYellow} strokeWidth={2.2} strokeLinecap="round" />
         </Svg>
       );
     case 'unavailable':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Circle cx="12" cy="12" r="9" stroke={colour.availabilityWarning} strokeWidth={2.2} />
-          <Path d="M5.6 18.4 18.4 5.6" stroke={colour.availabilityWarning} strokeWidth={2.2} strokeLinecap="round" />
+          <Circle cx="12" cy="12" r="9" stroke={colour.availabilityRed} strokeWidth={2.2} />
+          <Path d="M5.6 18.4 18.4 5.6" stroke={colour.availabilityRed} strokeWidth={2.2} strokeLinecap="round" />
         </Svg>
       );
     case 'unknown':
@@ -52,11 +52,11 @@ function MarkerIcon({ kind, size }: { kind: AvailabilityMarkerKind; size: number
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
           <Path
             d="M8.6 9a3.5 3.5 0 1 1 5.1 3.1c-1 .5-1.7 1.3-1.7 2.4v.6"
-            stroke={colour.availabilityUnknown}
+            stroke={colour.availabilityYellow}
             strokeWidth={2.4}
             strokeLinecap="round"
           />
-          <Circle cx="12" cy="19.2" r="1.4" fill={colour.availabilityUnknown} />
+          <Path d="M12 19.1v.2" stroke={colour.availabilityYellow} strokeWidth={2.4} strokeLinecap="round" />
         </Svg>
       );
   }

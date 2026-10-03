@@ -1,13 +1,15 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import {
+  currentAvailability,
   newestCatalogueFirst,
+  withoutAvailability,
+  type CatalogueApi,
   type MediaApi,
   type MediaSummary,
   type PlaybackProgress,
 } from '@machafoundation/core';
-import { useRefreshableAsync } from '../hooks/useAsync';
+import { useAsync, useRefreshableAsync } from '../hooks/useAsync';
 import { ErrorMessage, Loading, PageTitle, RefreshError } from '../components/Status';
-import { withoutStoredAvailability } from '../components/availability';
 import { MediaRow } from '../components/MediaRow';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { rem } from '../styles/theme';
@@ -19,12 +21,15 @@ import { rem } from '../styles/theme';
  */
 export function HomeScreen({
   api,
+  catalogue,
   continueWatching,
   onOpen,
   onResume,
   onRemoveFromContinueWatching,
 }: {
   api: MediaApi;
+  /** For Continue Watching's current availability; see below. */
+  catalogue: CatalogueApi;
   continueWatching: PlaybackProgress[];
   onOpen: (media: MediaSummary) => void;
   onResume: (media: MediaSummary) => void;
@@ -32,6 +37,15 @@ export function HomeScreen({
   onRemoveFromContinueWatching: (media: MediaSummary) => void;
 }): React.JSX.Element {
   const home = useRefreshableAsync(() => api.home(), [api]);
+  /**
+   * An entry stores its title without availability, since that changes as
+   * nodes come and go; the row's markers come from a fresh read of each title.
+   * Until it answers, and for a title it could not read, a card has no marker
+   * and stays playable.
+   */
+  const continueIds = continueWatching.flatMap((entry) => (entry.media ? [entry.media.id] : []));
+  const continueKey = continueIds.join('\n');
+  const current = useAsync((signal) => currentAvailability(continueIds, catalogue, signal), [catalogue, continueKey]);
   const { scroller, measureViewport, measureRow, revealRow } = usePageFocusScroll(rem(1));
 
   if (!home.value) {
@@ -43,8 +57,9 @@ export function HomeScreen({
     );
   }
 
-  // A stored copy's availability is as old as the entry; see `withoutStoredAvailability`.
-  const progressItems = continueWatching.flatMap((entry) => (entry.media ? [withoutStoredAvailability(entry.media)] : []));
+  const progressItems = continueWatching.flatMap((entry) =>
+    entry.media ? [{ ...withoutAvailability(entry.media), ...current.value?.get(entry.media.id) }] : [],
+  );
   const progressById = new Map(continueWatching.map((entry) => [entry.itemId, entry]));
 
   const progressFor = (media: MediaSummary): number | undefined => {
