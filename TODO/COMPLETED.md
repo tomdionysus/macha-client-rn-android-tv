@@ -1,5 +1,75 @@
 # Completed
 
+## 2026-10-01 to 2026-10-04 — wording ports, a comment pass, 0.9.1 on the experiment branch, and availability
+
+**Asserted from source and tests unless it says measured.** Nothing in this
+section has been driven on the set (Tom's "Don't test" stands); one install
+was made, on Tom's word.
+
+### In one line each
+
+- **Branch:** from 2026-10-01 all work is on `experiment/object-ledger`
+  (`9e092ce` records why). Pushed for the first time with the 0.9.1 tag.
+- **Error sentences ported from the web client, word for word:** a routed call
+  that tried every node and found none answering says "No Macha server
+  answered. Try again in a moment; if it keeps happening, check that the
+  servers are running." (`e7b0145`, web `043fd81`); a refused walk gives the
+  server's own sentence, ours only when it gave none, and a plain connection
+  failure says the web's `SERVER_UNREACHABLE_TEXT` (`59b2235`). None of the
+  display sites limits lines, so the longer sentence wraps (read from the
+  components, not seen).
+- **Dead code** (`a114fd3`): unused imports, three screens' unread grid column
+  counts, `SearchIcon`, `getServerUrl`, `PlaybackFactsLookup`,
+  `setVolumeLevel`; the two repeated error sentences became constants.
+- **Comment pass** (`dd0f30c`, Tom's ask): every comment earns its place, and
+  no comment or test name carries history (dates, hashes, attributions,
+  incident stories, TODO section numbers, "used to"). 102 files, 1,060 lines
+  in and 1,728 out; four comments that were wrong about the code corrected.
+  Verified by comparing every file's comment-free syntax tree (TypeScript's
+  printer with `removeComments`, a stripping lexer for Kotlin and Gradle)
+  against the previous commit: the only differences were the renamed test
+  names. The checker was itself proven on a deliberate type change and on
+  `a114fd3` first.
+- **0.9.1** (`60d4a3a`, annotated tag, pushed), on Tom's word, on this branch
+  and **not on `main`**: Tom chose that over a release to `main` when asked.
+  `android/` was regenerated with `expo prebuild` so `version:check` passed.
+- **Availability** (`ad1d60f`, `5c2d2cb`, `8e044b8`; core `495353a`,
+  `1251cb2`; Tom's ruling relayed by core): markers on every title, outlines,
+  yellow triangle / red crossed circle / yellow question mark; an unavailable
+  title greyed, out of focus and refused by `play()`, the detail page's Play,
+  the player's previous/next and the end-of-episode advance; first focus and
+  the alphabet strip skip it. Continue Watching takes its markers from core's
+  `currentAvailability`, because core's stores no longer keep availability
+  (this client's ask). The play rule is core's `availableToPlay`, which
+  replaced a local `isPlayable` that shadowed core's queue-kind `isPlayable`.
+  Then, on Tom's word, an unavailable Continue Watching card takes focus so its
+  × can be reached, OK still doing nothing (`cardInteraction`). Each rule's
+  test was seen red under a deliberate mutation.
+- **Installed on `.133`** 2026-10-04 00:03: `5c2d2cb`, md5
+  `ecc962a139ff34102e7451a1e1b7d72c`, read back off the set (`7e6187a`).
+  Macha was playing, about 17 minutes in; Tom said install now.
+- **Server and core notices checked, nothing broke:** core `f794364`
+  (endpoint ranking, `lapsed`, `MachaRequestTimeoutError`), server
+  `subsystems[].state` `starting`, 0.82.0 files resource, 0.83.0 item
+  availability, 0.84.0 availability from the last survey. Core takes only
+  named fields from each response, so extra fields pass unread.
+
+### Mistakes
+
+- **My own test-name rename broke `viewerText.test.ts`**: apostrophes inside
+  single-quoted names. Typecheck caught it (the test count fell from 383 to
+  339, which is what gave it away); fixed before the commit.
+- **One comment-pass agent trimmed a reason away** ("The web client's case."
+  lost why the case exists). Restored; others like it may remain. Read
+  `dd0f30c`'s diff with that in mind.
+- **A wrong commit hash sent to core** (`7b51a3c` for `8e044b8`), corrected
+  the same minute. The fix, core's: read a SHA with `git log -1
+  --format=%h` in a separate step before quoting it.
+- **zsh again:** an unquoted `$F` holding several file names is one word in
+  zsh, and `--include=*.tsx` is a glob that aborts the command. Both produced
+  silent wrong answers in the dead-code scan before being noticed. Quote the
+  pattern (`--include='*.tsx'`) and do not rely on word-splitting.
+
 ## 2026-09-28 to 2026-09-30 — 0.8.0 and 0.9.0, start progress, the first failover seen, and the wording ports
 
 **Measured on `.133` where it says so; everything else is asserted from source

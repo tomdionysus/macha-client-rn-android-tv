@@ -7,103 +7,129 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 
 ---
 
-## 0. Handover, 2026-10-01 — read this first after a clear
+## 0. Handover, 2026-10-04 — read this first after a clear
 
 **What landed, and what went wrong, is in `COMPLETED.md`'s top section**
-(2026-09-28 to 2026-09-30). This section is only where things stand and what is
+(2026-10-01 to 2026-10-04). This section is only where things stand and what is
 open, in the order to do it.
 
-### Work only on `experiment/object-ledger` — from 2026-10-01
+### Work only on `experiment/object-ledger`
 
-**Not `main`, not `develop`.** The server's operator instruction, relayed by
-the Macha Server session: the server's experiment is on its
-`experiment/object-ledger` (steps `-t0` .. `-t2`, server `develop` frozen at
-`75e6f98`), and every client works on a branch of the same name until it
-ends. This repo's was cut from `develop` at `3f7bad0`; commit only there or
-on branches cut from it, and do not commit to, merge into or push `main` or
-`develop`. API changes on that line are announced to core and every client
-before they ship: check everything this client depends on. Decided and not
-built: the whole API becomes RESTful (identity resets first; this client
-calls neither reset route). Pushing the branch is Tom's word.
+**Not `main`, not `develop`**, until the server's experiment ends: the
+server's operator instruction, relayed by the Macha Server session, and Tom
+confirmed it for this repo on 2026-10-02 by tagging 0.9.1 here rather than on
+`main`. The branch was cut from `develop` at `3f7bad0` and is pushed
+(`origin/experiment/object-ledger`). API changes on the server's line are
+announced to core and every client before they ship; check each against
+everything this client depends on. Pushing is Tom's word.
 
 ### Where things stand
 
-- **Released: TV 0.9.0 on core 0.21.0**, 2026-09-29. `main` `263e308`,
-  annotated tag `0.9.0`, both pushed; core `^0.21.0` from the registry. The
-  release APK (md5 `5e5980bd04453be26ff8cb16056e3346`, versionCode 900) was
-  **never installed**: the set was off when it was built, and later `develop`
-  builds superseded it. Rebuild from the tag if the release itself is wanted
-  on a set.
-- **`develop`** is at `54c64ce` (pushed) plus the clear's notes commit, on
-  `file:../macha-ts` (a symlink; core develop `1217429` at the clear, which
-  only adds types for server 0.73.0's `nodes[].traffic`). Typecheck, 382 tests
-  and the export pass. `develop` carries versionCode 900 too, so **only the
-  md5 tells a develop build from the release**; record it at every install.
-- **Servers:** 0.74.0 deploying to both nodes on 2026-09-30 (a Status thread
-  named `observation`), after 0.73.0 (`nodes[].traffic`), 0.71.0
-  (torrent-only), 0.70.0 (operator node names, transcode rates) and 0.69.0
-  (start progress). All checked against this client: nothing breaks, nothing
-  is needed. 0.68.0's keyframes route is core's (`bufferedTime.ts`), not ours.
-  gbni-1 **is** macnessa (`10.44.1.50`).
+- **Branch tip `8e044b8`**, four commits ahead of `origin` (`ad1d60f`,
+  `5c2d2cb`, `7e6187a`, `8e044b8`: the availability work and the install
+  record). Typecheck, 390 tests and the export pass.
+- **Tag `0.9.1`** (annotated, pushed) is on `60d4a3a`, on this branch, **not
+  on `main`**; versionCode 901. Its tree uses `file:../macha-ts`, so it builds
+  only beside a compatible core checkout. `main` is still `263e308`, tag
+  `0.9.0`, core `^0.21.0` from the registry (latest published core is still
+  0.21.0). Everything since 0.9.1 also reads 0.9.1 / 901: **only the md5 tells
+  builds apart**; record it at every install.
+- **Core** is linked: `node_modules/@machafoundation/core` is a symlink to
+  `../macha-ts`, on its `experiment/object-ledger` at `22e0620` (pushed). This
+  client needs at least `1251cb2` (`availableToPlay`, `currentAvailability`,
+  `withoutAvailability`). Check `dist` carries a symbol before trusting a
+  build (AGENTS.md).
+- **Servers:** 0.82.0 (the files resource, per-file availability) is live on
+  both nodes. Announced, not deployed when written: **0.83.0** (availability on
+  every catalogue item, a fourth code `unavailable`) and **0.84.0**
+  (availability answered from the last survey across restarts and unreachable
+  peers, so `unknown` becomes rare and a value can be stale). Everything from
+  the server since 0.74.0 was checked against this client: nothing breaks. The
+  `subsystems[].state` `starting` change does not reach this client.
+- gbni-1 **is** macnessa (`10.44.1.50`).
 
 ### The set
 
 - **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel, 960x540 dp.
-  **Installed 2026-10-04 00:03:** `experiment/object-ledger` `5c2d2cb`
-  (0.9.1, versionCode 901) on linked core `1251cb2`, md5
-  `ecc962a139ff34102e7451a1e1b7d72c`, read back off the set. Installed over
-  Macha playing (about 17 minutes in), on Tom's word; not launched after.
-  Carries the availability markers, which show nothing until server 0.83.0 is
-  deployed. Diagnostics **On**, screen timeout `600000` as last recorded. It drops off the network for hours at a time; `adb mdns
-  services` and a ping say whether it is back.
+  **Installed 2026-10-04 00:03:** `5c2d2cb` (0.9.1, versionCode 901) on linked
+  core `1251cb2`, md5 `ecc962a139ff34102e7451a1e1b7d72c`, read back off the
+  set. Installed over Macha playing, on Tom's word; not launched after. It does
+  **not** carry `8e044b8` (the Continue Watching remove-button focus).
+  Diagnostics **On**, screen timeout `600000` as last recorded. It drops off
+  the network for hours at a time; `adb mdns services` and a ping say whether
+  it is back.
 - Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1, "Corvus
   FI-1") and `http://10.44.1.50:7438` (gbni-1, "Corvus GBNI-1"); remembered
   `https://macnessa.macha.network`.
 - **Tom and others watch this set.** Check `dumpsys media_session` (with
   `updated` against `/proc/uptime`) before any key **and between key bursts**.
-  Tom has twice said to install over what was playing; that was for that
-  install only. **On 2026-09-29 Tom said "Don't test."** Install when asked;
-  drive the set only when asked.
-- **`10.34.1.115`** did not answer on 2026-09-29 (no ping, no adb
-  advertisement); when it was last up is not recorded here. The other
-  device on adb, `10.35.1.164` over TLS, is a **Blackview A85 phone**: the
-  phone client's, and this APK requires leanback so it will not install there.
+  Tom's "install now" over what was playing was for that install only.
+  **Tom's "Don't test" (2026-09-29) stands**: install when asked, drive the set
+  only when asked.
+- **`10.34.1.115`** has not answered since before 2026-09-29. The other device
+  on adb, `10.35.1.164` over TLS, is a **Blackview A85 phone**: the phone
+  client's, and this APK requires leanback so it will not install there.
 - **Launch with `am start -n foundation.macha.client.tv/.MainActivity`.**
-  **Back exits only from Home** (2026-09-28); every other screen goes Home.
+  **Back exits only from Home**; every other screen goes Home.
 
 ### Open, in order
 
-1. **See on the set, when Tom says to:** the alphabet strip reached by Right
+1. **Push** the four commits ahead of `origin`, when Tom says.
+2. **See the availability markers on the set**, once server 0.83.0 is
+   deployed and Tom says to drive it: a yellow outline triangle (partial), a
+   red outline crossed circle on a greyed card that takes no focus
+   (unavailable), a yellow question mark (unknown), at the artwork's top left;
+   before the title on show and season headings and in the player. Continue
+   Watching's markers come from `currentAvailability` and arrive a moment
+   after the row. An unavailable Continue Watching card takes focus (for its
+   ×) and OK does nothing; that needs a build with `8e044b8` installed first.
+   The colours (#ff4d4f, #ffc53d, #08080ac9 disc) are this client's; core has
+   passed them to the web client, and says it will report if the web picks
+   others.
+3. **See on the set, when Tom says to:** the alphabet strip reached by Right
    from the bottom row, and a letter bringing its titles to the top
    (`54c64ce`); the failover status line naming no node (`32d4a7f`); the
    too-slow-to-play screen with Try again and Choose another quality; the
    stepped-down notice; ", which the server can't do fast enough" (needs a
    node's `transcode_rates`, empty until a transcode of a minute or more
-   finishes on it).
-2. **The next failover: capture `playback.coordinator source-failover-start`**,
-   whose `error` names what began it. On 2026-09-28 it scrolled off the
-   eight-line Diagnostics overlay and logcat had rolled, so the first failover
-   seen on this client has no recorded cause. Core and the web client report a
-   4K HEVC source neither node serves at real speed failing over back and
-   forth; core's answer is `too_slow_to_play` (built here, unseen).
-3. **OK on a Continue Watching card does two different things.** On
+   finishes on it); the two error sentences ported from the web client
+   (no node answered; the server cannot be reached).
+4. **The next failover: capture `playback.coordinator source-failover-start`**,
+   whose `error` names what began it. The first failover seen on this client
+   (2026-09-28) has no recorded cause: it scrolled off the eight-line
+   Diagnostics overlay and logcat had rolled. Core's answer to a source neither
+   node serves at real speed is `too_slow_to_play` (built here, unseen).
+5. **OK on a Continue Watching card does two different things.** On
    2026-09-28 it opened *The Martian*'s detail page once and started playback
    once, both with focus confirmed on the card. Seen, unexplained.
-4. **Not yet seen on the set:** next episode on end across a season (needs a
+6. **Not yet seen on the set:** next episode on end across a season (needs a
    show with two seasons), and the `resource_limit` sentence on a switch back
    into transcode (needs a second viewer holding the slot).
-5. **Unexplained:** Tom's 4K press on *The Martian* that returned to the
+7. **Unexplained:** Tom's 4K press on *The Martian* that returned to the
    detail page with nothing said (2026-09-27 ~13:10), never reproduced.
-6. **§1.12:** Continue Watching is not per-account (core's storage).
-7. **§1.8** the stereo A/B (needs a listener), **§1.9** catalogue `5xx`
-   charging a node (core's), **§1.1** the top bar's ends.
-8. **Tom's calls, asked and unanswered:** whether the Status screen shows
-   each node's inter-node traffic, as the web client now does; whether the
-   web client should be told about the two TV-only focus rules (focus stays
-   on the top bar; the alphabet strip as a side rail) so it can match;
-   Music (§4.6); whether series/season "links" on a card mean anything beyond
-   Back.
-9. The rest of parity, §4.
+8. **`usePlayerVolume` still applies the stored volume** on every player
+   mount, though the player has had no volume control since 2026-09-19. A
+   level stored before then is applied with no way to change it. Removing the
+   call changes what the set plays at: Tom's call, then confirm on the set.
+9. **Five native packages nothing in `src` imports:** `expo-keep-awake`,
+   `expo-splash-screen`, `expo-system-ui`, `react-native-safe-area-context`,
+   `react-native-screens`. Expo or React Native may need them natively;
+   removing any changes the APK, so it needs a build and an install to prove.
+10. **§1.12:** Continue Watching is not per-account (core's storage).
+11. **§1.8** the stereo A/B (needs a listener), **§1.9** catalogue `5xx`
+    charging a node (core's), **§1.1** the top bar's ends.
+12. **Tom's calls, asked and unanswered:**
+    - whether the Status screen shows each node's inter-node traffic, as the
+      web client does;
+    - whether the web client should be told about the two TV-only focus rules
+      (focus stays on the top bar; the alphabet strip as a side rail);
+    - Music (§4.6);
+    - whether series/season "links" on a card mean anything beyond Back;
+    - from 0.84.0, an `unavailable` can be the last survey's answer rather
+      than the present: whether a card should show how old it is
+      (`surveyed_unix_ms`), or OK may try it anyway. Both change the ruling;
+      wait until stale greys are seen.
+13. The rest of parity, §4.
 
 **Known limits, not open work:** the native-adapter trial is shelved (Tom,
 2026-09-24): a transcode reap recovers only after the buffer drains, and a
@@ -116,35 +142,48 @@ direct-play reap never reaches the player (P-1 below).
   sentence** for the same facts. Media info: one line per file under the
   title, core's `fileSummaries` parts joined with " · ", largest file first.
 - **Technical facts and their labels are core's; layout and sentences are
-  ours.** Viewer sentences live in `src/text/viewerText.ts` (2026-09-24). The
-  web client words new sentences first and this client ports them word for
-  word, reading the web's tree rather than its summary.
+  ours.** Viewer sentences live in `src/text/viewerText.ts`. The web client
+  words new sentences first and this client ports them word for word,
+  reading the web's tree rather than its summary.
+- **Availability, the same in every client and every context** (2026-10-03):
+  partial a yellow outline warning triangle, unavailable a red outline
+  crossed circle with the title greyed and not selectable (on TV: no focus, OK
+  never plays), unknown a yellow question mark, complete nothing; icons only,
+  no tooltips on TV. Only unavailable may not be played. **Exception**
+  (2026-10-04): an unavailable Continue Watching card takes focus so its ×
+  can be reached; OK on it still does nothing. The play rule is core's
+  `availableToPlay`; this client's `cardInteraction` decides focus.
+- **Comments carry no history** (2026-10-02): every code comment earns its
+  place; no dates, hashes, attributions or incident stories in code comments
+  or test names. History goes here, in `COMPLETED.md` and in commit messages.
 - **Quality names are 4K, 2K, 1080p, 720p** (core's `qualityLabel`), and
   the player has **one Quality row**: the versions, then smaller caps.
-- **Why Play chooses a file is one sentence from every fact** (2026-09-28,
-  `qualityChoiceText`), on the detail page and in the player's options.
+- **Why Play chooses a file is one sentence from every fact**
+  (`qualityChoiceText`), on the detail page and in the player's options.
 - **A chosen quality no node converts fast enough stops** with "Macha can't
-  play … because …" and a Try again option (2026-09-28).
+  play … because …" and a Try again option.
 - **Nodes are named by the server's operator name**, else the host, never the
-  full URL (2026-09-28).
+  full URL.
 - **Episodes are marked `S04E08` everywhere**, "Episode 8" with no season.
 - **Resume as you left it:** Continue Watching keeps item, file, mode, cap,
   audio and subtitles; Restart is a fresh automatic start.
-- **An episode's end plays the next, across seasons.**
+- **An episode's end plays the next, across seasons**, unless the next is
+  unavailable.
 - **Back returns to the card that was opened**, Home included; **only Back
-  from Home exits**, with no confirmation, after storage is flushed
-  (2026-09-28).
-- **Focus stays on the top-bar button that chose a screen** (2026-09-29);
-  **a letter on the strip brings its titles to the top** (2026-09-29).
+  from Home exits**, with no confirmation, after storage is flushed.
+- **Focus stays on the top-bar button that chose a screen**; **a letter on
+  the strip brings its titles to the top**, and leads only to titles that can
+  take focus.
 - **The synopsis sits below the poster** on the TV.
-- **Releases:** the version number and every push of `main` are Tom's word.
-  "Deploy" means build `develop` and install it on `.133`; "push" means push
-  `develop`.
+- **Releases:** the version number and every push are Tom's word. "Deploy"
+  means build this branch and install it on `.133`.
 
 ### Waiting on others
 
-- **Tom:** the calls in item 8, and when to drive the set again.
-- **Core, the web client, the server:** nothing outstanding from this client.
+- **Tom:** the push (item 1), when to drive the set, items 8 and 12.
+- **Core:** nothing outstanding. **The web client:** whether it keeps this
+  client's marker colours (core will say). **The server:** deploying 0.83.0
+  and 0.84.0.
 
 ### Traps this session paid for — driving the set over adb
 
