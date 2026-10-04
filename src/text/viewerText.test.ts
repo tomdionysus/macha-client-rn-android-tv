@@ -372,6 +372,13 @@ describe('a quality no node can convert fast enough', () => {
       .toBe("Macha can't play 4K because the server can't convert its video fast enough to keep up.");
   });
 
+  it('says a stream whose session or node is gone is no longer available, in the web client\'s words', async () => {
+    const { MachaPlaybackError, REGENERATION_ENDPOINT_GONE_CODE, SESSION_PROVENANCE_UNKNOWN_CODE } = await import('@machafoundation/core');
+    for (const code of [SESSION_PROVENANCE_UNKNOWN_CODE, REGENERATION_ENDPOINT_GONE_CODE]) {
+      expect(errorText(new MachaPlaybackError('log text', 409, code))).toBe('This stream is no longer available. Start it again.');
+    }
+  });
+
   it('keeps the sentence whole when a fact is missing, and is what errorText falls back to', async () => {
     const { MachaPlaybackError, TOO_SLOW_TO_PLAY_CODE } = await import('@machafoundation/core');
     expect(tooSlowToPlayText()).toBe("Macha can't play this quality because the server can't convert it fast enough to keep up.");

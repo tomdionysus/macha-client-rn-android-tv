@@ -2,6 +2,8 @@ import {
   MachaClusterRouteError,
   MachaConnectionError,
   NOT_PLAYABLE_CODE,
+  REGENERATION_ENDPOINT_GONE_CODE,
+  SESSION_PROVENANCE_UNKNOWN_CODE,
   START_NO_PROGRESS_CODE,
   TOO_SLOW_TO_PLAY_CODE,
   playbackFailureCode,
@@ -309,6 +311,11 @@ export function errorText(error: unknown): string {
   // read as `SERVER_BUSY_TEXT`. The player builds the fuller too-slow sentence.
   if (playbackFailureCode(error) === TOO_SLOW_TO_PLAY_CODE) return tooSlowToPlayText();
   if (playbackFailureCode(error) === START_NO_PROGRESS_CODE) return 'The node stopped making progress starting this stream.';
+  // The web client's sentence (`playbackFailureCodeText`), word for word.
+  const code = playbackFailureCode(error);
+  if (code === SESSION_PROVENANCE_UNKNOWN_CODE || code === REGENERATION_ENDPOINT_GONE_CODE) {
+    return 'This stream is no longer available. Start it again.';
+  }
   const status = playbackFailureStatus(error);
   if (status === 401 || status === 403) return SESSION_ENDED_TEXT;
   if (status === 404 || status === 410) return "That isn't available any more.";
