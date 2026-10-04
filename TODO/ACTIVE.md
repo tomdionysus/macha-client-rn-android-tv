@@ -109,29 +109,32 @@ everything this client depends on. Pushing is Tom's word.
    into transcode (needs a second viewer holding the slot).
 7. **Unexplained:** Tom's 4K press on *The Martian* that returned to the
    detail page with nothing said (2026-09-27 ~13:10), never reproduced.
-8. **`usePlayerVolume` still applies the stored volume** on every player
-   mount, though the player has had no volume control since 2026-09-19. A
-   level stored before then is applied with no way to change it. Removing the
-   call changes what the set plays at: Tom's call, then confirm on the set.
-9. **Five native packages nothing in `src` imports:** `expo-keep-awake`,
-   `expo-splash-screen`, `expo-system-ui`, `react-native-safe-area-context`,
-   `react-native-screens`. Expo or React Native may need them natively;
-   removing any changes the APK, so it needs a build and an install to prove.
+8. **Audio on the set's own speakers, one piece of work** (Tom, 2026-10-04:
+   items 8 and §1.8 together): stop `usePlayerVolume` applying a stored level
+   the player can no longer change, and do not advertise multichannel when
+   the output is the set's speakers (§1.8's gate, not the A/B first). Both
+   change what the set plays; confirm on the set when Tom says to drive it.
+9. **Remove the five native packages nothing in `src` imports** (Tom,
+   2026-10-04): `expo-keep-awake`, `expo-splash-screen`, `expo-system-ui`,
+   `react-native-safe-area-context`, `react-native-screens`. Expo or React
+   Native may need one natively: prebuild, build, and check the APK; prove on
+   the set at the next install.
 10. **§1.12:** Continue Watching is not per-account (core's storage).
-11. **§1.8** the stereo A/B (needs a listener), **§1.1** the top bar's ends.
-12. **Tom's calls, asked and unanswered:**
-    - whether the Status screen shows each node's inter-node traffic, as the
-      web client does;
-    - whether the web client should be told about the two TV-only focus rules
-      (focus stays on the top bar; the alphabet strip as a side rail);
-    - Music (§4.6);
-    - whether series/season "links" on a card mean anything beyond Back;
-    - whether "This can't be played on this television." should become the
-      web client's "This item cannot be played here." (`NOT_PLAYABLE_CODE`);
-    - from 0.84.0, an `unavailable` can be the last survey's answer rather
-      than the present: whether a card should show how old it is
-      (`surveyed_unix_ms`), or OK may try it anyway. Both change the ruling;
-      wait until stale greys are seen.
+11. **§1.1** the top bar's ends.
+12. **Decided by Tom, 2026-10-04, not built:**
+    - "This can't be played on this television." becomes the web client's
+      "This item cannot be played here." (`NOT_PLAYABLE_CODE`); port from the
+      web's tree.
+    - The Status screen shows each node's inter-node traffic, as the web
+      client does.
+    - The web client is **not** told about the two TV-only focus rules: they
+      are a different UX.
+    - Music (§4.6): yes, as far as the web client has it.
+    - Series/season links on a card go where they say, which need not be
+      Back.
+    - A stale `unavailable` changes nothing: unavailable is not selectable,
+      however old; partial is.
+    - Still open: §3.1 (Tom asked what a proxy costs) and §2.11's switch.
 13. The rest of parity, §4.
 
 **Known limits, not open work:** the native-adapter trial is shelved (Tom,
@@ -183,7 +186,8 @@ direct-play reap never reaches the player (P-1 below).
 
 ### Waiting on others
 
-- **Tom:** the push (item 1), when to drive the set, items 8 and 12.
+- **Tom:** the push (item 1), when to drive the set (not now, 2026-10-04),
+  §3.1 and §2.11's switch.
 - **Core:** nothing outstanding. **The web client:** whether it keeps this
   client's marker colours (core will say). **The server:** deploying 0.83.0
   and 0.84.0.
@@ -352,8 +356,8 @@ Every entry needs the set, and Tom's word to drive it.
   skips the set's speaker processing, is the cause. The fix is ours, not
   started: on the set's speakers do not advertise multichannel
   (`Capabilities.kt` reading `AudioManager`, with an `AudioDeviceCallback`).
-  App gain cannot exceed unity. Next: Tom's call between the gate now and a
-  stereo-track A/B first (needs a listener).
+  App gain cannot exceed unity. Tom chose the gate (2026-10-04); it is open
+  item 8.
 - **1.12** Continue Watching is not per-account: core's `signOut` clears
   only the session key (measured; the fix is core's storage). Unseen on the
   set, status unclear: a resumed entry keeping its position (`a1e01c0`, core
@@ -408,8 +412,6 @@ Every entry needs the set, and Tom's word to drive it.
 - **3.1** `addDirectSourceAlternative`: a local HTTP proxy in the app, or
   wait for the native engine? The web's rests on a Service Worker. Without
   it direct play gets a warm standby, not byte-level failover.
-- **3.2** The GitHub repository is public (measured 2026-10-04: the API
-  answers without credentials). Nothing to decide unless that is unwanted.
 - **3.6** Decided, not built: the client ships with no endpoints. `app.json`
   still carries one, so clearing hands it back. The work: ship `[]`, an
   `unconfigured` access state and screen, and a separate pre-fill for
@@ -446,5 +448,4 @@ Logic is core's; what is missing is presentation. §2.11 runs the other way.
   be opened. Not started: `/music`, artists, artist, album, tracks,
   playlists. Three blockers, to do first and together: `OverflowMenu` and
   `Modal` as focus scopes (copy `PlayerOptions`); a queue that survives the
-  screen; a mini player. **Tom's call** whether a television wants all of
-  it, before the first screen.
+  screen; a mini player. Tom (2026-10-04): build it as the web client has it.
