@@ -54,6 +54,13 @@ was made, on Tom's word.
   availability, 0.84.0 availability from the last survey. Core takes only
   named fields from each response, so extra fields pass unread.
 
+- **§1.9 closed by core** (`83c53e9`): a walk now charges a node only for a
+  failure that is the node's (`request()`, `find()` and `mutation()` ask
+  `failureBlamesEndpoint`, as `pinned()` did). `catalogue_unavailable` carries
+  no scope, so core walks on past it and charges no node. Checked here against
+  that core's built `dist`: typecheck, 391 tests and the export pass. Home
+  saying every endpoint failed now means every node refused, not cooldowns.
+
 ### Mistakes
 
 - **My own test-name rename broke `viewerText.test.ts`**: apostrophes inside

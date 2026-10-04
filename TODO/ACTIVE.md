@@ -35,7 +35,7 @@ everything this client depends on. Pushing is Tom's word.
   0.21.0). Everything since 0.9.1 also reads 0.9.1 / 901: **only the md5 tells
   builds apart**; record it at every install.
 - **Core** is linked: `node_modules/@machafoundation/core` is a symlink to
-  `../macha-ts`, on its `experiment/object-ledger` at `22e0620` (pushed). This
+  `../macha-ts`, on its `experiment/object-ledger` at `83c53e9` (pushed). This
   client needs at least `1251cb2` (`availableToPlay`, `currentAvailability`,
   `withoutAvailability`). Check `dist` carries a symbol before trusting a
   build (AGENTS.md).
@@ -116,8 +116,7 @@ everything this client depends on. Pushing is Tom's word.
    `react-native-screens`. Expo or React Native may need them natively;
    removing any changes the APK, so it needs a build and an install to prove.
 10. **§1.12:** Continue Watching is not per-account (core's storage).
-11. **§1.8** the stereo A/B (needs a listener), **§1.9** catalogue `5xx`
-    charging a node (core's), **§1.1** the top bar's ends.
+11. **§1.8** the stereo A/B (needs a listener), **§1.1** the top bar's ends.
 12. **Tom's calls, asked and unanswered:**
     - whether the Status screen shows each node's inter-node traffic, as the
       web client does;
@@ -353,16 +352,6 @@ Every entry needs the set, and Tom's word to drive it.
   (`Capabilities.kt` reading `AudioManager`, with an `AudioDeviceCallback`).
   App gain cannot exceed unity. Next: Tom's call between the gate now and a
   stereo-track A/B first (needs a listener).
-- **1.9** A `5xx` from one API family charges every node the walk visited:
-  `route()`, `find()` and `mutation()` record failures without asking
-  `failureBlamesEndpoint` (asserted; reported to core). Still so at core
-  `22e0620`: only `pinned()` asks it (`macha-ts`
-  `src/cluster/endpointRouting.ts`). The node's answer, measured against one
-  node: `503`, JSON, `{"error":"catalogue_unavailable","message":"catalogue
-  metadata durability unavailable: …"}`; that every node answered the same was
-  assumed, not measured. Core is deciding the fix from that code. Home then said every endpoint had failed
-  while only the catalogue was down (measured). What the cooldown did to the
-  candidate list is unmeasured; reproducing needs the server condition.
 - **1.12** Continue Watching is not per-account: core's `signOut` clears
   only the session key (measured; the fix is core's storage). Unseen on the
   set, status unclear: a resumed entry keeping its position (`a1e01c0`, core
