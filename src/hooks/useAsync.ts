@@ -12,11 +12,9 @@ export interface RefreshableAsyncState<T> extends AsyncState<T> {
 }
 
 /**
- * Ported from the web client's `useAsync`.
- *
- * The web version aborts with an explicit `DOMException` reason. `DOMException`
- * is not on `globalThis` in React Native, so this aborts with no reason and
- * relies on the spec default, which is already an `AbortError`.
+ * Ported from the web client's `useAsync`. Aborts with no reason:
+ * `DOMException` is not global in React Native, and the default is already an
+ * `AbortError`.
  */
 export function useAsync<T>(
   factory: (signal: AbortSignal) => Promise<T>,
@@ -38,9 +36,7 @@ export function useAsync<T>(
       });
     return () => {
       active = false;
-      // No reason argument: React Native's AbortController types it as
-      // zero-argument, and the spec default is already an AbortError, which is
-      // what core's own abort handling checks for.
+      // No reason argument: the default is the AbortError core checks for.
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caller owns the dependency list.
@@ -49,13 +45,7 @@ export function useAsync<T>(
   return state;
 }
 
-/**
- * `useAsync` that can be re-run without clearing what it already has.
- *
- * The distinction matters on a television: dropping a screenful of posters back
- * to a spinner because a background refresh started is a visible flinch, so a
- * refresh keeps the previous value and only reports `refreshing`.
- */
+/** `useAsync` that can be re-run: a refresh keeps the previous value and reports `refreshing`. */
 export function useRefreshableAsync<T>(
   factory: (signal: AbortSignal) => Promise<T>,
   dependencies: readonly unknown[],
@@ -88,9 +78,7 @@ export function useRefreshableAsync<T>(
 
     return () => {
       active = false;
-      // No reason argument: React Native's AbortController types it as
-      // zero-argument, and the spec default is already an AbortError, which is
-      // what core's own abort handling checks for.
+      // No reason argument: the default is the AbortError core checks for.
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caller owns the dependency list.

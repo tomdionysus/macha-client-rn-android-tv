@@ -12,12 +12,8 @@ import { useMacha } from '../app/MachaProvider';
 import { colour, focusFrame, font, layout, px, radius, rem, type } from '../styles/theme';
 
 /**
- * A poster card, from `.media-card` / `.poster` / `.card-title` in base.css.
- *
- * The focus treatment is the card's own rather than the shared ring:
- * `.media-card:focus-visible` scales to 1.04 and washes the background, which
- * is the strongest focus signal in the interface and the main way a viewer
- * tracks where they are on a wall of posters.
+ * A poster card, from `.media-card` / `.poster` / `.card-title` in base.css,
+ * with its own focus treatment rather than the shared ring.
  */
 export function MediaCard({
   media,
@@ -35,37 +31,20 @@ export function MediaCard({
   onSelect?: () => void;
   defaultFocus?: boolean;
   /**
-   * Give this card a focus id derived from its media id, so something else can
-   * move focus to it by name — the alphabet strip jumping to a letter.
-   *
-   * Off by default: two rows showing the same title (Continue Watching and a
-   * library row, say) would otherwise register the same id twice and the
-   * registry would keep only one of them.
+   * Give the card a focus id derived from its media id. Off by default: ids
+   * must be unique on screen, and two rows can show the same title.
    */
   addressable?: boolean;
-  /**
-   * Centre square music art in the height of a 2:3 poster, so a grid mixing
-   * the two starts every title on the same line. Search does this
-   * (`.search-results .music-artwork { margin-top: 25%; margin-bottom: 25% }`)
-   * and the music rows, which are all square, do not.
-   */
+  /** Centre square music art in a 2:3 poster's height, for a grid mixing both (Search). */
   squareInPosterHeight?: boolean;
-  /** 0–1, drawn as `.progress-track` / `.progress-value` across the poster foot. */
+  /** 0–1, drawn across the poster foot. */
   progress?: number;
   onFocusChange?: (focused: boolean) => void;
-  /** This card's box, for a scroller that has to follow focus. */
+  /** This card's box, for a scroller following focus. */
   onExtent?: (box: { x: number; y: number; width: number; height: number }) => void;
-  /**
-   * Draw `.card-close-button` over the card, for Continue Watching's "Remove
-   * … from Continue Watching". Its own focus target, above the card, as on
-   * the web client, whose focus weights this client's scorer reproduces.
-   */
+  /** Draw a remove button over the card, as its own focus target (Continue Watching). */
   onRemove?: () => void;
-  /**
-   * The row this card sits in, on a screen that can show a title in two rows.
-   * Makes the card addressable under an id of its own for that row; see
-   * `mediaFocusId`.
-   */
+  /** The card's row, making its focus id unique per row; see `mediaFocusId`. */
   rail?: string;
 }): React.JSX.Element {
   const { services } = useMacha();
@@ -73,8 +52,8 @@ export function MediaCard({
   const artwork = media.artwork?.poster ?? media.artwork?.thumbnail;
   const isSquare = media.kind === 'album' || media.kind === 'artist' || media.kind === 'track';
   const lines = cardLines(media);
-  // An unavailable title is greyed out and OK does nothing on it; see
-  // `cardInteraction` for when it may still take focus.
+  // OK does nothing on an unavailable title; see `cardInteraction` for when
+  // it may still take focus.
   const interaction = cardInteraction(media, Boolean(onRemove));
   const playable = interaction.selectable;
   // The remove button's focus pairing; see `CardCloseButton`.
@@ -94,8 +73,8 @@ export function MediaCard({
         setCardFocused(focused);
         onFocusChange?.(focused);
       }}
-      // Up from a card with a remove button goes to that button: the
-      // scorer cannot, because the button's centre is inside the card.
+      // Up goes to the remove button; the scorer cannot reach a centre
+      // inside the card.
       {...(onRemove
         ? {
             ownsDirection: (direction: string) => direction === 'up',
@@ -108,11 +87,7 @@ export function MediaCard({
     >
       {({ focused }) => (
         <>
-          {/*
-            * In a grid that mixes shapes, square art sits centred in a box
-            * with a poster's 2:3 shape, so its title starts on the same line
-            * as the posters' beside it. A plain wrapper otherwise.
-            */}
+          {/* Square art centred in a 2:3 box in mixed grids; otherwise a plain wrapper. */}
           <View style={isSquare && squareInPosterHeight ? styles.posterSlot : null}>
           <View
             style={[
@@ -123,11 +98,8 @@ export function MediaCard({
           >
             <View style={[styles.fill, !playable && styles.greyed]}>
             {artwork ? (
-              // Not `<Image source={{ uri: artwork.url }} />`: the server
-              // re-signs that URL on every catalogue fetch, so handing it
-              // straight to a URL-keyed image cache re-downloads every poster
-              // on every revisit. `LazyArtwork` remembers what loaded, and
-              // walks to another node when one refuses.
+              // Not a plain `Image`: the URL is re-signed on every catalogue
+              // fetch, which defeats a URL-keyed cache.
               <LazyArtwork api={mediaApi} artwork={artwork} style={styles.image} />
             ) : null}
             {artwork ? null : (
@@ -174,15 +146,9 @@ export function MediaCard({
 
 /**
  * `.card-close-button.continue-card-remove`: a small × at the card's top
- * right. The web client's label ("Remove … from Continue Watching") is for a
- * screen reader, which a television has none of here, so none is drawn.
- *
- * **Reached from its card, not by the scorer.** It sits inside the card, so
- * the scorer, which moves only to a centre beyond the current edge, cannot
- * reach it with Up or Right from the card; and coming down onto the row, it
- * is nearer than the card and would take focus meant for the poster. So it is
- * a candidate only while its card or it has focus, Up from the card selects
- * it, and Down from it returns. Always drawn, as on the web client.
+ * right. It sits inside the card, where the scorer cannot reach it and where
+ * it would steal focus from the poster, so it is a focus candidate only while
+ * it or its card has focus: Up from the card selects it, Down returns.
  */
 function CardCloseButton({
   focusId,
@@ -237,8 +203,8 @@ const styles = StyleSheet.create({
   },
   /**
    * `:focus-visible { opacity: 1; border-color: #8a303b; background: #30070be8;
-   * color: #fff; box-shadow: 0 0 0 1px var(--focus) }` — the ring as the
-   * border, in the focus colour, since the shadow does not draw here.
+   * color: #fff; box-shadow: 0 0 0 1px var(--focus) }`, the shadow ring
+   * drawn as the border.
    */
   closeFocused: {
     opacity: 1,
@@ -260,11 +226,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     backgroundColor: 'transparent',
   },
-  /**
-   * An unavailable title, greyed out. On the artwork and the text rather than
-   * the card, so the marker keeps its full colour, and in place so the grid
-   * keeps its shape.
-   */
+  // Unavailable: on the artwork and text, not the card, so the marker keeps its colour.
   greyed: {
     opacity: 0.4,
   },
@@ -278,25 +240,12 @@ const styles = StyleSheet.create({
     aspectRatio: 2 / 3,
     borderRadius: radius.poster,
     overflow: 'hidden',
-    /**
-     * **No fill of its own.** The padding that holds the focus border off the
-     * picture would show a fill as a grey frame around every card, so
-     * `surface-2` sits on the artwork and the placeholder instead.
-     */
+    // The fill is on the artwork and placeholder; here it would show in the
+    // padding as a grey frame.
     backgroundColor: 'transparent',
-    /**
-     * Thicker than the web client's, and standing off the artwork.
-     *
-     * base.css draws `outline: 1px solid var(--focus); outline-offset: 1px`,
-     * and React Native has no outline. A one-dp border touching a lit poster
-     * cannot be seen at three metres. Three dp with the artwork inset by two
-     * reproduces the *offset*, which is what makes it legible: a gap of
-     * background between the line and the image.
-     *
-     * The border and the padding are both always present and only the colour
-     * changes, so nothing moves on focus: the scorer reads these rectangles,
-     * and a card that grew when focused would shift its neighbours.
-     */
+    // `outline: 1px solid var(--focus); outline-offset: 1px`, thickened to
+    // be seen at ten feet. Always present, so focus changes only the colour
+    // and the rectangles the scorer reads do not move.
     borderWidth: focusFrame.border,
     padding: focusFrame.gap,
     borderColor: 'transparent',
@@ -306,12 +255,9 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
   },
   /**
-   * `.search-results .music-artwork { margin-top: 25%; margin-bottom: 25% }` —
-   * the web centres a square in a poster's height with percentage margins.
-   * Measured on the TCL set, those do not resolve here as they do in CSS: the
-   * art comes out at about half size. A box of the poster's own shape,
-   * centring the square, gives the same result without depending on how
-   * margins resolve.
+   * `.search-results .music-artwork { margin-top: 25%; margin-bottom: 25% }`,
+   * as a 2:3 box centring the square: percentage margins halve the art here
+   * (measured on the TCL set).
    */
   posterSlot: {
     width: '100%',

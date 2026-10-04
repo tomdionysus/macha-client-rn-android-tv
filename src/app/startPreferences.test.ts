@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PlaybackProgress, VersionStep } from '@machafoundation/core';
 import { startPreferences } from './startPreferences';
 
-// Left playing the 1080p file by the viewer's choice of Direct, English
-// subtitles on: what a resume has to bring back.
+// Left on the 1080p file in Direct, with English subtitles.
 const entry = {
   itemId: 'tmdb:movie:286217',
   fileMediaId: 'macha:hd',

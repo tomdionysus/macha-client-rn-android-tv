@@ -7,17 +7,9 @@ import { colour, font, rem, type } from '../styles/theme';
 export const OFFLINE_SCOPE = 'offline';
 
 /**
- * Nothing answered.
- *
- * **Deliberately not a login.** No node said this viewer may not watch; no node
- * said anything at all. Offering a sign-in here would claim a policy the
- * cluster never stated, and would also be useless — signing in needs a
- * reachable node as much as watching does, so the button could only fail.
- *
- * It offers only Settings, because pointing the set at a different cluster is
- * the one repair available from a sofa. Core is already retrying on its own
- * timer, so recovery needs no button and the screen goes away when a node
- * comes back.
+ * No node answered. Not a login: no node refused the viewer, and signing in
+ * needs a reachable node too. Offers only Settings; core retries on its own
+ * timer and the screen goes away when a node comes back.
  */
 export function OfflineScreen({
   onOpenSettings,

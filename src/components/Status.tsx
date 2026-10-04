@@ -24,18 +24,15 @@ export function ErrorMessage({ error }: { error: Error }): React.JSX.Element {
   );
 }
 
-/**
- * A refresh failure over content that is still on screen.
- *
- * `.media-refresh-error` in the web client: the stale posters remain, and the
- * failure is reported above them rather than replacing them.
- */
+/** `.media-refresh-error`: a refresh failure shown above content still on screen. */
 export function RefreshError({ error }: { error: Error }): React.JSX.Element {
   return <Text style={styles.refreshError}>Refresh failed: {errorText(error)}</Text>;
 }
 
-/** `h1 { font-size: clamp(2rem,4vw,4rem); margin: 1.4rem 0 1.2rem }` */
-/** A page heading; given the title it names, its availability marker goes before it. */
+/**
+ * `h1 { font-size: clamp(2rem,4vw,4rem); margin: 1.4rem 0 1.2rem }`. Given
+ * `media`, its availability marker goes before the heading.
+ */
 export function PageTitle({ children, media }: { children: string; media?: MediaSummary }): React.JSX.Element {
   if (!media || !availabilityMarker(media)) return <Text style={styles.h1}>{children}</Text>;
   return (
@@ -65,9 +62,8 @@ const styles = StyleSheet.create({
     color: colour.error,
   },
   h1: {
-    // The web client's `main` supplies the 3vw gutter; here the rails manage
-    // their own horizontal padding so a focused card can reach the screen
-    // edge, which leaves the page furniture to apply it individually.
+    // The web's `main` supplies the gutter; here each element applies its
+    // own, so rails can reach the screen edge.
     paddingHorizontal: pageGutter,
     fontSize: type.h1,
     lineHeight: type.h1 * 1.02,

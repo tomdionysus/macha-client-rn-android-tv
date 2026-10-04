@@ -1,7 +1,5 @@
-// `expo-module-gradle-plugin` applies the Android library and Kotlin plugins
-// itself and wires the publishing component, so they are not applied here —
-// applying them by hand configures publishing before the `release` component
-// exists and the build fails looking for it.
+// `expo-module-gradle-plugin` wires Kotlin and publishing itself; applying
+// them by hand fails the build looking for the `release` component.
 plugins {
   id 'com.android.library'
   id 'expo-module-gradle-plugin'
@@ -10,24 +8,16 @@ plugins {
 group = 'foundation.macha.player'
 version = '0.1.0'
 
-// Matches the phone client's version, so the two Macha native clients fail and
-// get fixed together rather than diverging on ExoPlayer bugs.
-// **The minimum this module needs, not what ships.** Gradle resolves a version
-// conflict upward across modules, and `expo-video` asks for a higher one, so
-// the APK carries the highest version any module requests (measured: 1.9.0,
-// from expo-video). Read it from the build rather than from here:
-//
-//   grep -A3 -i media3 android/app/build/outputs/sdk-dependencies/release/sdkDependencies.txt
-//
-// The capability claims in `MachaPlayerModule.kt` are assertions about the
-// linked media3, so they are checkable only against the resolved version.
+// A minimum, matching the phone client; not what ships. Gradle resolves upward
+// and expo-video asks for more (measured: 1.9.0). The resolved version is in
+// android/app/build/outputs/sdk-dependencies/release/sdkDependencies.txt, and
+// the capability claims in `MachaPlayerModule.kt` hold only against it.
 def media3Version = '1.8.0'
 
 android {
   namespace 'foundation.macha.player'
   defaultConfig {
-    // Both are required: expo-autolinking reads versionName while configuring
-    // the module, and omitting it fails the whole autolinking plugin.
+    // expo-autolinking reads versionName; omitting it fails autolinking.
     versionCode 1
     versionName '0.1.0'
     minSdkVersion 24

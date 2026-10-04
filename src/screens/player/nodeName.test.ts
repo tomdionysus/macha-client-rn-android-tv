@@ -19,9 +19,8 @@ describe('what the player calls the node serving a stream', () => {
     expect(nodeName(undefined)).toBeUndefined();
   });
 
-  // React Native's own URL (Libraries/Blob/URL.js) does not throw on an
-  // address it cannot read: its hostname getter answers ''. The tests run on
-  // Node's URL, so that behaviour is stood in for here.
+  // React Native's URL (Libraries/Blob/URL.js) answers '' instead of throwing;
+  // the tests run on Node's URL, so that is stood in for here.
   it("treats React Native's empty hostname as unparsed, not as a name", () => {
     const Real = globalThis.URL;
     vi.stubGlobal('URL', class { hostname = ''; constructor(_: string) {} });

@@ -26,60 +26,37 @@ import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 
 /**
- * The ExoPlayer instance behind core's `Player` interface.
- *
- * Deliberately a single long-lived engine rather than one per view. Core draws
- * a hard line between `detachHost()` (unbind presentation, keep playing) and
- * `detach()` (destroy) — conflating them means a view remount silently kills
- * playback — so the engine has to outlive the surface it draws into.
+ * The ExoPlayer instance behind core's `Player` interface. One long-lived
+ * engine, not one per view: `detachHost()` unbinds presentation and keeps
+ * playing, so the engine must outlive its surface.
  */
 class PlayerEngine(private val context: Context) {
 
   /**
-   * How long to wait for a fragment's first byte.
-   *
-   * Calibrated against the **server's 6000 ms segment hold**, not chosen
-   * freely. A node near the production frontier holds a request for a fragment
-   * it has not produced yet and then answers `500 segment_not_ready`. A held
-   * request sends no bytes, so any read deadline below the hold means the
-   * client aborts first and takes its timeout path — which looks like a network
-   * fault and gets treated as one, failing a healthy node over for doing
-   * exactly what it was asked.
-   *
-   * media3's own `DEFAULT_READ_TIMEOUT_MILLIS` is 8000, which clears 6000 by a
-   * margin that — per `docs/writing-a-player.md` — was read out of a shipped
-   * artifact and has never been confirmed against a running client. 15000 is
-   * set explicitly here so the margin is stated rather than inherited: it
-   * clears the hold by 9000 ms, and it is the only number in this file that
-   * must move if the server's hold changes.
+   * First-byte wait for a fragment. Calibrated against the server's 6000 ms
+   * segment hold (core's `SERVER_SEGMENT_HOLD_MS`): a held request
+   * sends no bytes, so a shorter deadline fails a healthy node over as a
+   * network fault. Clears the hold by 9000 ms; moves if the hold changes.
    */
   private val readTimeoutMs = 15_000
 
-  /** Connect is a separate question from the hold and keeps media3's default. */
+  /** media3's default; independent of the segment hold. */
   private val connectTimeoutMs = 8_000
 
   private val handler = Handler(Looper.getMainLooper())
 
   /**
-   * Run on the thread ExoPlayer was built on.
-   *
-   * Every ExoPlayer instance is bound to one looper and throws if touched from
-   * another. Expo's synchronous `Function` runs on the JS thread and offers no
-   * queue selection — only `AsyncFunction` has `runOnQueue` — so the marshalling
-   * belongs here rather than in the module definition. Running inline when
-   * already on main keeps `attach` from being deferred a frame behind the view.
+   * Runs on ExoPlayer's looper, which it throws off of. Expo's synchronous
+   * `Function` has no `runOnQueue`, so the marshalling is here. Inline when
+   * already on main, so `attach` is not deferred a frame.
    */
   private inline fun onMain(crossinline block: () -> Unit) {
     if (Looper.myLooper() == Looper.getMainLooper()) block() else handler.post { block() }
   }
 
   /**
-   * Last known seekable extent, readable without touching the player.
-   *
-   * `localSeekCoverage()` has to answer synchronously on the JS thread, which
-   * cannot ask ExoPlayer anything. The value is refreshed on every event tick
-   * from the main thread, so it is at most one tick stale — and a seek target
-   * is validated by the player again anyway.
+   * Last known seekable extent, for `localSeekCoverage()` to answer on the JS
+   * thread. Refreshed each event tick, so at most one tick stale.
    */
   @Volatile
   private var seekableDurationMs = 0L
@@ -91,21 +68,18 @@ class PlayerEngine(private val context: Context) {
   @Volatile
   private var streamOrigin: String? = null
 
-  /** Set by the JS layer from `PlaybackSource.isManifest` — never sniffed. */
+  /** From `PlaybackSource.isManifest`; never sniffed. */
   private var currentIsManifest = false
 
   /**
-   * True between a seek being issued and the player resolving it.
-   *
-   * Tracked explicitly because `STATE_BUFFERING` alone cannot distinguish a
-   * seek from a stall, and the two mean opposite things to a viewer: one is
-   * their own input being served, the other is the stream in trouble.
+   * True between a seek being issued and resolved: `STATE_BUFFERING` alone
+   * cannot tell a seek from a stall.
    */
   @Volatile
   private var seeking = false
 
   var onEvent: ((Map<String, Any?>) -> Unit)? = null
-  /** (httpStatus or -1, platformKind or null, message) — evidence, not a verdict. */
+  /** (httpStatus or -1, platformKind or null, message): evidence, not a verdict. */
   var onFailure: ((Int, String?, String) -> Unit)? = null
   var onDegradation: ((String) -> Unit)? = null
 
@@ -118,12 +92,8 @@ class PlayerEngine(private val context: Context) {
 
   private companion object {
     /**
-     * Transport tick while playing.
-     *
-     * 250 ms is a presentation choice, not a protocol one: it is the coarsest
-     * interval at which a scrubber and an elapsed-time readout still look
-     * continuous to a viewer sitting three metres away. It is unrelated to any
-     * server or network deadline, and nothing in core reads it.
+     * Transport tick while playing. Presentation only (a continuous-looking
+     * scrubber); unrelated to any server or network deadline.
      */
         const val TICK_MS = 250L
   }
@@ -131,11 +101,9 @@ class PlayerEngine(private val context: Context) {
   fun ensurePlayer(): ExoPlayer {
     player?.let { return it }
 
-    // Platform decoders only. This is the entire point of the app: ExoPlayer
-    // uses the TV's own AC-3/E-AC-3/HEVC decoders and, for multichannel audio,
-    // hands AudioTrack a *positional* channel mask so the set's own downmix
-    // keeps the centre channel. Extension renderers would substitute bundled
-    // software decoders and give back exactly the problem being escaped.
+    // Platform decoders only: they hand AudioTrack a positional channel mask,
+    // so the set's downmix keeps the centre channel. Extension renderers would
+    // substitute bundled software decoders.
     val renderers = DefaultRenderersFactory(context)
       .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
       .setEnableDecoderFallback(true)
@@ -146,10 +114,7 @@ class PlayerEngine(private val context: Context) {
       .setSeekForwardIncrementMs(30_000)
       .build()
 
-    // `handleAudioFocus = true` makes ExoPlayer request AUDIOFOCUS_GAIN when it
-    // starts and abandon it when it stops, pausing on permanent loss and
-    // ducking on transient. Without it a system sound or a voice assistant
-    // plays over the film instead of interrupting it.
+    // `handleAudioFocus = true`: pause on permanent focus loss, duck on transient.
     created.setAudioAttributes(
       AudioAttributes.Builder()
         .setUsage(C.USAGE_MEDIA)
@@ -158,9 +123,7 @@ class PlayerEngine(private val context: Context) {
       /* handleAudioFocus = */ true,
     )
 
-    // Holds a CPU wake lock across playback. The *screen* is kept awake
-    // separately via FLAG_KEEP_SCREEN_ON, because a television runs its
-    // dim/screensaver/sleep sequence on the display regardless of the CPU.
+    // CPU wake lock only; the screen is held by FLAG_KEEP_SCREEN_ON.
     created.setWakeMode(C.WAKE_MODE_NETWORK)
 
     created.addListener(PlayerListener())
@@ -176,8 +139,8 @@ class PlayerEngine(private val context: Context) {
       .setTransferListener(object : TransferListener {
         override fun onTransferInitializing(source: androidx.media3.datasource.DataSource, spec: DataSpec, isNetwork: Boolean) = Unit
         override fun onTransferStart(source: androidx.media3.datasource.DataSource, spec: DataSpec, isNetwork: Boolean) {
-          // Which node is actually serving bytes, which after a direct-source
-          // promotion is not necessarily the node that negotiated the session.
+          // The node serving bytes, which after a direct-source promotion may
+          // not be the one that negotiated the session.
           if (isNetwork) streamOrigin = spec.uri.let { "${it.scheme}://${it.authority}" }
         }
         override fun onBytesTransferred(source: androidx.media3.datasource.DataSource, spec: DataSpec, isNetwork: Boolean, bytesTransferred: Int) = Unit
@@ -215,9 +178,8 @@ class PlayerEngine(private val context: Context) {
     }
     val item = itemBuilder.build()
 
-    // Never sniff manifest versus progressive — the source states it. Handing
-    // ExoPlayer an .m3u8 without declaring it makes it parse the playlist as a
-    // media file and report a source error.
+    // The source states manifest or progressive: an undeclared .m3u8 is parsed
+    // as a media file and reported as a source error.
     val source: MediaSource = if (isManifest) {
       HlsMediaSource.Factory(factory)
         .setLoadErrorHandlingPolicy(SegmentHoldAwarePolicy())
@@ -248,7 +210,7 @@ class PlayerEngine(private val context: Context) {
 
   fun setVolume(volume: Float) = onMain { player?.volume = volume.coerceIn(0f, 1f) }
 
-  /** Release source-side resources and cancel acquisition, keeping the engine. */
+  /** Releases source-side resources and cancels acquisition; keeps the engine. */
   fun stop() = onMain {
     stopTicking()
     player?.let {
@@ -267,13 +229,9 @@ class PlayerEngine(private val context: Context) {
   }
 
   /**
-   * Generation-local seekable ranges.
-   *
-   * ExoPlayer's `currentPosition` is already relative to the current window's
-   * start, so it needs no origin normalisation — and `seek()` above uses the
-   * same coordinate system, which is the contract's actual requirement. For a
-   * transcode the server produces the generation from its own seek point, so
-   * ExoPlayer's zero *is* the generation start.
+   * Generation-local seekable ranges, in the same window-relative coordinates
+   * as `currentPosition` and `seek()`. For a transcode, zero is the generation
+   * start.
    */
   fun localSeekCoverage(): List<Map<String, Long>> {
     val duration = seekableDurationMs
@@ -323,8 +281,7 @@ class PlayerEngine(private val context: Context) {
         "ended" to (exo.playbackState == Player.STATE_ENDED),
         "seeking" to (seeking && exo.playbackState == Player.STATE_BUFFERING),
         "buffering" to (exo.playbackState == Player.STATE_BUFFERING),
-        // A single contiguous run is what ExoPlayer exposes; it does not
-        // publish a full range set, so reporting one range is the honest shape.
+        // ExoPlayer exposes one contiguous run, not a range set.
         "bufferedRangesMs" to listOf(mapOf("startMs" to position, "endMs" to buffered)),
         "forwardBufferMs" to (buffered - position).coerceAtLeast(0L),
         "streamOrigin" to streamOrigin,
@@ -360,27 +317,11 @@ class PlayerEngine(private val context: Context) {
   }
 
   /**
-   * Turn an ExoPlayer failure into the evidence kind core reasons about.
+   * The HTTP status behind a failure, or -1.
    *
-   * Reporting a decoder failure as a stream failure sends the viewer around the
-   * whole cluster to fail identically on every node, so anything the decoder
-   * told us is reported as `media`/`unsupported` and never retried elsewhere.
-   *
-   * The `500` case is the one that is not a failure at all: a node holding a
-   * fragment it has not produced yet answers `500 segment_not_ready`, which is
-   * the node working correctly near the production frontier. Reported as
-   * `not-ready` it costs nothing; reported as `stream` it prepares a standby on
-   * another node that is producing a *different* generation and does not have
-   * that fragment either.
-   *
-   * **The status-to-kind mapping below is protocol, not platform, and does not
-   * belong in this file.** It is specified in `writing-a-player.md` and then
-   * reimplemented by every client — the web one against hls.js, this one
-   * against media3. It belongs in `@machafoundation/core` as
-   * `playbackFailureKindForStatus(status)`; once core has it, this class should
-   * report the raw HTTP status as evidence and let the TypeScript adapter apply
-   * core's rule, so no protocol knowledge remains on the platform side. The
-   * decoder-error branches below are genuinely ours and stay.
+   * Local stand-in: the status-to-kind mapping is protocol and belongs in
+   * `@machafoundation/core` as `playbackFailureKindForStatus(status)`. A `500`
+   * here is `segment_not_ready`, a hold rather than a failure.
    */
   private fun httpStatusOf(error: PlaybackException): Int {
     var cause: Throwable? = error.cause
@@ -392,11 +333,9 @@ class PlayerEngine(private val context: Context) {
   }
 
   /**
-   * Evidence only the decoder can give.
-   *
-   * This is what genuinely belongs on the platform side: whether *this* decoder
-   * could handle the bytes. Returns null when the failure was an HTTP status,
-   * which core maps itself.
+   * Evidence only the decoder can give, or null when the failure was an HTTP
+   * status. Decoder failures are `media`/`unsupported`, never `stream`: they
+   * would fail identically on every node.
    */
   private fun platformKindOf(error: PlaybackException): String? {
     if (httpStatusOf(error) != -1) return null
@@ -432,16 +371,10 @@ class PlayerEngine(private val context: Context) {
   }
 
   /**
-   * Retry a held fragment on the *same* node, backing off exponentially.
-   *
-   * Failing over cannot help a hold: the next node is producing a different
-   * generation and does not have that fragment either. `Retry-After` on the
-   * hold is only a hint, so the backoff is ours.
-   *
-   * The delays are calibrated against the same 6000 ms hold as the read
-   * timeout: a held request already cost up to six seconds before answering, so
-   * retrying sooner than a second is pure load, and the ceiling keeps total
-   * wait inside the coordinator's own recovery window rather than racing it.
+   * Retries a held fragment on the same node with exponential backoff; no
+   * other node has that fragment. Calibrated against the 6000 ms segment hold
+   * (asserted): the 1 s floor avoids pure load, and the 8 s ceiling keeps the
+   * total inside the coordinator's recovery window.
    */
   private inner class SegmentHoldAwarePolicy : DefaultLoadErrorHandlingPolicy() {
     override fun getRetryDelayMsFor(info: LoadErrorHandlingPolicy.LoadErrorInfo): Long {

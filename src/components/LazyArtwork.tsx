@@ -4,12 +4,8 @@ import type { ArtworkRef, MediaApi } from '@machafoundation/core';
 import { artworkSources, forgetArtworkUrl, rememberArtworkUrl } from './artworkSources';
 
 /**
- * Artwork that survives a node refusing it, and does not re-download on every
- * catalogue refresh.
- *
- * Both behaviours are the web client's. Both matter more on a television than
- * on a desktop, because a library screen here is a grid of posters reached
- * over wifi and re-entered constantly.
+ * Artwork that falls back to another node when one refuses it, and does not
+ * re-download on every catalogue refresh.
  */
 
 export function LazyArtwork({
@@ -27,9 +23,8 @@ export function LazyArtwork({
 }): React.JSX.Element | null {
   const sources = useMemo(
     () => (artwork ? artworkSources(api, artwork) : []),
-    // `artwork.url` changes on every re-sign and must NOT rebuild the plan:
-    // that is the churn this component exists to absorb. The id is the
-    // identity of the image; the signature is not.
+    // Keyed on the id: `artwork.url` changes on every re-sign and must not
+    // rebuild the plan.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [api, artwork?.id],
   );
@@ -39,11 +34,8 @@ export function LazyArtwork({
 
   const onError = useCallback(() => {
     if (!artwork) return;
-    // The remembered copy did not load, so it is not in the cache after all.
-    // Forget it before moving on, or it stays first in the plan forever.
+    // Forget a URL that failed, or it stays first in the plan.
     if (url) forgetArtworkUrl(artwork.id, url);
-    // A different node is a different failure domain, so there is nothing to
-    // wait for: try the next one immediately.
     setIndex((current) => current + 1);
   }, [artwork, url]);
 
@@ -51,14 +43,12 @@ export function LazyArtwork({
     if (artwork && url) rememberArtworkUrl(artwork.id, url);
   }, [artwork, url]);
 
-  // Every node has refused. Render nothing rather than a broken frame; the
-  // card's own background is the placeholder.
+  // Every node refused; the card's background is the placeholder.
   if (!url) return null;
 
   return (
     <Image
-      // Keyed by URL so a move to the next node remounts rather than leaving
-      // `expo-image` to decide whether a changed `source` warrants a reload.
+      // Keyed by URL so moving to the next node remounts the image.
       key={url}
       source={{ uri: url }}
       style={style}

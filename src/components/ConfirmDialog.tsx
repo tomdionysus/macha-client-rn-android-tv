@@ -7,20 +7,9 @@ import { colour, font, rem, screenSize, type, vh } from '../styles/theme';
 export const CONFIRM_SCOPE = 'confirm';
 
 /**
- * Asking before doing something the viewer cannot undo from here.
- *
- * The web client's `ConfirmModal` (`components/Modal.tsx`), re-laid for a
- * remote. Same shape and the same ordering rule — **Cancel first and the commit
- * second** — because that client's single idiom for a mutation is a dialogue
- * where the safe choice is the one already under the pointer. Here the safe
- * choice is the one already under the *focus*, which is the same argument with
- * a D-pad's stakes: a viewer who pressed OK by accident presses it again.
- *
- * **Not a general modal**, deliberately. The web client's `Modal` also backs a
- * `FormModal` that this client has no use for yet, and the focus-trap work it
- * does with `Tab` has no analogue here — the registry's scopes do that job
- * outright. When a general `Modal` is needed, this is the piece to generalise
- * rather than to copy.
+ * Confirmation before an action the viewer cannot undo: the web client's
+ * `ConfirmModal` (`components/Modal.tsx`). Cancel comes first and holds the
+ * focus, so an accidental second OK is harmless.
  */
 export function ConfirmDialog({
   title,
@@ -33,25 +22,18 @@ export function ConfirmDialog({
   onCancel,
 }: {
   title: string;
-  /** What the action will actually do, in the viewer's terms. */
+  /** What the action does, in the viewer's terms. */
   body: string;
   confirmLabel: string;
   destructive?: boolean;
-  /** The commit is in flight. Both controls stop answering, as they do on the web. */
+  /** The commit is in flight; both controls are disabled. */
   busy?: boolean;
   /** A failure belonging to the dialogue as a whole. */
   error?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }): React.JSX.Element {
-  /**
-   * Claim the focus scope while this is up.
-   *
-   * Not bookkeeping: the registry only offers candidates matching the active
-   * scope, so this is both how the dialogue's own controls become reachable and
-   * how the top bar underneath stops being — which is the whole of "modal" on
-   * this platform. `LoginScreen` does the same thing for the same reason.
-   */
+  // The active scope is what makes this modal: only its controls are focus candidates.
   useEffect(() => {
     tvFocus.pushScope(CONFIRM_SCOPE);
     return () => tvFocus.popScope(CONFIRM_SCOPE);
@@ -68,12 +50,7 @@ export function ConfirmDialog({
 
         {/* `.modal-actions { justify-content: flex-end; gap: .55rem; margin-top: 1.1rem }`. */}
         <View style={styles.actions}>
-          {/*
-            * Cancel takes the focus, and on a remote that is not a nicety.
-            * Reaching this dialogue at all costs one press on a control the
-            * viewer walks past on the way to everything else, and the cost of
-            * getting it wrong here is a password typed back in with a D-pad.
-            */}
+          {/* Cancel takes the focus: the safe choice is the default. */}
           <Button label="Cancel" onSelect={onCancel} scope={CONFIRM_SCOPE} defaultFocus disabled={busy} />
           <Button
             label={busy ? 'Working…' : confirmLabel}
@@ -108,11 +85,8 @@ const styles = StyleSheet.create({
   /**
    * `.modal-panel { width: min(31rem, 100%); max-height: min(85vh, 48rem);
    * padding: 1.2rem; border: 1px solid #ffffff1a; border-radius: .8rem;
-   * background: #171719f7; box-shadow: 0 22px 70px #000d }`.
-   *
-   * The shadow is dropped rather than approximated: `elevation` on Android
-   * draws a different shape at a different opacity, and at ten feet the scrim
-   * is what does this job anyway.
+   * background: #171719f7; box-shadow: 0 22px 70px #000d }`, without the
+   * shadow: Android's `elevation` cannot reproduce it.
    */
   panel: {
     width: Math.min(rem(31), screenSize.width),

@@ -21,14 +21,9 @@ import { nativeStorage } from '../state/storage';
 import { VolumeStore } from '../state/volumeStore';
 
 /**
- * Brings up the core once, in the order it requires.
- *
- * `configureMachaHost` must run **before any service is constructed**. Several
- * module-level singletons — `sessionManager` among them — read the host lazily
- * on first use and keep whatever they found. On the web the auto-detected
- * default happens to be the right object and getting this wrong is invisible;
- * on React Native it means a session cached into a throwaway map and re-minted
- * on every start.
+ * Core, brought up once. `configureMachaHost` must run before any service is
+ * constructed: singletons such as `sessionManager` read the host on first use
+ * and keep what they found.
  */
 export interface Macha {
   services: MachaServices;
@@ -49,11 +44,8 @@ export function useMacha(): Macha {
 }
 
 /**
- * Configure the host at module scope, not in an effect.
- *
- * An effect runs after the first render, and the first render already
- * constructs services. Storage is hydrated before this module is imported —
- * see the await in `App`.
+ * Called at module scope, not in an effect: the first render already
+ * constructs services. Storage is hydrated first (the await in `App`).
  */
 let hostConfigured = false;
 export function configureHost(): void {
@@ -61,10 +53,8 @@ export function configureHost(): void {
   hostConfigured = true;
   configureMachaHost({
     storage: nativeStorage,
-    // **Not supplied: `secureStorage`.** Core takes an optional `StorageLike`
-    // and puts the session token in it when present; `expo-secure-store` would
-    // make that Keystore-backed on Android TV. Without it the token lives in
-    // app-private `AsyncStorage` with the rest of this client's state.
+    // No `secureStorage`: the session token lives in app-private AsyncStorage,
+    // not the Android Keystore.
     origin: clientConfiguration.serverUrl(),
   });
 }
@@ -77,17 +67,14 @@ export function MachaProvider({ children }: { children: ReactNode }): React.JSX.
     [],
   );
 
-  // Memoized on the registry and the auth singleton and nothing else.
-  // Rebuilding services mid-playback orphans the active generation's node
-  // ownership, and a token refresh is never a reason to rebuild: every service
-  // authenticates through `auth` at request time.
+  // Never rebuilt mid-playback: that orphans the active generation's node
+  // ownership. Services authenticate through `auth` at request time.
   const services = useMemo(
     () => createMachaServices({ endpointRegistry: registry, auth: sessionManager }),
     [registry],
   );
 
-  // Every store is scoped to the client id, so two televisions on one cluster
-  // keep separate Continue Watching and queues.
+  // Scoped to the client id, so two sets on one cluster keep separate state.
   const stores = useMemo(() => {
     const clientId = getClientId();
     return {
@@ -117,13 +104,6 @@ export function MachaProvider({ children }: { children: ReactNode }): React.JSX.
     return () => health.stop();
   }, [registry, services]);
 
-  /**
-   * Stop discovery while the app is not foreground.
-   *
-   * A television app that is backgrounded is not playing and not being looked
-   * at; continuing to poll the cluster from behind the launcher costs the nodes
-   * requests for nobody's benefit.
-   */
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') sessionManager.start(registry);

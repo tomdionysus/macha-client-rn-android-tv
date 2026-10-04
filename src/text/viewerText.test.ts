@@ -86,7 +86,6 @@ describe('catalogueStatusText', () => {
   });
 });
 
-/** Signed out is an authentication state, never to be worded as an outage. */
 describe('isSignedOut', () => {
   it('recognises a 401 or 403 anywhere down the chain', () => {
     expect(isSignedOut(new Error('x', { cause: Object.assign(new Error('401'), { status: 401 }) }))).toBe(true);
@@ -178,10 +177,7 @@ describe('errorText', () => {
   });
 });
 
-/**
- * What a start or a change is doing: the web client's `startProgressText`
- * (`macha-client/src/text/viewerText.ts`) and its tests' cases.
- */
+// The web client's `startProgressText` (`macha-client/src/text/viewerText.ts`) and its tests' cases.
 describe('startProgressText', () => {
   const progress = (over: Partial<PlaybackStartProgress>): PlaybackStartProgress =>
     ({ kind: 'start', stage: 'planning', progressSeq: 1, elapsedMs: 0, ...over });
@@ -219,8 +215,7 @@ describe('startProgressText', () => {
       .toBe('Starting the new stream on fi-1: 30%');
   });
 
-  // A failover arrives as a start, on a node the line cannot name: the
-  // endpoint it holds is the one being replaced. The web client's cases.
+  // A failover arrives as a start; its node is the one being replaced.
   it('words a failover as a new stream and names no node', () => {
     expect(preparingStreamText(progress({ kind: 'start', stage: 'planning' }), 'gbni-1')).toBe('Preparing new stream…');
     expect(preparingStreamText(progress({ kind: 'start', stage: 'preroll', prerollDecodedMs: 1, prerollTotalMs: 2 }), 'gbni-1'))
@@ -234,10 +229,7 @@ describe('startProgressText', () => {
   });
 });
 
-/**
- * The codes that can answer `GET /api/v1/playback/status`, read from `macha`
- * `src/service.cpp` and `src/playback.cpp`.
- */
+// The codes of `GET /api/v1/playback/status`: `macha` `src/service.cpp` and `src/playback.cpp`.
 describe('serverStatusText', () => {
   const status = (httpStatus: number, code: string | null, detail: string | null = null) => ({
     version: null, playback: {}, playbackAvailable: httpStatus < 300, httpStatus, code, detail,
@@ -269,10 +261,7 @@ describe('serverStatusText', () => {
   });
 });
 
-/**
- * Against lines read off the TCL set's screen: Bushwhacked, direct; Arrival,
- * video copied and DTS transcoded.
- */
+// Lines read off the TCL set's screen.
 describe('streamLines', () => {
   it('reads a direct play exactly as the set showed it', () => {
     const lines = streamLines({
@@ -322,11 +311,7 @@ describe("a file's line", () => {
   });
 });
 
-/**
- * The web client's `qualityChoiceText` and its tests' cases
- * (`macha-client/src/text/viewerText.test.ts`): every client shows the same
- * sentence.
- */
+// The web client's `qualityChoiceText` and its tests' cases (`macha-client/src/text/viewerText.test.ts`).
 describe('why Play chooses the file it does, as one sentence from every fact', () => {
   const instruction = (video: 'copy' | 'transcode', audio: 'copy' | 'transcode') =>
     ({ mode: video === 'transcode' || audio === 'transcode' ? 'transcode' : 'direct', video, audio, reasons: [], assumed: [] }) as VersionStep['instruction'];
@@ -359,8 +344,6 @@ describe('why Play chooses the file it does, as one sentence from every fact', (
     expect(only('ceiling-preference')).toBe('Play chooses 1080p. 4K is more than the most set in Settings. Pick a quality to play another.');
   });
 
-  // A node's measured rate says the conversion is too slow to watch, not
-  // only needed. The web client's case.
   it('says when the conversion is too slow to watch, not only needed', () => {
     const slow: PassedOverVersion = { quality: 2160, converts: { video: true, audio: true }, reasons: ['transcode-below-real-time'] };
     expect(qualityChoiceText({ files, automatic: automatic(1080), passedOver: slow }))
@@ -377,11 +360,7 @@ describe('why Play chooses the file it does, as one sentence from every fact', (
   });
 });
 
-/**
- * The end of the failover loop: the web client's `tooSlowToPlayText` and
- * `qualitySteppedDownText` and its tests' cases
- * (`macha-client/src/text/viewerText.test.ts`).
- */
+// The web client's `tooSlowToPlayText` and `qualitySteppedDownText` and their tests' cases (`macha-client/src/text/viewerText.test.ts`).
 describe('a quality no node can convert fast enough', () => {
   it("says which quality and which streams, from what was playing", () => {
     expect(tooSlowToPlayText(2160, { video: 'transcode', audio: 'transcode' }))

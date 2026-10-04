@@ -3,28 +3,15 @@ import type { LayoutChangeEvent, ScrollView } from 'react-native';
 import { scrollTarget, type ScrollExtent } from './focusScroll';
 
 /**
- * A vertical page scroller that follows focus.
- *
- * `tvFocus` moves focus by geometry across every registered rectangle, on or
- * off screen — correctly, and identically to the web client — so a page that
- * does not scroll leaves the selector somewhere nobody can see.
- *
- * Every scroller on a television has `scrollEnabled={false}`: there is no touch,
- * so this is the only thing that moves the page.
- *
- * Measured rather than computed: a row height derived from the poster ratio is
- * wrong by a line whenever a title wraps, and the error accumulates down the
- * page.
+ * A vertical page scroller that follows focus. Scrollers here have
+ * `scrollEnabled={false}`, so this is the only thing that moves the page.
+ * Rows are measured, not computed: a wrapped title changes a row's height.
  */
 export function usePageFocusScroll(lead = 0): {
   scroller: React.RefObject<ScrollView | null>;
   /**
-   * `onLayout` for a plain `View` wrapping the scroller.
-   *
-   * **Not the `ScrollView`'s own `onLayout`, which reports nothing here.**
-   * Measured on the TCL: it leaves the viewport at `0`, so every decision
-   * abstains and no page scrolls. A wrapping `View` does report, and its
-   * height is the scroller's because the scroller fills it.
+   * `onLayout` for a plain `View` wrapping the scroller. The `ScrollView`'s
+   * own `onLayout` reports nothing (measured on the TCL set).
    */
   measureViewport: (event: LayoutChangeEvent) => void;
   /** `onLayout` for a measured block, keyed. Its `y` must be content-relative. */
@@ -56,10 +43,7 @@ export function usePageFocusScroll(lead = 0): {
         ? scrollTarget(extent, viewportHeight.current, scrollY.current, lead)
         : undefined;
       if (!extent || target === undefined) return;
-      // Recorded before the scroll rather than waiting to be told: touch is
-      // disabled on every scroller here, and a programmatic scroll that reported
-      // nothing would leave the next decision judging against an offset of zero,
-      // which reads as "already visible" for everything above the fold.
+      // Recorded here, not from a scroll event: a programmatic scroll may report none.
       scrollY.current = target;
       scroller.current?.scrollTo({ y: target, animated: true });
     },

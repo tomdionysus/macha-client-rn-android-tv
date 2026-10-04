@@ -1,27 +1,14 @@
 const { withAndroidManifest } = require('expo/config-plugins');
 
 /**
- * Make this an Android *television* app explicitly, not an app that happens to
- * run on one.
- *
- * `@react-native-tvos/config-tv` emits `android.software.leanback` with
- * `required="false"`, which is the permissive choice: it lets the same APK
- * install on a phone. This client is for the 10-foot UI only — D-pad focus, no
- * touch handling, no phone layouts — so the declaration is tightened to say so.
- *
- * What each line buys:
- *  - `leanback` required: the set is a hard requirement, so a phone is excluded
- *    rather than offered a UI with no way to move focus.
- *  - `touchscreen` / `faketouch` not required: a television has neither, and a
- *    required touchscreen is the single most common reason a TV refuses to
- *    install an Android app.
- *  - `LEANBACK_LAUNCHER`: emitted by config-tv already; asserted here so a
- *    change upstream cannot silently drop the app off the TV home screen.
- *  - `stateAlwaysHidden`: the keyboard only when asked for. Without it, an app
- *    brought back to the front on Settings raises the IME by itself: the window
- *    regains focus and the endpoints text field is the only natively focusable
- *    view. OK on a field still opens it, since `TextInput.focus()` asks
- *    explicitly. `adjustResize` is Expo's and is kept.
+ * Declares a television-only app; config-tv alone leaves the APK installable
+ * on a phone.
+ *  - `leanback` required: excludes handsets.
+ *  - `touchscreen` / `faketouch` not required: a set has neither, and requiring
+ *    one stops it installing.
+ *  - `LEANBACK_LAUNCHER`: asserted in case config-tv stops emitting it.
+ *  - `stateAlwaysHidden`: keeps the IME down when the window regains focus on
+ *    Settings; `adjustResize` is Expo's.
  */
 const withAndroidTvOnly = (config) =>
   withAndroidManifest(config, (config) => {

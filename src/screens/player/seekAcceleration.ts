@@ -1,39 +1,24 @@
 /**
- * An accelerating seek "finder" for held D-pad presses.
+ * An accelerating seek for held D-pad presses: a tap nudges by a second, a
+ * sustained hold moves minutes.
  *
- * **A port of `macha-client/src/screens/player/seekAcceleration.ts`**, ladder
- * and thresholds unchanged, because the requirement is that this client
- * behaves like the web TV client rather than merely that it seeks. The web
- * client's `seekDirectionForKey` is not here: it reads DOM key names, and a
- * direction arrives at this client already resolved by `tvFocus`.
+ * A port of `macha-client/src/screens/player/seekAcceleration.ts`, ladder and
+ * thresholds unchanged; `seekAcceleration.test.ts` pins them. A local copy,
+ * not core's: core treats a ladder tuned to a remote's auto-repeat as
+ * presentation.
  *
- * **It is duplicated rather than shared, and that is not settled.** The rule in
- * `AGENTS.md` is that the dependency-free part of anything common belongs in
- * core, and this file has no dependencies at all. Core keeps D-pad focus
- * scoring out on the grounds that geometry deciding what a viewer looks at
- * next is presentation, and the same argument covers a ladder tuned to a
- * remote's auto-repeat.
- * Both TV clients hold the same numbers; the tests below pin them on this
- * side, as `tvFocus.test.ts` does for the focus weights.
- *
- * A remote has no scrub wheel, so a fixed step is always wrong somewhere: 10s
- * is tedious across a film, 30s overshoots the moment you were looking for.
- * Holding the key therefore climbs a ladder — a tap nudges by a second, a
- * sustained hold ends up moving minutes.
- *
- * Time drives the rung rather than the number of key events, because auto-
- * repeat rates differ between a TV remote and a desktop keyboard; counting
- * events would accelerate at whatever speed the platform happens to repeat at.
+ * Elapsed time drives the rung, not the event count, because auto-repeat
+ * rates differ between platforms.
  */
 export const SEEK_LADDER_MS = [1_000, 2_000, 5_000, 10_000, 20_000, 30_000, 60_000, 300_000] as const;
 
-/** How long the key must be held at each rung before the next one is reached. */
+/** Hold time per rung. The web client's figure. */
 export const SEEK_RUNG_ADVANCE_MS = 600;
 
 /**
- * A gap longer than this ends the hold. Auto-repeat fires far faster than
- * this, so any real pause between presses starts again at one second — and a
- * missed keyup (which a TV will do) cannot leave the ladder stuck at the top.
+ * A gap longer than this ends the hold. Well above auto-repeat intervals, so
+ * a missed keyup cannot leave the ladder stuck at the top. The web client's
+ * figure.
  */
 export const SEEK_HOLD_RELEASE_MS = 350;
 
@@ -45,21 +30,15 @@ export interface SeekHold {
   lastEventAtMs: number;
 }
 
-/** The step for a key that has been held this long, in milliseconds. */
 export function seekLadderStepMs(heldMs: number): number {
   const rung = Math.min(SEEK_LADDER_MS.length - 1, Math.max(0, Math.floor(heldMs / SEEK_RUNG_ADVANCE_MS)));
-  // The rung is clamped into range above, so the fallback is unreachable —
-  // it is here because this tree compiles with `noUncheckedIndexedAccess`,
-  // which the web client does not, and an index signature cannot know about the
-  // clamp. The top of the ladder is the right answer if it ever were reached.
+  // Unreachable fallback, for `noUncheckedIndexedAccess`.
   return SEEK_LADDER_MS[rung] ?? SEEK_LADDER_MS[SEEK_LADDER_MS.length - 1]!;
 }
 
 /**
- * Advance a hold by one key event, returning the signed distance to move and
- * the hold to carry into the next event. Reversing direction restarts the
- * ladder: changing your mind is a new search, not a continuation of the old
- * one at minutes per press.
+ * Advances a hold by one key event, returning the signed distance to move and
+ * the hold to carry forward. Reversing direction restarts the ladder.
  */
 export function accelerateSeek(
   previous: SeekHold | undefined,

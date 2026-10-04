@@ -1,20 +1,7 @@
 /**
- * Where a scroller must move to bring a focused item into view, on either axis.
- *
- * **This exists because focus and scrolling are separate on this platform and
- * only one of them is ours.** `tvFocus` moves focus by geometry across every
- * registered rectangle, including rectangles that are off screen — which is
- * correct, and is how the web client behaves — so a scroller that does not
- * follow leaves focus somewhere nobody can see.
- *
- * One rule serves both axes: move only when the focused thing is not fully in
- * view. Scrolling on every focus change drags a card already in plain sight
- * under the viewer, and vertical sections cannot use a fixed stride since they
- * are as tall as their content.
- *
- * Kept as a pure function rather than living inside the component so the rule
- * can be tested without a renderer — this project has no React test
- * environment, and the arithmetic is the part that goes wrong.
+ * Where a scroller must move to bring a focused item into view, on either
+ * axis. `tvFocus` moves focus onto off-screen rectangles, so scrollers must
+ * follow. Moves only when the item is not fully in view.
  */
 
 export interface ScrollExtent {
@@ -26,12 +13,7 @@ export interface ScrollExtent {
 
 /**
  * The offset to scroll to, or `undefined` when the item is already fully
- * visible and scrolling would only move the picture under the viewer.
- *
- * `lead` is breathing room kept beyond an item scrolled to: an item flush
- * against the edge of a television screen reads as cut off, and at three metres
- * there is no scrollbar to say otherwise. On a row it doubles as the web
- * client's lead-in, which shows there is more to one side.
+ * visible. `lead` is the margin kept between the item and the viewport edge.
  */
 export function scrollTarget(
   item: ScrollExtent,
@@ -39,8 +21,7 @@ export function scrollTarget(
   scrolled: number,
   lead = 0,
 ): number | undefined {
-  // Nothing measured yet. Scrolling on a guess would move the page under a
-  // viewer who can see perfectly well where they are.
+  // Nothing measured yet.
   if (viewportLength <= 0) return undefined;
 
   const top = item.offset;
@@ -50,8 +31,7 @@ export function scrollTarget(
 
   if (top >= viewportTop + lead && bottom <= viewportBottom - lead) return undefined;
 
-  // Taller than the viewport: show its top rather than its bottom, because a
-  // section's heading is what says which control the viewer is on.
+  // Taller than the viewport: show its top, where a section's heading is.
   if (item.length + lead * 2 >= viewportLength) return Math.max(0, top - lead);
 
   if (top < viewportTop + lead) return Math.max(0, top - lead);
@@ -59,13 +39,9 @@ export function scrollTarget(
 }
 
 /**
- * Where a jump scrolls to: the item at the top, with `lead` above it, whether
- * or not it was already in view. For the alphabet strip: a jump is a new place
- * to read from, so its titles come to the top of the screen, where
- * `scrollTarget`'s least movement would leave a forward jump's titles on the
- * bottom row. Near the last titles they come as high as the page allows:
- * `maxOffset` is the page's last scroll position, so the offset answered is
- * the one the scroller actually reaches.
+ * Where a jump scrolls to: the item at the top with `lead` above it, even if
+ * already in view. `maxOffset` is the page's last scroll position, so the
+ * answer is an offset the scroller actually reaches.
  */
 export function jumpTarget(item: ScrollExtent, lead = 0, maxOffset = Number.POSITIVE_INFINITY): number {
   return Math.max(0, Math.min(item.offset - lead, maxOffset));

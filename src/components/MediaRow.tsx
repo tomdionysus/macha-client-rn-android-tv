@@ -7,11 +7,8 @@ import { scrollTarget } from '../hooks/focusScroll';
 import { colour, font, layout, pageGutter, rem, type } from '../styles/theme';
 
 /**
- * A titled horizontal rail, from `.media-section` / `h2` / `.media-row`.
- *
- * The web client relies on `scrollIntoView` after each focus move; here the row
- * scrolls itself when one of its cards takes focus, from that card's laid-out
- * extent.
+ * A titled horizontal rail, from `.media-section` / `h2` / `.media-row`. It
+ * scrolls itself when one of its cards takes focus.
  */
 export function MediaRow({
   title,
@@ -29,20 +26,16 @@ export function MediaRow({
   onSelect: (media: MediaSummary) => void;
   defaultFocusFirst?: boolean;
   progressFor?: (media: MediaSummary) => number | undefined;
-  /** Any card in this row taking focus. For a page scroller following focus. */
+  /** A card in this row took focus; for a page scroller following focus. */
   onRowFocus?: () => void;
   /**
-   * Give each card its media focus id, so a Back to this screen can return
-   * focus to the card that was opened. **Opt-in because ids must be unique on
-   * screen**, and Home can show one title in two rails.
+   * Give each card its media focus id, so Back returns focus to the card that
+   * was opened. Opt-in: ids must be unique on screen.
    */
   addressable?: boolean;
-  /** Each card gets a remove button calling this: Continue Watching's. */
+  /** Gives each card a remove button (Continue Watching). */
   onRemove?: (media: MediaSummary) => void;
-  /**
-   * Give each card an id scoped to this row, so Back returns to it. For a
-   * screen that can show one title in two rows (Home); see `mediaFocusId`.
-   */
+  /** Scope each card's id to this row, where a title can appear in two rows; see `mediaFocusId`. */
   rail?: string;
 }): React.JSX.Element | null {
   const scroller = useRef<ScrollView | null>(null);
@@ -53,15 +46,8 @@ export function MediaRow({
   if (items.length === 0) return null;
   const firstFocus = firstAvailableIndex(items);
 
-  /**
-   * Move the row only when the focused card is not already in view, so a card
-   * in plain sight does not drag the row under the viewer. Positions are
-   * measured rather than computed from a stride, which would hold only while
-   * every card is exactly the same width.
-   *
-   * The lead keeps a sliver of the neighbouring card visible, which is the same
-   * signal the web row gives that there is more to one side.
-   */
+  // Scrolls only when the focused card is out of view, from measured
+  // positions; the lead keeps a sliver of the next card visible.
   const revealCard = (index: number) => {
     const card = cards.current.get(index);
     if (!card) return;
@@ -79,11 +65,9 @@ export function MediaRow({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
-        // A television has no touch; the D-pad drives this entirely.
+        // The D-pad drives this entirely.
         scrollEnabled={false}
-        // Measured from a wrapping `View` for the vertical scrollers because a
-        // `ScrollView` reports nothing here; horizontally it does report, and
-        // this is the frame rather than the content.
+        // The frame's width, not the content's.
         onLayout={(event) => {
           viewportWidth.current = event.nativeEvent.layout.width;
         }}
@@ -102,9 +86,7 @@ export function MediaRow({
             onFocusChange={(focused) => {
               if (!focused) return;
               revealCard(index);
-              // The row moves horizontally; the page has to move vertically to
-              // it, or focus lands on a row below the fold and the selector sits
-              // on a card cut off by the bottom edge.
+              // The page must scroll vertically to this row too.
               onRowFocus?.();
             }}
           />

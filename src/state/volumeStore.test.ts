@@ -13,10 +13,7 @@ function fakeStorage(seed: Record<string, string> = {}) {
   };
 }
 
-/**
- * Pins the behaviour the web client's copy shares, particularly the storage
- * key, which carries a viewer's existing volume.
- */
+/** Behaviour shared with the web client's copy. */
 describe('VolumeStore', () => {
   it('keeps core\'s storage key, so nobody\'s volume resets on upgrade', () => {
     const { store, map } = fakeStorage();
@@ -37,16 +34,12 @@ describe('VolumeStore', () => {
   });
 
   it('reads full volume rather than silence when the stored value is unusable', () => {
-    // Coming up silent with nothing explaining why is the failure this whole
-    // area is designed against; an unreadable value must not cause it.
     const { store } = fakeStorage({ 'macha.volume.v1.x': 'not-a-number' });
     expect(new VolumeStore('x', store).load()).toBe(1);
   });
 
   it('reads an empty stored value as absent, not as a deliberate mute', () => {
-    // `Number('')` is 0 and 0 is finite, so a corrupted or half-written entry
-    // would otherwise parse as silence — the exact failure this store exists
-    // to prevent, and the one a viewer cannot diagnose.
+    // `Number('')` is 0, which would otherwise read as a mute.
     for (const corrupt of ['', '   ', '\n']) {
       const { store } = fakeStorage({ 'macha.volume.v1.x': corrupt });
       expect(new VolumeStore('x', store).load(), JSON.stringify(corrupt)).toBe(1);

@@ -11,20 +11,8 @@ export interface NavItem {
 }
 
 /**
- * The application top bar, from `.topbar` in base.css.
- *
- * The web client's three-column grid — brand, centred nav, trailing controls —
- * is reproduced with flex, since the grid there exists only to keep the nav
- * optically centred while the outer cells size to content.
- *
- * **No platform badge, as on the web.** It would label the build on every
- * screen for the benefit of nobody but a developer; Status reports the platform
- * beside the codec probes that give it meaning.
- *
- * The trailing pair is that client's `topbar-trailing`: who the viewer is, and
- * a cog to the settings screen. Identity is a glyph and a name rather than an
- * avatar, because *am I signed in as the right person* is the one question it
- * exists to answer at a glance.
+ * The application top bar, from `.topbar` in base.css: brand, centred nav,
+ * then the account and a cog to Settings.
  */
 export function TopBar({
   items,
@@ -38,9 +26,8 @@ export function TopBar({
   items: NavItem[];
   active: string;
   onSelect: (key: string) => void;
-  /** Who the session belongs to, when it belongs to anyone. */
   username?: string;
-  /** Selecting the account signs out. Omitted when there is nobody to sign out. */
+  /** Selecting the account signs out. */
   onSignOut?: () => void;
   onOpenSettings: () => void;
   settingsActive?: boolean;
@@ -72,10 +59,7 @@ export function TopBar({
 
       {/* `.topbar-trailing { display: flex; align-items: center; gap: .75rem }` */}
       <View style={styles.trailing}>
-        {/*
-          * **Focusable, because a television has no other way out of an
-          * account.** This is the client's only sign-out.
-          */}
+        {/* The client's only sign-out. */}
         {username ? (
           <Focusable
             onSelect={() => onSignOut?.()}
@@ -112,9 +96,8 @@ export function TopBar({
 }
 
 const styles = StyleSheet.create({
-  // `.topbar { min-height: 62px; padding: .45rem 3vw; gap: 2rem }` over
-  // `--navigation-surface`, whose two stops are close enough at this opacity
-  // that a flat fill is indistinguishable on a panel.
+  // `.topbar { min-height: 62px; padding: .45rem 3vw; gap: 2rem }`, with
+  // `--navigation-surface`'s gradient as a flat fill.
   topbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -160,9 +143,7 @@ const styles = StyleSheet.create({
   navItemActive: {
     backgroundColor: colour.accentSurface,
   },
-  // Focus is the standard ring (`Focusable`'s 1px `--focus` border) over the
-  // stronger fill. Without the ring, focus and the current page would be two
-  // dark fills a shade apart.
+  // With `Focusable`'s ring, which tells focus from the active page's fill.
   navItemFocused: {
     backgroundColor: colour.accentSurfaceStrong,
   },
@@ -182,15 +163,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: rem(0.75),
   },
-  /**
-   * `AccountMenu`'s trigger, reduced to what a remote can use.
-   *
-   * That client opens an overflow with sign-out and account links; there is no
-   * `OverflowMenu` here, and identity still has to be visible —
-   * *am I signed in as the right person* is the question it exists to answer.
-   * So the name is shown and the menu is not, rather than the control being
-   * left out until the menu exists.
-   */
+  // `AccountMenu`'s trigger without its overflow menu: the name only.
   account: {
     flexDirection: 'row',
     alignItems: 'center',

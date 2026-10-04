@@ -11,17 +11,9 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {} }));
 const { shouldHydrate } = await import('./storage');
 
 /**
- * The hydrate filter is a contract with core, not a local convenience.
- *
- * Core's `StorageLike` is synchronous, so this client answers every core read
- * from a cache loaded once at startup. A key absent from that cache reads as
- * `null`, and **core cannot distinguish "not loaded" from "not set"** — so a
- * key this filter misses is not a missing value, it is core drawing a wrong
- * conclusion. `clientId()` mints a fresh identity; the Continue Watching
- * migration decides there is nothing to adopt.
- *
- * Driven by core's own registry rather than by a list copied here, so a key
- * core adds fails this suite instead of failing on a television.
+ * Core cannot tell an unhydrated key from an unset one, so a key this filter
+ * misses is a wrong conclusion in core. Driven by core's registry so a key
+ * core adds fails here.
  */
 describe('hydrate filter, against core\'s key registry', () => {
   it('loads every complete key core owns', () => {
@@ -41,27 +33,19 @@ describe('hydrate filter, against core\'s key registry', () => {
   });
 
   it('covers both of core\'s naming conventions', () => {
-    // Named explicitly: matching only one of these drops the other silently.
     expect(shouldHydrate('macha.session.v1')).toBe(true);
     expect(shouldHydrate('macha-client-id')).toBe(true);
   });
 
   it('loads the keys core reads only to migrate from', () => {
-    // Read when the current key is empty and deliberately never deleted. Unread
-    // on a cold start, adoption does not happen and resume positions are lost
-    // with nothing to attribute it to.
+    // Unhydrated, the migration silently does not run and resume positions are lost.
     expect(shouldHydrate('macha-client-progress:some-client-id')).toBe(true);
     expect(shouldHydrate('macha-server-url')).toBe(true);
   });
 
   it('loads this client\'s own keys, which core\'s registry does not cover', () => {
-    // `isMachaStorageKey` answers "is this one of core's" and returns false
-    // here, which is why the filter is not delegated to it.
-    //
-    // Asserted by literal rather than through core's exported prefixes, because
-    // both of these are ours and core's registry is not a record of them: a
-    // core release that drops `macha.volume.v1.` from its registry must not
-    // drop it from this suite.
+    // `isMachaStorageKey` is false for these. Asserted by literal: core's
+    // registry is not a record of this client's keys.
     expect(shouldHydrate('macha-playback-failure-trail-v1')).toBe(true);
     expect(shouldHydrate('macha.volume.v1.some-client-id')).toBe(true);
   });

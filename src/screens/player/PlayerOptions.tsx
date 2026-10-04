@@ -26,32 +26,15 @@ import {
 } from './playbackOptions';
 
 /**
- * Playback options — mode, quality, audio, subtitles.
- *
- * The web client's `PlayerOptions`, re-laid for a remote. Same groups in the
- * same order and the same rules behind them (`playbackOptions.ts`), but the
- * controls are rows a D-pad crosses rather than inline buttons, and the whole
- * panel takes its own focus scope so the transport underneath cannot be reached
- * while it is open.
- *
- * **Why this matters more here than on the web.** Forcing a mode by hand is how
- * a downmix problem gets isolated, and the notes under the mode row are the
- * only place on a television where a silently-transcoding library can show
- * itself — there is no console anyone will open.
+ * Playback options: mode, quality, audio, subtitles. The web client's
+ * `PlayerOptions` as D-pad rows, with the rules in `playbackOptions.ts`. The
+ * panel takes its own focus scope, so the transport is unreachable while open.
  */
 export const OPTIONS_SCOPE = 'player-options';
 
 /**
- * How a viewer leaves the panel downwards.
- *
- * The panel owns the D-pad outright while it is open, so Down from the last
- * row has no candidate below and would do nothing. It returns to the
- * transport instead, which is where Down from the bottom of anything goes.
- *
- * Carried through context rather than threaded as a prop because the options
- * that need it are generated inside `map`s three groups deep, and only the last
- * group's are entitled to it — which group that is depends on what this session
- * can actually change.
+ * Down from the last group leaves the panel for the transport. Context, not a
+ * prop: only the last group's options get it, and which group is last varies.
  */
 const ExitDown = createContext<(() => void) | undefined>(undefined);
 
@@ -72,12 +55,10 @@ export function PlayerOptions({
   /** Core's verdict per mode for the file playing; undefined without facts. */
   offeredModes?: readonly OfferedMode[];
   onApply: (update: PlaybackUpdate) => void;
-  /** A version picked here, which core plays as the viewer's choice. */
   onPlayVersion: (step: VersionStep) => void;
-  /** Down from the last row, which is how the panel is left without Back. */
+  /** Called on Down from the last row. */
   onDismiss: () => void;
 }): React.JSX.Element {
-  // One row for versions and caps together; see `qualityChoices`.
   const qualityRow = qualityChoices(
     versions?.steps ?? [],
     session.options.qualityHeights,
@@ -101,19 +82,10 @@ export function PlayerOptions({
     : pendingPreferences?.subtitleStream ?? session.selected.subtitleStream;
 
   /**
-   * "Auto" is not a value the server understands — the client decides.
-   * `'choose'` is a core-side sentinel that never reaches the wire: the
-   * coordinator re-runs the instruction chooser against this media's facts and
-   * this platform's policy, then sends a concrete mode.
-   *
-   * Sent on every press rather than clearing the field, so Auto means the same
-   * thing mid-playback as it does at the start. An absent mode would leave the
-   * server on whatever it was already doing, and the control would highlight
-   * while changing nothing.
-   *
-   * The mode is sent **alone**. Naming it clears the per-stream transforms and
-   * the quality caps server-side, which is what lets the chooser re-derive them
-   * (see `playbackOptions.ts`).
+   * `'choose'` is core's sentinel for Auto and never reaches the wire: the
+   * coordinator re-runs the chooser and sends a concrete mode. Sent on every
+   * press, since an absent mode changes nothing. The mode is sent alone:
+   * naming it clears the stream transforms and quality caps server-side.
    */
   const applyMode = (value: PlaybackMode | 'choose') => onApply({ preferences: { mode: value } });
   const chosenByViewer = effective.mode !== undefined && effective.mode !== 'choose';
@@ -144,10 +116,7 @@ export function PlayerOptions({
         {note ? <Note text={note} warning={noteIsWarning(instruction)} /> : null}
         {assumed ? <Note text={assumed} warning /> : null}
 
-        {/*
-          One Quality row: the item's versions (the detail page's buttons),
-          then any smaller cap the node offers.
-        */}
+        {/* The item's versions, then any smaller cap the node offers. */}
         {hasQuality ? (
           <>
             <Group label="Quality" exitDown={lastGroup === 'quality' ? onDismiss : undefined}>
@@ -259,8 +228,7 @@ function Option({
       scope={OPTIONS_SCOPE}
       defaultFocus={defaultFocus}
       onSelect={onSelect}
-      // Only the last group's options claim Down, and only to leave: anywhere
-      // else it is the scorer's, moving to the group below.
+      // Only the last group's options claim Down; elsewhere it is the scorer's.
       ownsDirection={exitDown ? (direction) => direction === 'down' : undefined}
       onDirection={exitDown ? (direction) => direction === 'down' && exitDown() : undefined}
       style={[styles.option, selected && styles.optionSelected]}
@@ -282,10 +250,7 @@ function Note({ text, warning }: { text: string; warning?: boolean }): React.JSX
 const styles = StyleSheet.create({
   /**
    * `.player-options { display: grid; gap: .65rem; max-height: min(34vh, 320px);
-   * margin: 0 0 1rem; padding: .8rem 0 .2rem; overflow-y: auto }`.
-   *
-   * **A block inside the chrome, above the scrubber — not a pane**, as on the
-   * web: it does not cover the picture and draws no heading of its own.
+   * margin: 0 0 1rem; padding: .8rem 0 .2rem; overflow-y: auto }`
    */
   panel: {
     maxHeight: Math.min(vh(34), px(320)),
@@ -296,7 +261,7 @@ const styles = StyleSheet.create({
   groups: {
     gap: rem(0.65),
   },
-  /** `.player-option-group { grid-template-columns: 6.5rem 1fr; gap: .8rem }`. */
+  /** `.player-option-group { grid-template-columns: 6.5rem 1fr; gap: .8rem }` */
   group: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -304,7 +269,7 @@ const styles = StyleSheet.create({
   },
   /**
    * `.player-option-group > span { padding-top: .45rem; color: var(--text-faint);
-   * font-size: .78rem; text-transform: uppercase; letter-spacing: .08em }`.
+   * font-size: .78rem; text-transform: uppercase; letter-spacing: .08em }`
    */
   groupLabel: {
     width: rem(6.5),
@@ -314,7 +279,7 @@ const styles = StyleSheet.create({
     letterSpacing: type.eyebrow * 0.08,
     textTransform: 'uppercase',
   },
-  /** `.player-option-group > div { display: flex; flex-wrap: wrap; gap: .4rem }`. */
+  /** `.player-option-group > div { display: flex; flex-wrap: wrap; gap: .4rem }` */
   groupOptions: {
     flex: 1,
     flexDirection: 'row',
@@ -323,25 +288,22 @@ const styles = StyleSheet.create({
   },
   /**
    * `.player-option-group button { border: 1px solid #3a3a40; border-radius: 999px;
-   * padding: .42rem .7rem; background: #09090ab8; color: #bcbcc2; font-size: .82rem }`.
+   * padding: .42rem .7rem; background: #09090ab8; color: #bcbcc2; font-size: .82rem }`
    */
   option: {
     paddingHorizontal: rem(0.7),
     paddingVertical: rem(0.42),
     borderRadius: radius.pill,
-    // `focusFrame.border`, not base.css's 1px: measured on the TCL set, a
-    // one-pixel focus border on these chips cannot be read from the sofa.
-    // Always present, so nothing moves when focus lands.
+    // `focusFrame.border`, not base.css's 1px, which is unreadable from the
+    // sofa (measured on the TCL set). Always present, so focus moves nothing.
     borderWidth: focusFrame.border,
     borderColor: colour.inputBorder,
     backgroundColor: colour.optionSurface,
   },
   /**
    * `:hover, :focus-visible, .selected { border-color: var(--focus);
-   * background: var(--accent-surface-strong); color: #dedee2 }` — one rule for
-   * all three on the web, and selected and focused are different things here, so
-   * the border carries focus and the fill carries selection — **only**, or a
-   * focused chip is indistinguishable from a selected one.
+   * background: var(--accent-surface-strong); color: #dedee2 }`
+   * Split here: the fill carries selection only, the border focus only.
    */
   optionSelected: {
     backgroundColor: colour.accentSurfaceStrong,
@@ -356,18 +318,14 @@ const styles = StyleSheet.create({
   optionLabelActive: {
     color: colour.heading,
   },
-  /** `.player-option-note { grid-column: 2; color: var(--text-faint); font-size: .75rem }`. */
+  /** `.player-option-note { grid-column: 2; color: var(--text-faint); font-size: .75rem }` */
   note: {
     marginLeft: rem(7.3),
     color: colour.textFaint,
     fontSize: type.faint,
     lineHeight: type.faint * 1.35,
   },
-  /**
-   * A warning is the whole point of the note: it is the only signal on this
-   * platform that the chooser fell back, or decided without something it
-   * should have had.
-   */
+  /** The only on-screen signal that the chooser fell back or lacked facts. */
   noteWarning: {
     color: colour.text,
   },

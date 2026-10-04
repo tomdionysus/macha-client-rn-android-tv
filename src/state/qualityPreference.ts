@@ -2,16 +2,11 @@ import { QualityPreferenceStore, type QualityClass } from '@machafoundation/core
 import { nativeStorage } from './storage';
 
 /**
- * The viewer's quality ceiling for automatic play, kept per device.
+ * The viewer's quality ceiling for automatic play, per device; unset, play
+ * caps at the display's class. The store is core's. A television only sets
+ * `wifi`: core counts an unnamed connection as Wi-Fi.
  *
- * A ceiling in Settings (720p, 1080p, 1440p, 4K), **per device**; with no
- * setting, automatic play caps at the display's class. The store is core's
- * (key `macha.qualityPreference.v1`, in its registry, so the startup hydrate's
- * contract test covers it); every client keeps the setting in one shape. A television only ever sets `wifi`:
- * it passes no connection, and core counts an unnamed connection as Wi-Fi.
- *
- * Built on first use with `nativeStorage` named, rather than at import from
- * the host's default, so it cannot be constructed before `configureMachaHost`.
+ * Built on first use so it cannot precede `configureMachaHost`.
  */
 let store: QualityPreferenceStore | undefined;
 

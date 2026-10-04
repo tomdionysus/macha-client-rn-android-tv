@@ -6,18 +6,8 @@ import { colour, font, pageGutter, rem, type } from '../styles/theme';
 import { statusNodeName } from '../text/viewerText';
 
 /**
- * Cluster status, from the web client's `/status` section.
- *
- * **A reading, not a console.** That client has four routes here — cluster,
- * client, connectivity and a page per node — with actions on some of them. A
- * television is a poor place to administer anything, so this is the part a
- * viewer standing in front of the set can actually use: is the cluster healthy,
- * how many nodes are up, and which of them is which. The rest stays where a
- * keyboard is.
- *
- * Everything shown is core's `ClusterStatusApi`, unparsed and unsummarised by
- * this client: `health`, the node roll and each node's state are the server's
- * own words, not re-derived here.
+ * Cluster status, read-only, from the web client's `/status` section. All of
+ * it is core's `ClusterStatusApi` in the server's own words, not re-derived.
  */
 export function StatusScreen({ api }: { api: ClusterStatusApi }): React.JSX.Element {
   const snapshot = useRefreshableAsync(() => api.status(), [api]);
@@ -50,11 +40,7 @@ export function StatusScreen({ api }: { api: ClusterStatusApi }): React.JSX.Elem
           name="Metadata"
           value={`${cluster.metadata_availability}, ${cluster.metadata_voters_online} of ${cluster.metadata_voters} voters, quorum ${cluster.metadata_quorum_required}`}
         />
-        {/*
-          Conditions are the server's own account of what is wrong, rendered
-          verbatim and only when present: an empty list is the absence of a
-          report, not "no problems", so nothing is shown in its place.
-        */}
+        {/* The server's own words; an empty list is no report, not "no problems". */}
         {cluster.conditions.length > 0
           ? cluster.conditions.map((condition) => (
               <Text key={condition} style={styles.condition}>

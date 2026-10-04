@@ -29,7 +29,7 @@ function response(status: number, body = '', headers: Record<string, string> = {
   } as unknown as Response;
 }
 
-/** A clock and a sleep that advance together, so a test never waits in real time. */
+/** A clock and a sleep that advance together. */
 function fakeHost() {
   let clock = 0;
   return {
@@ -58,11 +58,7 @@ describe('awaitFirstFragment', () => {
   });
 
   it('probes the fragment with one byte, not a segment', async () => {
-    // A probe that pulled a whole fragment would cost a television a segment
-    // of traffic per attempt, on the node already struggling to produce it.
-    //
-    // Asserted on the fragment leg only: what core sends on the *playlist*
-    // legs is core's to change, and pinning it here would couple to that.
+    // Asserted on the fragment leg only: the playlist legs are core's to change.
     const seen: [string, RequestInit][] = [];
     const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
       seen.push([url, init]);
@@ -79,8 +75,7 @@ describe('awaitFirstFragment', () => {
   });
 
   it('keeps Range non-overridable by a source header', async () => {
-    // Core's decision: source headers beat the cache headers, but never the
-    // Range. A header widening it silently turns the probe into a full fetch.
+    // A source header widening Range would turn the probe into a full fetch.
     const seen: RequestInit[] = [];
     const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
       seen.push(init);
@@ -99,9 +94,7 @@ describe('awaitFirstFragment', () => {
   });
 
   it('waits out a hold on the same node and then succeeds', async () => {
-    // The whole point: a 500 is the node saying it is producing the fragment
-    // it already promised. Failing over cannot help — the next node is
-    // producing a different generation and does not have it either.
+    // A 500 is the node still producing the fragment; failing over cannot help.
     const host = fakeHost();
     let fragmentAttempts = 0;
     const fetchImpl = vi.fn(async (url: string) => {
@@ -118,9 +111,7 @@ describe('awaitFirstFragment', () => {
   });
 
   it('does not wait out a broken generation or a genuine miss', async () => {
-    // 503 is terminal and 404 is past the end of the plan. Sitting patiently
-    // on either is the mistake a hold-aware caller makes in the other
-    // direction.
+    // 503 is terminal and 404 is past the end of the plan.
     for (const status of [503, 404]) {
       const fetchImpl = vi.fn(async (url: string) => (
         url.endsWith('index.m3u8') ? response(200, MEDIA) : response(status)
@@ -135,8 +126,6 @@ describe('awaitFirstFragment', () => {
   });
 
   it('asks core which status is a hold rather than hardcoding one', () => {
-    // If core reassigns the hold status this client must follow without being
-    // edited, so the status is core's answer, never a local literal.
     expect(playbackFailureKindForStatus(500)).toBe('not-ready');
     expect(playbackFailureKindForStatus(503)).toBe('stream');
   });
@@ -167,14 +156,13 @@ describe('awaitFirstFragment', () => {
 
     expect(readiness.ready).toBe(false);
     expect(readiness.waitedMs).toBeLessThanOrEqual(FIRST_FRAGMENT_TIMEOUT_MS);
-    // The reason has to carry how long it held out, or the trail shows a
-    // refusal with no sense of whether it was patient or instant.
+    // The reason carries how long it held out.
     expect(readiness.reason).toMatch(/after \d+s/);
   });
 
   it('abandons the wait when a later generation takes over', async () => {
-    // `play()` can be called again while this runs. Finishing afterwards
-    // would hand the player a source two generations stale.
+    // `play()` can be called again while this runs; finishing would hand
+    // the player a stale source.
     const host = fakeHost();
     let superseded = false;
     const fetchImpl = vi.fn(async (url: string) => {
@@ -194,11 +182,7 @@ describe('awaitFirstFragment', () => {
   });
 
   it('treats a transfer that never became a response as node evidence', async () => {
-    // Not something to wait out: it says nothing about the fragment.
-    //
-    // The thrown message has to survive as far as the failure trail: on a
-    // television it is the only place anyone can read it, and a generic
-    // "did not answer" cannot be told apart from a node that answered badly.
+    // Not waited out, and the thrown message must reach the failure trail.
     const fetchImpl = vi.fn(async () => { throw new Error('network down'); }) as unknown as typeof fetch;
 
     const readiness = await awaitFirstFragment(source(), { fetchImpl, ...fakeHost().options });
@@ -209,10 +193,8 @@ describe('awaitFirstFragment', () => {
   });
 
   it('does not condemn a node over a manifest it could not assess', async () => {
-    // Variants nested past one level leave core with no targets, which it
-    // reports as `unassessable` rather than as a refusal. That is not a
-    // finding against the node, and treating it as one would destroy a source
-    // the player might well have played.
+    // Variants nested past one level leave core no targets: `unassessable`,
+    // which is not a refusal.
     const fetchImpl = vi.fn(async () => response(200, MASTER)) as unknown as typeof fetch;
 
     const readiness = await awaitFirstFragment(source(), { fetchImpl, ...fakeHost().options });
@@ -229,8 +211,6 @@ describe('hold backoff', () => {
   });
 
   it('never retries faster than a hold costs to produce', () => {
-    // Retrying faster than the node can produce is pure load on a node that
-    // already waited out its own hold before answering.
     for (const attempt of [1, 2, 5, 50]) {
       expect(holdBackoffMs(attempt)).toBeGreaterThanOrEqual(HOLD_RETRY_BASE_MS);
     }
@@ -239,10 +219,8 @@ describe('hold backoff', () => {
 
 describe('the first-fragment budget against the server hold', () => {
   it('allows more than one hold, so a node is not abandoned as it speaks', () => {
-    // One hold's worth of patience is no patience at all: the node answers at
-    // the end of a hold, so a budget of one would abandon it just as it spoke.
-    // The budget is core's, so the requirement is pinned rather than a
-    // multiple.
+    // The node answers at the end of a hold, so a budget of one hold would
+    // abandon it as it spoke.
     expect(FIRST_FRAGMENT_TIMEOUT_MS).toBeGreaterThan(SERVER_SEGMENT_HOLD_MS * 2);
   });
 

@@ -8,13 +8,7 @@ import { mediaFocusId } from '../hooks/useAlphabetIndex';
 import { px, colour, focusFrame, font, layout, radius, rem, type } from '../styles/theme';
 import { episodeLabel } from '../text/viewerText';
 
-/**
- * One episode in the rail, from `.episode-card` / `.episode-still` in base.css.
- *
- * The still is 16:9 rather than the 2:3 of a poster, and the copy below it is a
- * heading row — title on the left, runtime or number on the right — over a
- * four-line synopsis.
- */
+/** One episode in the rail, from `.episode-card` / `.episode-still` in base.css. */
 export function EpisodeCard({
   episode,
   onSelect,
@@ -29,15 +23,14 @@ export function EpisodeCard({
   onFocusChange?: (focused: boolean) => void;
 }): React.JSX.Element {
   const still = episode.artwork?.thumbnail ?? episode.artwork?.backdrop ?? episode.artwork?.poster;
-  // An unavailable episode is greyed out and takes no focus, so OK cannot play it.
+  // An unavailable episode takes no focus, so OK cannot play it.
   const playable = availableToPlay(episode);
 
   return (
     <Focusable
       ring={false}
-      // Addressable by the episode's id, so Back out of the player can hand
-      // focus to the episode that was playing rather than to the season's
-      // first — `App.tsx` seeds the season level's focus memory with it.
+      // `App.tsx` seeds focus memory with this id, so Back from the player
+      // lands on the episode that was playing.
       focusId={mediaFocusId(episode.id)}
       onSelect={onSelect}
       disabled={!playable}
@@ -88,7 +81,7 @@ export function EpisodeCard({
 }
 
 const styles = StyleSheet.create({
-  /** An unavailable episode, greyed out on everything but its marker. */
+  /** Unavailable: everything but the marker. */
   greyed: {
     opacity: 0.4,
   },
@@ -103,23 +96,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     backgroundColor: 'transparent',
   },
-  /**
-   * **The movie card's focus, not the web client's episode focus**: episodes
-   * are selected the same way as movies. base.css gives `.episode-still-link` a
-   * 1px outline and a 1.018 scale, which at three metres reads as a thin line,
-   * so the card takes `focusFrame`'s wash and scale, like `MediaCard`.
-   */
+  // `MediaCard`'s focus (`focusFrame`), not `.episode-still-link`'s 1px
+  // outline, which is too thin at ten feet.
   cardFocused: {
     backgroundColor: colour.accentFocusWash,
     transform: [{ scale: focusFrame.scale }],
   },
-  /**
-   * `.episode-still { aspect-ratio: 16/9; border-radius: .62rem }`, as the
-   * frame rather than the picture: the border is always present and only its
-   * colour changes, standing off the still by `focusFrame.gap`, exactly as
-   * `MediaCard`'s poster does. The fill is on the image and placeholder so the
-   * gap reads as background, not as a grey frame.
-   */
+  // `.episode-still { aspect-ratio: 16/9; border-radius: .62rem }`. The
+  // border is always present, so focus changes only its colour.
   still: {
     aspectRatio: 16 / 9,
     borderRadius: rem(0.62),

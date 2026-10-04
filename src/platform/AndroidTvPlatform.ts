@@ -5,11 +5,8 @@ import { MachaPlayer, type NativeDecoder } from '../../modules/macha-player';
 import { ExpoVideoAdapter } from '../player/ExpoVideoAdapter';
 
 /**
- * The Android TV platform binding.
- *
- * `name` is `'android'` because the field names the *executor*, not the
- * operating system — this is ExoPlayer, the same as the phone client, and
- * saying `'web'` would be a claim nothing on the wire could catch.
+ * The Android TV platform binding. `name` names the executor (ExoPlayer), not
+ * the operating system.
  */
 export class AndroidTvPlatform implements Platform {
   readonly name = 'android' as const;
@@ -20,17 +17,8 @@ export class AndroidTvPlatform implements Platform {
   private player?: ExpoVideoAdapter;
 
   /**
-   * What the hardware decodes, read once from `MediaCodecList`.
-   *
-   * The measurement is why this client exists. On the target set the platform
-   * decoders include ac3, eac3, hevc and av01; Chromium in the WebView reports
-   * `aac, opus, vorbis, mp3, flac` and forces the node to transcode 5.1 E-AC-3
-   * to AAC, losing the centre channel in a downmix the mixer cannot perform.
-   *
-   * This stays on the native module although playback is `expo-video`, which
-   * exposes no codec enumeration at all. A hardcoded conservative list would
-   * make the node transcode AC-4, AV1 and Dolby Vision that the panel decodes
-   * natively, defeating the point of the client.
+   * What the hardware decodes, read once from `MediaCodecList` through the
+   * native module: `expo-video` exposes no codec enumeration.
    */
   async capabilities(): Promise<PlaybackCapabilities> {
     if (this.cached) return this.cached;
@@ -49,13 +37,11 @@ export class AndroidTvPlatform implements Platform {
       hdr: native.hdr,
       videoBitDepth: native.videoBitDepth,
       ...(native.dolbyVision.length > 0 ? { dolbyVision: native.dolbyVision } : {}),
-      // Real decoder limits when the device reports them. Never the panel's
-      // resolution: screen size is not a decoder limit, and claiming 1920x1080
-      // on a set whose decoder handles 4K forces a transcode that buys nothing.
+      // Decoder limits, never the panel's resolution.
       ...(native.maxWidth ? { maxWidth: native.maxWidth } : {}),
       ...(native.maxHeight ? { maxHeight: native.maxHeight } : {}),
-      // A codec whose own decoders stop short of the limit above, which core's
-      // chooser holds that codec's streams to instead.
+      // Codecs whose decoders stop short of that limit; core's chooser holds
+      // their streams to it.
       ...(native.videoCodecMaxSize && Object.keys(native.videoCodecMaxSize).length > 0
         ? { videoCodecMaxSize: native.videoCodecMaxSize }
         : {}),
@@ -66,13 +52,9 @@ export class AndroidTvPlatform implements Platform {
   }
 
   /**
-   * The panel's physical mode, for the quality ceiling; undefined where the
-   * platform reports none, which leaves automatic play uncapped by the display.
-   *
-   * **The panel's, not the UI's.** React Native's window on `.133` is
-   * 1920x1080 while the panel runs 3840x2160, and capping at the UI would keep
-   * a 4K set off its 4K files. Read once: the mode is the set's, not the app's.
-   * Not a capability either — screen size is not a decoder limit (above).
+   * The panel's physical mode, for the quality ceiling; undefined leaves
+   * automatic play uncapped. Not React Native's window, which on `.133` is
+   * 1920x1080 on a 3840x2160 panel. Read once.
    */
   display(): { width: number; height: number } | undefined {
     if (!this.displayRead) {
@@ -88,13 +70,8 @@ export class AndroidTvPlatform implements Platform {
   }
 
   /**
-   * The player core drives.
-   *
-   * `expo-video` rather than the native `ExoPlayerAdapter` in this tree: it is
-   * the proven component, and it is Media3 underneath so the hardware-decoder
-   * premise is unaffected. `ExpoVideoAdapter`'s own comment records what that
-   * costs — seamless failover most of all. Called once, from the
-   * `PlaybackRuntime` constructor.
+   * The player core drives: `expo-video` (Media3 underneath), at the cost
+   * `ExpoVideoAdapter` documents. Called once, from `PlaybackRuntime`.
    */
   createPlayer(): Player {
     this.player = new ExpoVideoAdapter();
@@ -102,28 +79,22 @@ export class AndroidTvPlatform implements Platform {
   }
 
   /**
-   * The surface for `PlayerScreen` to render.
-   *
-   * Core never carries a presentation handle — `PlaybackHost` is `unknown` and
-   * compared by identity — so the screen cannot get this from the runtime.
-   * Presentation only; nothing here is playback policy.
+   * The surface for `PlayerScreen`. Core's `PlaybackHost` is `unknown`, so the
+   * screen cannot get it from the runtime.
    */
   videoPlayer(): VideoPlayer | undefined {
     return this.player?.video;
   }
 
   /**
-   * Follow the active player across a promotion.
-   *
-   * A warm standby is a second `VideoPlayer`, so promoting it changes which
-   * instance `videoPlayer()` returns. A screen that read it once would keep
-   * rendering the player that was just released.
+   * A promoted standby is a second `VideoPlayer`, so `videoPlayer()` changes
+   * and the screen must follow it.
    */
   subscribePlayerChange(listener: (player: VideoPlayer) => void): () => void {
     return this.player?.subscribePlayerChange(listener) ?? (() => undefined);
   }
 
-  /** Presentation confirming it has let go of the player a promotion replaced. */
+  /** Presentation has let go of the player a promotion replaced. */
   releaseRetiredPlayer(): void {
     this.player?.releaseRetiredPlayer();
   }
@@ -132,10 +103,7 @@ export class AndroidTvPlatform implements Platform {
     BackHandler.exitApp();
   }
 
-  /**
-   * Video codecs with no hardware decoder, whose limits came from a software
-   * one. For Settings. Diagnostics, not policy.
-   */
+  /** Video codecs with no hardware decoder. For Settings; diagnostics only. */
   softwareOnlyVideoCodecs(): string[] {
     try {
       return MachaPlayer.capabilities().softwareOnlyVideoCodecs ?? [];
@@ -144,7 +112,7 @@ export class AndroidTvPlatform implements Platform {
     }
   }
 
-  /** The raw decoder list, for the Status screen. Diagnostics, not policy. */
+  /** The raw decoder list, for the Status screen; diagnostics only. */
   decoders(): NativeDecoder[] {
     try {
       return MachaPlayer.decoderInventory();

@@ -12,16 +12,9 @@ export interface EpisodeNavigation extends EpisodeNeighbours {
 }
 
 /**
- * The episodes either side of the one playing, for the player's control bar.
- *
- * **The rule is core's** (`episodeNeighbours`): which episode is next across a season
- * boundary, that specials are their own chain, and that a missing parent means
- * no neighbour rather than an error. This hook only owns the lifecycle — one
- * lookup per episode, abandoned when the episode changes.
- *
- * Settles to empty rather than failing: core resolves `{}` on anything it
- * cannot read, and the buttons it feeds are drawn greyed out in that case, so
- * there is never an error to show.
+ * The episodes either side of the one playing. The rule is core's
+ * (`episodeNeighbours`); this owns the lifecycle: one lookup per episode,
+ * abandoned when the episode changes. Settles to empty rather than failing.
  */
 export function useEpisodeNeighbours(api: MediaApi, media: MediaSummary | undefined): EpisodeNavigation {
   const episodeId = media?.kind === 'episode' ? media.id : undefined;
@@ -35,14 +28,12 @@ export function useEpisodeNeighbours(api: MediaApi, media: MediaSummary | undefi
         if (!controller.signal.aborted) setState({ id: episodeId, value });
       },
       () => {
-        // Only our own abort rejects; anything else core has already folded
-        // into an empty answer. Settle so the buttons stop reading as pending.
+        // Only our own abort rejects; settle so the buttons stop reading as pending.
         if (!controller.signal.aborted) setState({ id: episodeId, value: {} });
       },
     );
     return () => controller.abort();
-    // `media` is read for the lookup but the episode id is what identifies it:
-    // a re-render carrying the same episode must not start a second lookup.
+    // Keyed on the episode id: the same episode must not start a second lookup.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, episodeId]);
 

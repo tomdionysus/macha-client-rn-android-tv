@@ -1,16 +1,8 @@
 /**
  * The D-pad focus model, ported from the web client's `useTvNavigation.ts`.
- *
- * The scoring is reproduced rather than reinterpreted. Android's own focus
- * engine would also move focus around, but it would move it *differently* —
- * and the requirement is that this client behaves like the web TV client, not
- * merely that it is navigable. So the geometry, the weights and the tie-breaks
- * below are the same ones `scoreTvCandidate` uses in the browser; a weight
- * changed here must change there too, and in `tvFocus.test.ts`.
- *
- * The DOM's `[data-tv-focusable="true"]` query becomes an explicit registry:
- * React Native has no document to query, so every focusable registers itself
- * and reports its measured rectangle.
+ * The geometry, weights and tie-breaks mirror its `scoreTvCandidate`: change a
+ * weight in both places, and in `tvFocus.test.ts`. The DOM query becomes an
+ * explicit registry of focusables and their measured rectangles.
  */
 
 
@@ -34,30 +26,17 @@ export interface Focusable {
   order: number;
   disabled?: boolean;
   defaultFocus?: boolean;
-  /**
-   * Scope this focusable belongs to.
-   *
-   * The web client scopes candidates to `.player-chrome.visible` when the
-   * full-screen player is up, so hidden chrome cannot be focused. An exclusive
-   * scope here does the same job.
-   */
+  /** Exclusive scope, as the web client scopes candidates to `.player-chrome.visible`. */
   scope?: string;
   activate?: () => void;
   onFocusChange?: (focused: boolean) => void;
   /**
-   * Directions this element keeps rather than yielding to the focus scorer.
-   *
-   * The web client's `tvRangeOwnsDirection`: a focused `input[type=range]`
-   * owns left and right, because those are how a viewer scrubs. Everything
-   * else still moves focus, so up and down remain the way out — an element
-   * that kept all four would be one the viewer could not leave.
+   * Directions this element keeps instead of moving focus: the web client's
+   * `tvRangeOwnsDirection`. Never all four, or focus cannot leave.
    */
   ownsDirection?: (direction: TvDirection) => boolean;
   onDirection?: (direction: TvDirection) => void;
-  /**
-   * A side rail, such as the alphabet strip: reachable by Left or Right from
-   * any row, where nothing on the row itself lies that way (`pickTvCandidate`).
-   */
+  /** A side rail, such as the alphabet strip: reachable sideways from any row (`pickTvCandidate`). */
   rail?: boolean;
 }
 
@@ -71,21 +50,11 @@ function rectGap(start: number, size: number, otherStart: number, otherSize: num
 }
 
 /**
- * The web client's candidate score, with its geometry taken from edges rather
- * than centres.
- *
- * The weights are the web client's: primary-axis distance dominates;
- * cross-axis drift is discounted to a fifth so a slightly-offset neighbour
- * still wins over a distant aligned one; and a lane gap is penalised six-fold
- * so focus prefers staying within a row or column.
- *
- * A candidate is in the direction of travel only when its centre is past the
- * current element's *edge* on that side, and the primary distance is the gap
- * between the facing edges. Judged from centres, a wide element such as
- * Search's field would count every card right of its middle as "right" of it.
- * For two equal cards in a grid the edge rule chooses what a centre rule
- * would; it differs only where sizes differ. The web client judges from edges
- * the same way, so the two ports agree.
+ * The web client's candidate score: primary-axis distance, plus a fifth of the
+ * cross-axis drift, plus six times the lane gap. Judged from edges, as the web
+ * client does: a candidate is in the direction of travel only when its centre
+ * is past the current element's edge, and the primary distance is the gap
+ * between facing edges.
  */
 export function scoreTvCandidate(
   current: FocusRect,
@@ -116,12 +85,7 @@ export function scoreTvCandidate(
   return primary + secondary * 0.2 + laneGap * 6;
 }
 
-/**
- * Which candidate a direction moves to, from the current element's rectangle.
- *
- * Pure, so the choice can be tested with the geometry of a real screen rather
- * than through a registry.
- */
+/** Which candidate a direction moves to, from the current element's rectangle. */
 export function pickTvCandidate<T extends { rect: FocusRect; rail?: boolean }>(
   current: FocusRect,
   candidates: readonly T[],
@@ -133,19 +97,9 @@ export function pickTvCandidate<T extends { rect: FocusRect; rail?: boolean }>(
   const byScore = (a: { score: number }, b: { score: number }) => a.score - b.score;
   const horizontal = direction === 'left' || direction === 'right';
 
-  // **Left and right: only the row.** Only candidates sharing the current
-  // element's row compete, and at the end of the row the move stops. The lane
-  // penalty alone cannot promise that — a far control on the same row would
-  // lose to a near card on the next — and falling back to "anything that way,
-  // in any row" would drop Left from the first top-bar item onto a card below
-  // it. Changing row is what Up and Down are for.
-  //
-  // **Except a side rail.** The alphabet strip is pinned beside a grid and is
-  // shorter than it, so the grid's lower rows have no key on their row. Where
-  // nothing on the row lies that way, a rail's nearest key is taken; any other
-  // control in another row still cannot be reached sideways. **Not in the web
-  // client**; whether its strip leaves the same gap has not been read. The
-  // weights are untouched.
+  // Left and right stay on the current row and stop at its end; changing row
+  // is for Up and Down. The exception is a side rail, taken when nothing on
+  // the row lies that way. The rail is not in the web client.
   if (horizontal) {
     const onRow = scored
       .filter(({ entry }) => rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0)
@@ -153,11 +107,9 @@ export function pickTvCandidate<T extends { rect: FocusRect; rail?: boolean }>(
     return onRow ?? scored.filter(({ entry }) => entry.rail).sort(byScore)[0]?.entry;
   }
 
-  // **Up and down: the nearest row first, then the best of it.** Not "the same
-  // column first", which skips a short row with nothing directly above the
-  // current card. A viewer reads Up as "the row above". So the row is the band
-  // of candidates overlapping, vertically, the one whose facing edge is
-  // nearest; the usual score chooses within it.
+  // Up and down: the nearest row first (the band overlapping the candidate
+  // with the nearest facing edge), then the best score within it. "Same column
+  // first" would skip a short row.
   const nearest = [...scored].sort(
     (a, b) =>
       rectGap(current.top, current.height, a.entry.rect.top, a.entry.rect.height) -
@@ -194,94 +146,55 @@ class TvFocusRegistry {
   private suspensions = new Set<symbol>();
 
   /**
-   * Rectangles that arrived before their focusable registered.
-   *
-   * **This is not a rare race, it is the normal order** (measured on the
-   * device): Fabric dispatches `onLayout` from native the moment layout
-   * commits, often before registration has run. Dropping these rectangles
-   * leaves the scorer nothing to work with and focus falls back to
-   * registration order.
+   * Rectangles that arrived before their focusable registered. This is the
+   * normal order: Fabric dispatches `onLayout` as soon as layout commits.
    */
   private pendingRects = new Map<string, FocusRect>();
 
   /**
-   * A card Back should return to, which may not have mounted yet.
-   *
-   * Armed rather than applied, because the screen being returned to re-fetches
-   * and its cards have not registered when the route effect runs. Registration claims
-   * it; the first command the viewer sends abandons it.
+   * A card Back should return to, which may not have mounted yet. Registration
+   * claims it; the viewer's first command abandons it.
    */
   private pendingRestoreId: string | undefined;
 
   /**
-   * The selection is a fallback nobody chose: `focusDefault` found no element
-   * marked `defaultFocus` and took the first thing on screen instead.
-   *
-   * A screen's default card registers only after its content is fetched, so
-   * the fallback is usually the top bar (measured on `.133`). While this
-   * holds, a `defaultFocus` element that registers takes over; any
-   * real selection — a key, a restore, an explicit `select` — clears it.
-   *
-   * **Not in the web client**, whose DOM autofocus runs after render; the
-   * scoring weights `tvFocus.test.ts` guards are untouched by this.
+   * The selection is a fallback: `focusDefault` found no `defaultFocus` element.
+   * While this holds, a `defaultFocus` element that registers takes over; any
+   * real selection clears it. Not in the web client.
    */
   private provisional = false;
 
   /**
-   * The last move the D-pad made, so the opposite press can undo it.
-   *
-   * Going down from a row and straight back up lands on the control the
-   * viewer left, not on whatever geometry finds nearest from where they now
-   * are. Only the move just made is remembered, and any other selection —
-   * another direction, a restore, a default — forgets it, so the rule stays
-   * one a viewer can predict: *the opposite press undoes the last one*.
-   * **Deliberately not in the web client** — the one place the two focus
-   * ports intentionally differ.
+   * The last D-pad move, so the opposite press undoes it. Any other selection
+   * forgets it. Not in the web client.
    */
   private lastMove: { from: string; to: string; direction: TvDirection } | undefined;
 
   /**
-   * The top-bar item the viewer last chose, for the fallback to return to.
-   *
-   * A screen's own default registers only after its fetch, so the fallback
-   * would otherwise take the first thing on screen, which is Home. Only a
-   * selection the viewer caused sets this; the fallback's own choice does not,
-   * or Home would remember itself. In memory, for the life of the app.
-   * **Not in the web client**, like `provisional`; the scoring weights are
-   * untouched.
+   * The top-bar item the viewer last chose, for the fallback to return to. Set
+   * only by a selection the viewer caused. Not in the web client.
    */
   private lastNavId: string | undefined;
 
   register(focusable: Omit<Focusable, 'order'>): () => void {
     const existing = this.focusables.get(focusable.id);
-    // Keep the original order across a re-registration, so a focusable that
-    // re-registers because a prop changed does not jump to the end of the
-    // sequential fallback and reorder the screen under the viewer.
+    // Keep the original order across a re-registration, or the sequential fallback reorders.
     const order = existing?.order ?? this.sequence++;
-    // Geometry outlives registration: it may have arrived first (the usual
-    // case), or already be held from before a re-registration. Rebuilding the
-    // entry without it would silently drop the screen back to sequential
-    // navigation.
+    // Geometry outlives registration: it may have arrived first, or be held
+    // from before a re-registration.
     const rect = existing?.rect ?? this.pendingRects.get(focusable.id);
     this.focusables.set(focusable.id, { ...focusable, order, ...(rect ? { rect } : {}) });
     this.pendingRects.delete(focusable.id);
-    // An element can mount *into* an existing selection, and registration is
-    // the only moment it can find that out: `select` notifies whatever is
-    // registered when it runs, and a card restored by name after Back is
-    // selected while its grid is still fetching. Without this the selection is
-    // real — arrows move from it — and nothing on screen is highlighted.
-    //
-    // **Not in the web client.** There the DOM holds focus and the browser
-    // restores it; here the registry is the only memory there is. If that port
-    // grows the same restore, this reconciliation is what it needs too.
+    // An element can mount into an existing selection (a card restored by name
+    // while its grid was fetching): tell it, or nothing is highlighted.
     if (this.selectedId === focusable.id) focusable.onFocusChange?.(true);
     // The card Back was waiting for has arrived.
     if (this.pendingRestoreId === focusable.id) {
       this.pendingRestoreId = undefined;
       this.select(focusable.id);
     }
-    // The screen's own default has arrived after the fallback took its place.
-    // A restore waiting for its card outranks it, as the viewer's place does.
+    // The screen's default arrived after the fallback took its place; a
+    // waiting restore outranks it.
     else if (
       focusable.defaultFocus &&
       this.provisional &&
@@ -311,20 +224,14 @@ class TvFocusRegistry {
   measure(id: string, rect: FocusRect): void {
     const existing = this.focusables.get(id);
     if (!existing) {
-      // Held rather than dropped. `update` returns silently for an unknown id,
-      // which is right for an arbitrary patch and catastrophic for geometry.
+      // Held, not dropped: geometry usually arrives before registration.
       this.pendingRects.set(id, rect);
       return;
     }
     this.focusables.set(id, { ...existing, rect });
   }
 
-  /**
-   * Restrict candidates to one scope until it is popped.
-   *
-   * Mirrors the web client scoping selection to the visible player chrome:
-   * while the chrome is up, nothing behind it is reachable by the D-pad.
-   */
+  /** Restrict candidates to one scope until it is popped, as the web client does for the visible player chrome. */
   pushScope(scope: string): void {
     this.scopes.push(scope);
     this.selectedId = undefined;
@@ -338,21 +245,10 @@ class TvFocusRegistry {
   }
 
   /**
-   * Stand down entirely while something else owns the D-pad.
-   *
-   * The case this exists for is the television's own on-screen keyboard. A
-   * React Native `TextInput` raises the platform IME, and while it is up the
-   * remote belongs to it — but `useTVEventHandler` is attached once at the app
-   * root and keeps delivering, so without this the focus scorer would go on
-   * moving selection around *behind* the open keyboard.
-   *
-   * Reference-counted with an opaque token so nesting composes: a menu opened
-   * over a search field suspends again and resumes independently, and no caller
-   * can resume another's suspension.
-   *
-   * Distinct from a scope. A scope narrows what is reachable; this makes
-   * nothing reachable and leaves selection untouched, so focus is exactly where
-   * it was when the keyboard closes.
+   * Stand down while something else owns the D-pad, typically the platform
+   * IME. Selection is untouched, so focus is where it was on resume.
+   * Reference-counted by token: suspensions nest, and no caller can resume
+   * another's.
    */
   suspend(): () => void {
     const token = Symbol('tv-focus-suspension');
@@ -363,20 +259,11 @@ class TvFocusRegistry {
   }
 
   /**
-   * Drop every outstanding suspension. **A recovery path, never a routine one.**
-   *
-   * Reference counting is correct until a holder disappears without releasing,
-   * and then it is unrecoverable: nothing else knows the token, so the registry
-   * stays suspended for the life of the process and **the entire remote stops
-   * working with nothing on screen to explain it.** Android TV keeps a
-   * `ReactEditText` natively focused after the IME closes, so `onBlur` never
-   * fires (see `TvTextInput`).
-   *
-   * This exists because the *consequence* is out of all proportion to the
-   * cause: any holder that forgets, throws, or is unmounted mid-flight would
-   * brick navigation. Callers must establish that nothing legitimately owns the remote
-   * before calling this — `useTvNavigation` does it by asking the platform
-   * whether a keyboard is actually on screen.
+   * Drop every suspension: a recovery path for a holder that went away without
+   * releasing (Android TV keeps a `ReactEditText` focused after the IME
+   * closes, so `onBlur` never fires; see `TvTextInput`). A leaked suspension
+   * disables the whole remote. Callers must first establish that nothing owns
+   * the remote, as `useTvNavigation` does by asking whether a keyboard is up.
    */
   resumeAll(): void {
     this.suspensions.clear();
@@ -395,8 +282,7 @@ class TvFocusRegistry {
     return [...this.focusables.values()]
       .filter((entry) => !entry.disabled)
       .filter((entry) => (scope ? entry.scope === scope : !entry.scope))
-      // Zero-area elements are the RN equivalent of the web client's
-      // `rect.width > 0 && rect.height > 0` visibility test.
+      // Zero area: the web client's `rect.width > 0 && rect.height > 0` visibility test.
       .filter((entry) => !entry.rect || (entry.rect.width > 0 && entry.rect.height > 0))
       .sort((a, b) => a.order - b.order);
   }
@@ -439,23 +325,14 @@ class TvFocusRegistry {
     return this.selectedId;
   }
 
-  /**
-   * Whether anything currently answers to this id.
-   *
-   * For a caller that has selected an id optimistically — a screen restoring
-   * the card Back came from, before that screen has finished fetching — and
-   * needs to know later whether the card ever arrived.
-   */
+  /** Whether anything is registered under this id, e.g. a card selected before its screen finished fetching. */
   isRegistered(id: string | undefined): boolean {
     return id !== undefined && this.focusables.has(id);
   }
 
   /**
-   * Put focus back on this card, now if it exists and when it arrives if not.
-   *
-   * The caller should seed the screen's default first: something must be
-   * highlighted while the fetch is outstanding, and this replaces it only if
-   * the card turns up before the viewer touches the remote.
+   * Put focus on this card, now if it exists and when it registers if not.
+   * Seed the screen's default first, so something is highlighted meanwhile.
    */
   restoreWhenPresent(id: string | undefined): void {
     if (id === undefined) {
@@ -470,7 +347,7 @@ class TvFocusRegistry {
     this.pendingRestoreId = id;
   }
 
-  /** Temporary diagnostic: how many registered focusables have a measured rect. */
+  /** Diagnostic: how many registered focusables have a measured rect. */
   debugGeometry(): string {
     const all = [...this.focusables.values()];
     const measured = all.filter((entry) => entry.rect);
@@ -484,12 +361,8 @@ class TvFocusRegistry {
   }
 
   /**
-   * Observe every command, whether or not anything is focusable.
-   *
-   * The player needs this: while its chrome is hidden nothing is in scope, so
-   * `handle` has no candidate and would swallow the press silently. On a
-   * television any button should bring the controls back, and only the screen
-   * that hid them knows that.
+   * Observe every command, whether or not anything is focusable. The player
+   * uses it to bring back hidden chrome, when nothing is in scope.
    */
   onCommand(listener: (command: TvCommand) => void): () => void {
     this.commandListeners.add(listener);
@@ -498,12 +371,9 @@ class TvFocusRegistry {
 
   /** Returns true when the command was consumed. */
   handle(command: TvCommand): boolean {
-    // The viewer has taken over; a restore landing now would move focus out
-    // from under a hand already moving.
+    // The viewer has taken over: abandon any pending restore.
     this.pendingRestoreId = undefined;
-    // Nothing, not even the command observers: while the platform IME is up,
-    // waking the player chrome on a keystroke meant for the keyboard would be
-    // as wrong as moving focus behind it.
+    // Suspended: nothing runs, not even the command observers.
     if (this.suspended) return false;
 
     for (const listener of this.commandListeners) listener(command);
@@ -514,23 +384,9 @@ class TvFocusRegistry {
     const current = this.current();
     if (!current) return false;
 
-    /**
-     * Nothing is really selected yet: adopt the fallback rather than move from
-     * it.
-     *
-     * `current()` invents an answer when `selectedId` names nothing reachable —
-     * after a scope change, after a screen that owned the selection unmounted,
-     * or on a screen nobody has touched yet. Moving *from* that invented
-     * element has two bad outcomes, and the second is severe: a direction with
-     * a candidate silently skips the fallback and lands two elements away, and
-     * **a direction with no candidate returns false, so nothing is ever
-     * selected and no focus ring is ever drawn.** On a row of controls with no
-     * neighbour above or below, that is a screen where the D-pad does nothing
-     * at all, permanently, with nothing on screen to explain it.
-     *
-     * Consuming the press is the right trade and matches every television UI:
-     * the first press reveals where focus is, the second moves it.
-     */
+    // `current()` is a fallback when `selectedId` names nothing reachable.
+    // Adopt it and consume the press: moving from it would skip it, and a
+    // direction with no candidate would never select anything or draw a ring.
     if (this.selectedId !== current.id) {
       this.select(current.id);
       return true;
@@ -544,15 +400,13 @@ class TvFocusRegistry {
 
     if (command === 'back') return false;
 
-    // A focused scrubber keeps left and right for seeking, exactly as the web
-    // client's range input does, and yields up and down so focus can leave.
+    // A focused scrubber keeps left and right for seeking and yields up and down.
     if (current.ownsDirection?.(command)) {
       current.onDirection?.(command);
       return true;
     }
 
-    // The opposite of the move just made goes back where it came from, if
-    // that element is still here and still in reach.
+    // The opposite of the move just made goes back, if that element is still in reach.
     const undo = this.lastMove;
     if (undo && undo.to === current.id && command === OPPOSITE[undo.direction]) {
       const back = elements.find((entry) => entry.id === undo.from);

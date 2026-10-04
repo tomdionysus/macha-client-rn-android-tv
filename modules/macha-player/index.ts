@@ -15,12 +15,8 @@ export interface NativePlaybackEvent {
 }
 
 /**
- * The evidence kinds core reasons about, mirrored from `PlaybackFailureKind`.
- *
- * `not-found` is listed for completeness rather than for the native side to
- * produce: it is a `404` on a playback route, and the
- * engine reports the raw status for the adapter to map. A decoder cannot reach
- * that conclusion, so `platformKind` will never carry it.
+ * Mirrors core's `PlaybackFailureKind`. The native side never produces
+ * `not-found`: it is a `404`, reported as a raw status for the adapter to map.
  */
 export type NativeFailureKind =
   | 'stream'
@@ -31,12 +27,8 @@ export type NativeFailureKind =
   | 'unknown';
 
 /**
- * What the player saw, not what it concluded.
- *
- * `httpStatus` is present when the failure carried one; core turns that into a
- * kind via `playbackFailureKindForStatus`, so the mapping is not duplicated
- * here. `platformKind` is the decoder's own evidence — whether *this* decoder
- * could handle the bytes — which is the part only the platform can answer.
+ * What the player saw, not what it concluded: core maps `httpStatus` via
+ * `playbackFailureKindForStatus`; `platformKind` is the decoder's own evidence.
  */
 export interface NativeFailure {
   httpStatus?: number | null;

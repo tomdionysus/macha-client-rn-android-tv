@@ -2,17 +2,8 @@ import Constants from 'expo-constants';
 import { MachaClientConfiguration } from '@machafoundation/core';
 
 /**
- * This build's binding of the core's client configuration.
- *
- * All the values and their migration logic live in `MachaClientConfiguration`;
- * only their provenance is app-specific. On the web that provenance is
- * `import.meta.env`, which exists in a Vite build and nowhere else — here it is
- * the Expo app config, read once at this boundary so nothing else in the app
- * has to know where endpoints come from.
- *
- * Endpoints are deliberately *not* pinned: a television gets moved between
- * sites, and a viewer who has set a working server on the Settings screen
- * should keep it across an app update.
+ * Binds core's `MachaClientConfiguration` to the Expo app config. Endpoints
+ * are not pinned: a viewer's server set in Settings survives an app update.
  */
 
 function configuredEndpoints(): string[] {

@@ -6,52 +6,26 @@ import {
 } from './timingBudgets';
 
 /**
- * Wait for a node to actually serve the first fragment, instead of failing
- * over the moment it says it is still producing one.
- *
- * `expo-video`'s loader does not retry an HTTP `500` on the *same* node, as
- * `PlayerEngine.kt` does, though core's protocol is explicit that
- * `500 segment_not_ready` is the node stating it has not produced this
- * fragment yet and is working correctly. Failing over cannot help: the next
- * node is producing a *different* generation and does not have that fragment
- * either, so it cold-starts and answers the same way. Three of those exhaust
- * a healthy cluster in seconds.
- *
- * `expo-video` builds its own `OkHttpDataSource.Factory` internally with no
- * injection point, so there is no way to reach into its loader and reinstate
- * the rule. The remaining option is to ask the question ourselves, before the
- * player is ever handed the URL.
- *
- * **The walk itself is core's** (`probeHlsReadiness`), and only the retry
- * policy is here: what a `500` *means*, how deep to descend and which URI a
- * tag carries are protocol and vary by nothing, while how long this
- * particular client is willing to wait in front of this particular viewer is
- * a budget and belongs to the client.
+ * Wait for a node to serve the first fragment before the player gets the URL.
+ * `500 segment_not_ready` means a healthy node is still producing it; failing
+ * over would only cold-start the next node, and `expo-video`'s loader cannot
+ * be made to retry the same one. The walk is core's (`probeHlsReadiness`);
+ * only the retry budget is here.
  */
 
 export interface FirstFragmentReadiness {
   ready: boolean;
-  /** Why not, in the terms the node stated it. */
+  /** Why not, as the node stated it. */
   reason?: string;
-  /**
-   * The status the node answered with, where it answered at all.
-   *
-   * Carried rather than folded into `reason` because the caller has to turn it
-   * into an evidence kind, and that mapping is core's
-   * (`playbackFailureKindForStatus`). A `404` and a `503` are both "the node
-   * did not serve it" in prose and are opposite conclusions about the node:
-   * one is a statement about this session, the other is a broken generation.
-   */
+  /** The node's HTTP status, if it answered; the caller maps it with core's `playbackFailureKindForStatus`. */
   status?: number;
   waitedMs: number;
   attempts: number;
 }
 
 /**
- * The delay before asking again, when the node did not say.
- *
- * Exponential from the declared base to the declared ceiling. `attempts` is
- * the number already made, so the first wait is the base.
+ * The delay before asking again when the node did not state one: exponential
+ * from the base to the ceiling. `attempts` counts those already made.
  */
 export function holdBackoffMs(attempts: number): number {
   const grown = HOLD_RETRY_BASE_MS * 2 ** Math.max(0, attempts - 1);
@@ -59,16 +33,10 @@ export function holdBackoffMs(attempts: number): number {
 }
 
 /**
- * How long to wait before asking this node again.
- *
- * Core's `holding` carries the node's own `Retry-After` where it sent one,
- * falling back to that node's stated hold — `PlaybackSource.budgets`, or
- * `SERVER_SEGMENT_HOLD_MS` for a node too old to say. It is honoured because
- * the node knows what it is doing better than a backoff curve does — **but
- * core does not bound it**, and a node stating `Retry-After: 9999` would park
- * playback for the rest of the budget on one header. Clamped here rather than
- * left to the deadline check, because hitting the deadline abandons the node
- * whereas clamping keeps asking it.
+ * How long to wait before asking this node again: the node's stated hold
+ * (`Retry-After`, via core), else the backoff. Core does not bound the stated
+ * value, so it is clamped to the ceiling here; exceeding the deadline instead
+ * would abandon the node.
  */
 export function holdWaitMs(statedMs: number | undefined, attempts: number): number {
   if (statedMs === undefined || !Number.isFinite(statedMs) || statedMs < 0) {
@@ -78,11 +46,8 @@ export function holdWaitMs(statedMs: number | undefined, attempts: number): numb
 }
 
 /**
- * Hold a manifest source until the node will serve its first fragment, or
- * until waiting has itself become the evidence.
- *
- * Returns rather than throws: the caller decides what a refusal means, and on
- * this client that decision is core's to make through the failure channel.
+ * Hold a manifest source until the node serves its first fragment or the
+ * budget runs out. Returns rather than throws; the caller reports a refusal.
  */
 export async function awaitFirstFragment(
   source: PlaybackSource,
@@ -99,19 +64,14 @@ export async function awaitFirstFragment(
     fetchImpl = fetch,
     now = () => Date.now(),
     sleep = (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); }),
-    // The serving node's own deadline where it states one, and this client's
-    // constant only for a node that cannot. See `firstFragmentTimeoutMs`.
+    // The node's stated deadline, else this client's; see `firstFragmentTimeoutMs`.
     timeoutMs = firstFragmentTimeoutMs(source),
     superseded = () => false,
   } = options;
 
   const started = now();
   const deadline = started + timeoutMs;
-  // One controller for the whole sequence of attempts. Core applies its own
-  // per-request deadline inside each walk — derived from the hold this node
-  // states, and `HLS_WALK_TIMEOUT_MS` only for one that cannot — and this one
-  // bounds the total, or a node could hold every attempt right up to core's
-  // deadline and never exceed ours.
+  // Bounds all attempts together; core's deadline is per request only.
   const controller = new AbortController();
   const expiry = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -128,20 +88,14 @@ export async function awaitFirstFragment(
 
       if (outcome.state === 'ready') return { ready: true, waitedMs: now() - started, attempts };
 
-      // Not a judgement. Core is explicit that `unassessable` must not be
-      // treated as a failure — it means this walk had nothing to measure, not
-      // that the node refused — so the source goes to the player rather than
-      // being condemned on a question that was never answered.
+      // `unassessable` is not a failure: the walk had nothing to measure, so
+      // the source goes to the player.
       if (outcome.state === 'unassessable') {
         return { ready: true, waitedMs: now() - started, attempts };
       }
 
       if (outcome.state === 'unavailable') {
-        // `detail` carries the thrown transport message where there was no
-        // response at all, and it is the line that makes the on-screen
-        // failure trail worth having: without it every transport fault reads
-        // as "the node did not answer", which cannot be told apart from a
-        // node that answered badly.
+        // `detail` is the transport error when there was no response.
         status = outcome.status;
         reason = outcome.status !== undefined
           ? `the node answered ${outcome.status}`

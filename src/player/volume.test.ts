@@ -8,11 +8,7 @@ import {
   VOLUME_STEP,
 } from './volume';
 
-/**
- * `VolumeStore` persists a single number and knows nothing about mute, so what
- * gets written on a mute is a decision rather than a detail — and the wrong
- * answer is one a viewer cannot diagnose from the sofa.
- */
+// `VolumeStore` persists one number and knows nothing about mute.
 describe('what a mute persists', () => {
   it('keeps the setting behind a mute, so the player is silent and the setting is not', () => {
     const muted = toggleMute(initialVolume(0.6));
@@ -28,8 +24,7 @@ describe('what a mute persists', () => {
   });
 
   it('never leaves a viewer with a control that does nothing', () => {
-    // Unmuting a setting of zero would restore silence: the button would
-    // visibly toggle and nothing would be heard, which reads as broken.
+    // Unmuting to zero would restore silence.
     const fromSilence = toggleMute(toggleMute(initialVolume(0)));
     expect(fromSilence.effective).toBeGreaterThan(0);
     expect(fromSilence.muted).toBe(false);
@@ -73,8 +68,7 @@ describe('reading a stored value', () => {
   });
 
   it('comes up unmuted whatever was stored', () => {
-    // Mute is never persisted, so a stored 0 is a viewer's setting and comes
-    // back as one — quiet, but not in a state that hides its own cause.
+    // Mute is never persisted, so a stored 0 is the viewer's setting.
     expect(initialVolume(0).muted).toBe(false);
   });
 });

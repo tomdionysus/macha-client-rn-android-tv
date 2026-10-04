@@ -1,18 +1,10 @@
 /**
- * Volume and mute, and the one decision in them that is not obvious.
- *
- * `VolumeStore` persists a single number and knows nothing about mute. That
- * leaves a choice about what to write when a viewer mutes, and only one answer
- * is safe: **persist the unmuted volume, keep mute in memory.**
- *
- * Writing `0` on mute would be indistinguishable from a viewer who genuinely
- * turned the sound down, so the next launch would come up silent with nothing
- * on screen explaining why — and the obvious fix, pressing volume up, is not
- * obvious at all to someone who thinks the television is broken. A mute is a
- * temporary state; the volume behind it is the setting.
+ * Volume and mute. `VolumeStore` persists one number and knows nothing of
+ * mute, so the unmuted volume is persisted and mute stays in memory: a stored
+ * `0` would bring the next launch up silent.
  */
 
-/** The store's own range. Anything outside it is a bug upstream, not a preference. */
+/** Clamp to the store's 0–1 range. */
 export function clampVolume(value: number): number {
   if (!Number.isFinite(value)) return 1;
   return Math.max(0, Math.min(1, value));
@@ -31,25 +23,13 @@ export function initialVolume(stored: number): VolumeState {
   return { effective: setting, setting, muted: false };
 }
 
-/**
- * A step of the volume control.
- *
- * Adjusting while muted unmutes: the viewer is asking for a level, and leaving
- * them muted would make the control appear broken — they press up, the number
- * moves, and nothing is heard.
- */
+/** Adjusting while muted unmutes. */
 export function adjustVolume(state: VolumeState, delta: number): VolumeState {
   const setting = clampVolume(state.setting + delta);
   return { effective: setting, setting, muted: false };
 }
 
-/**
- * Mute keeps the setting and zeroes only what the player hears.
- *
- * Unmuting a setting of zero would be a control that visibly does nothing, so
- * it restores to a minimum audible level instead — the viewer asked to hear
- * something.
- */
+/** Mute zeroes only `effective`. Unmuting a setting of zero restores `MINIMUM_AUDIBLE`. */
 export function toggleMute(state: VolumeState): VolumeState {
   if (state.muted) {
     const restored = state.setting > 0 ? state.setting : MINIMUM_AUDIBLE;
@@ -62,7 +42,7 @@ export function toggleMute(state: VolumeState): VolumeState {
 export const VOLUME_STEP = 0.05;
 const MINIMUM_AUDIBLE = 0.1;
 
-/** 0–1 as a percentage a viewer can read across a room. */
+/** 0–1 as a whole percentage. */
 export function volumePercent(state: VolumeState): number {
   return Math.round(state.effective * 100);
 }

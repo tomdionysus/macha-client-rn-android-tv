@@ -2,19 +2,8 @@ import type { MediaSummary } from '@machafoundation/core';
 import { episodeLabel, trackNumberLabel, trackSearchLine } from '../text/viewerText';
 
 /**
- * The lines under a card's title, in the web client's order, composed here
- * from core's data: core writes no viewer text, and the words are in
- * `src/text/viewerText.ts`.
- *
- * - an episode: its series, then `S03E02`, in every context. The web links
- *   each line to its page; a television card is one focus target, so here
- *   Back walks there instead.
- * - a season (from search): its series.
- * - an album: its artist, below the album's name.
- * - a track: "Artist - Album (year)", then its own "Track 9" /
- *   "Disc 2 · Track 3". Tracks are shown as cards only in search here.
- * - an artist: nothing beneath the name.
- * - anything else: its year.
+ * The lines under a card's title, in the web client's order. The words are
+ * composed in `src/text/viewerText.ts`; core writes no viewer text.
  */
 export function cardLines(media: MediaSummary): string[] {
   switch (media.kind) {

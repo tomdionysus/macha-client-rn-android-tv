@@ -4,13 +4,9 @@ export const TOP_LEVEL: ReadonlySet<string> = new Set(['home', 'movies', 'shows'
 export type BackAction = 'pop' | 'home' | 'exit';
 
 /**
- * What Back does on a screen that is not the player (the player has its own
- * ladder, `PlayerScreen.tsx`).
- *
- * A level to go back to is always taken. Otherwise every screen goes Home, and
- * **only Home leaves the app**, with no confirmation; the exit waits for
- * storage first (`appExit.ts`). A screen alone on the stack that is not a
- * section goes Home too, since there is nothing to pop to.
+ * Back on any screen but the player (`PlayerScreen.tsx` has its own ladder):
+ * pop if there is a level below, otherwise go Home. Only Home exits, after
+ * the storage flush (`appExit.ts`).
  */
 export function backAction(route: string, depth: number): BackAction {
   if (depth > 1) return 'pop';

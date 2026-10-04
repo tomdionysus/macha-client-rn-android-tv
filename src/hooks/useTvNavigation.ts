@@ -4,15 +4,9 @@ import { tvFocus, type TvCommand, type TvDirection } from './tvFocus';
 import { addTvKeyListener } from '../../modules/macha-player/tvInput';
 
 /**
- * Map the TV remote to the web client's command vocabulary.
- *
- * `select` is the D-pad centre and is the same gesture as the web client's
- * `activate`. Media keys are handled separately below, because they act on
- * playback rather than on focus.
- *
- * `back` is **not** here. It arrives through `BackHandler` instead — see
- * `useTvNavigation` — because only that can answer the platform synchronously
- * about whether the app consumed it.
+ * The TV remote in the web client's command vocabulary. `select` is the D-pad
+ * centre, its `activate`. `back` arrives through `BackHandler` instead, which
+ * can answer the platform synchronously.
  */
 const COMMANDS: Record<string, TvCommand> = {
   up: 'up',
@@ -34,44 +28,21 @@ export interface TvNavigationOptions {
   onPrevious?: () => void;
 }
 
-/**
- * Attach the D-pad to the focus registry.
- *
- * Mounted once, at the app root, exactly as the web client attaches its
- * listener to `document` once.
- */
+/** Attach the D-pad to the focus registry. Mount once, at the app root. */
 export function useTvNavigation(options: TvNavigationOptions = {}): void {
   const latest = useRef(options);
   latest.current = options;
 
-  /**
-   * Keys arrive from this client's own native bridge, not from
-   * `useTVEventHandler`.
-   *
-   * React Native's TV event path does not exist in a bridgeless build —
-   * `useTVEventHandler` waits on `onHWKeyEvent`, which only the legacy
-   * `ReactRootView` emits, so the D-pad would do nothing at all.
-   * `MachaTvInputModule.kt` records the full chain.
-   */
+  // Keys come from this client's native bridge: `useTVEventHandler` does
+  // nothing in a bridgeless build. See `MachaTvInputModule.kt`.
   useEffect(
     () =>
       addTvKeyListener((event) => {
         const handlers = latest.current;
 
-        // Something else owns the remote — the platform IME, typically. Every
-        // key belongs to it, including the transport keys, which would
-        // otherwise act on playback the viewer cannot see behind it.
-        //
-        // **Unless nothing actually owns it.** A suspension whose holder went
-        // away cannot be released by anyone, and the symptom is a television
-        // whose remote has stopped working entirely with nothing on screen to
-        // explain it. So the claim is checked against the platform rather than
-        // trusted: if we are suspended and there is demonstrably no keyboard
-        // on screen, the suspension is stale and this key is ours.
-        //
-        // Asked here, at the one place the consequence shows up, and only on a
-        // key we would otherwise have dropped — so a correct suspension costs
-        // nothing and a leaked one costs a single ignored press.
+        // Suspended: every key, transport keys included, belongs to the IME.
+        // A suspension whose holder went away would disable the remote for
+        // good, so if no keyboard is on screen it is stale and is dropped.
         if (tvFocus.suspended) {
           if (Keyboard.isVisible()) return;
           tvFocus.resumeAll();
@@ -106,18 +77,11 @@ export function useTvNavigation(options: TvNavigationOptions = {}): void {
     [],
   );
 
-  /**
-   * Back, through the one mechanism that can answer the platform in time.
-   *
-   * `hardwareBackPress` is synchronous: returning true consumes the press and
-   * false lets Android finish the activity. The key bridge cannot do that — it
-   * would have to decide before JavaScript had seen the event — so guessing
-   * there would either trap the viewer in the app or drop them out of it.
-   */
+  // `hardwareBackPress` answers synchronously: true consumes the press, false
+  // lets Android finish the activity. The key bridge cannot do that.
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      // Suspended means the IME has it, and Back is how a viewer closes the
-      // keyboard. Yielding is the whole point.
+      // Suspended means the IME has it; Back closes the keyboard.
       if (tvFocus.suspended) return false;
       return latest.current.onBack?.() ?? false;
     });
@@ -127,13 +91,8 @@ export function useTvNavigation(options: TvNavigationOptions = {}): void {
 
 export interface UseFocusableOptions {
   /**
-   * A stable id, when something else needs to move focus here by name.
-   *
-   * Defaults to React's generated id, which is fine for a focusable nobody
-   * addresses. The alphabet strip is the case that needs this: jumping to a
-   * letter means *selecting* that title's card, not merely scrolling to it —
-   * on a D-pad, scrolling without moving focus leaves the next press jumping
-   * straight back to wherever focus actually was.
+   * A stable id, for moving focus here by name (the alphabet strip's jump).
+   * Defaults to React's generated id.
    */
   id?: string;
   /** Called on D-pad centre. The web client's `element.click()`. */
@@ -157,11 +116,8 @@ export interface UseFocusableResult {
 
 /**
  * Register one focusable, the equivalent of `data-tv-focusable="true"`.
- *
- * Geometry comes from `measureInWindow` rather than `onLayout`'s local
- * coordinates: the scorer compares rectangles across the whole screen, and
- * layout-relative positions would make items in different parents
- * incomparable — which shows up as focus jumping to the wrong row.
+ * Geometry comes from `measureInWindow`: the scorer compares rectangles across
+ * the screen, and `onLayout`'s parent-relative coordinates are not comparable.
  */
 export function useFocusable(options: UseFocusableOptions = {}): UseFocusableResult {
   const generated = useId();
@@ -171,10 +127,7 @@ export function useFocusable(options: UseFocusableOptions = {}): UseFocusableRes
   const latest = useRef(options);
   latest.current = options;
 
-  // A layout effect, not a passive one: registration must not lose the race
-  // with Fabric's `onLayout`, which is dispatched from native as soon as
-  // layout commits. The registry holds early rectangles either way, but
-  // registering first keeps the common path simple.
+  // A layout effect, so registration usually precedes Fabric's `onLayout`.
   useLayoutEffect(() => {
     return tvFocus.register({
       id,
@@ -189,18 +142,9 @@ export function useFocusable(options: UseFocusableOptions = {}): UseFocusableRes
     });
   }, [id, options.defaultFocus, options.scope, options.rail]);
 
-  /**
-   * `disabled` is patched in place, not re-registered.
-   *
-   * React re-runs a registration by calling the old cleanup first, which
-   * deletes the entry and its rectangle, and a re-registered element then has
-   * no geometry until something lays it out again: the scorer cannot move from
-   * it, and the screen drops to sequential order. Continue Watching's remove
-   * button, enabled only while its card has focus, toggles this constantly.
-   *
-   * A selected element that becomes disabled still gives the selection up, to
-   * the screen's default.
-   */
+  // `disabled` is patched in place: re-registering deletes the entry's
+  // rectangle, and the screen drops to sequential order until it is laid out
+  // again. A selected element that becomes disabled yields to the default.
   const firstDisabled = useRef(true);
   useLayoutEffect(() => {
     if (firstDisabled.current) {
@@ -216,9 +160,7 @@ export function useFocusable(options: UseFocusableOptions = {}): UseFocusableRes
 
   const onLayout = useCallback(
     (_event: LayoutChangeEvent) => {
-      // The `measureInWindow` callback routinely lands *before* this focusable has registered —
-      // the registry holds early rectangles rather than dropping them, which is
-      // why it navigates by geometry at all. See `TvFocusRegistry.pendingRects`.
+      // This callback often lands before registration; the registry holds it (`pendingRects`).
       ref.current?.measureInWindow((left, top, width, height) => {
         if (width > 0 && height > 0) tvFocus.measure(id, { left, top, width, height });
       });

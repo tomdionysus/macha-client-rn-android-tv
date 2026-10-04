@@ -7,12 +7,6 @@ import {
   rememberArtworkUrl,
 } from './artworkSources';
 
-/**
- * The source *plan* is the part with rules in it, and it is plain data, so it
- * is tested directly rather than through a renderer. What the component does
- * with the plan is two lines: render `sources[index]`, and advance on error.
- */
-
 function api(sources: { url: string; requiresAuthorization: boolean }[]): MediaApi {
   return { artworkUrls: () => sources } as unknown as MediaApi;
 }
@@ -59,19 +53,14 @@ describe('the artwork source plan', () => {
   });
 });
 
-/**
- * The reason this component exists. The server re-signs a capability URL on
- * every catalogue fetch even when the image has not changed, and `expo-image`
- * caches by URL — so without a memory, every revisit to a library screen
- * re-downloads and re-decodes every poster already on it.
- */
+// The server re-signs artwork URLs on every catalogue fetch, and `expo-image` caches by URL.
 describe('remembering what actually loaded', () => {
   it('prefers the copy known to be cached over a fresh signature', () => {
     const first = artworkSources(
       api([{ url: 'https://node-a.test/art/1?sig=one', requiresAuthorization: false }]),
       ref('https://node-a.test/art/1?sig=one'),
     );
-    // Simulate the image loading, which is what the component records.
+    // What the component records when the image loads.
     rememberArtworkUrl('artwork-1', first[0]!);
 
     const resigned = artworkSources(

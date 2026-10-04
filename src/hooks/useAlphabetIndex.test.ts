@@ -3,15 +3,7 @@ import { sortMediaByIndexedTitle, type MediaSummary } from '@machafoundation/cor
 import { firstMediaIdByKey, isMediaFocusId, mediaFocusId } from './useAlphabetIndex';
 import { tvFocus } from './tvFocus';
 
-/**
- * The bucketing itself belongs to core and is tested there. What is worth
- * pinning here is the behaviour that makes this a *television* component: a
- * jump moves focus, and a letter with nothing behind it does nothing at all.
- *
- * The hook is exercised through its two halves — `mediaFocusId`, which is the
- * contract between the strip and the grid, and the registry selection that
- * `jumpTo` performs — rather than through a renderer.
- */
+/** Bucketing is core's and tested there; these pin that a jump moves focus and an empty letter does nothing. */
 
 function media(id: string, title: string): MediaSummary {
   return { id, title, kind: 'movie' } as MediaSummary;
@@ -42,18 +34,12 @@ describe('the contract between the strip and the grid', () => {
   });
 });
 
-/**
- * A jump has to *move focus*, not merely scroll. The web client calls
- * `scrollIntoView` and stops, which on a D-pad would leave focus behind and the
- * viewer's next press would scroll straight back, undoing the jump.
- */
 describe('jumping to a letter', () => {
   it('selects the first title in the bucket, in indexed order', () => {
     const sorted = sortMediaByIndexedTitle(LIBRARY);
     const stops = sorted.map((item) => tvFocus.register({ id: mediaFocusId(item.id) }));
 
-    // 'The Mummy' indexes under M with the article stripped, and sorts before
-    // 'Memento'? Core decides; this asserts we follow whatever it decided.
+    // Core decides the order within M; this follows whatever it decided.
     const firstM = sorted.find((item) => item.title.replace(/^the\s+/i, '').toUpperCase().startsWith('M'));
     expect(firstM).toBeDefined();
     tvFocus.select(mediaFocusId(firstM!.id));
@@ -69,10 +55,7 @@ describe('jumping to a letter', () => {
   });
 
   it('offers no target for a letter with nothing behind it', () => {
-    // This is the guard `jumpTo` checks before touching focus at all: an empty
-    // letter must be a no-op, not a way to send focus somewhere that does not
-    // exist. The strip also renders such letters unfocusable, so the D-pad
-    // never reaches them — this is the second line of defence.
+    // The strip also renders empty letters unfocusable; this guards `jumpTo` itself.
     const buckets = firstMediaIdByKey(sortMediaByIndexedTitle(LIBRARY));
     expect(buckets.get('Q')).toBeUndefined();
     expect(buckets.get('M')).toBeDefined();
@@ -90,8 +73,6 @@ describe('jumping to a letter', () => {
 
 describe('a card in one of several rails', () => {
   it('has an id of its own in each rail, so Back can return to the one opened', () => {
-    // Home can show one title in Continue Watching and in Movies: one id
-    // for both would leave the registry holding only one of them.
     expect(mediaFocusId('m1', 'continue')).not.toBe(mediaFocusId('m1', 'movies'));
     expect(mediaFocusId('m1', 'movies')).not.toBe(mediaFocusId('m1'));
   });

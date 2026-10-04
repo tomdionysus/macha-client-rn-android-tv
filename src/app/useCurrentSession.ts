@@ -2,33 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { type CurrentSession, type UsersApi } from '@machafoundation/core';
 
 /**
- * Who the viewer is and what the server granted them.
- *
- * Ported from `macha-client/src/app/useCurrentSession.ts` rather than shared:
- * it is a React hook, and core's scope stops at everything a client does that
- * is not presentation. Access decisions are in `access.ts`; this is identity,
- * for display only.
+ * Who the viewer is and what the server granted, for display only; access
+ * decisions are in `access.ts`. Ported from
+ * `macha-client/src/app/useCurrentSession.ts`.
  */
 
 export interface CurrentSessionState {
-  /**
-   * Who the viewer is, or `undefined` when that is genuinely not known — still
-   * loading, or a node too old to answer.
-   *
-   * The difference matters at every call site, which is why `known` exists
-   * separately rather than callers testing this for truthiness.
-   */
+  /** `undefined` while loading or when the node cannot say; test `known`, not this. */
   session?: CurrentSession;
   /**
-   * Whether the cluster answered.
-   *
-   * When it did, the roles it returned are **authoritative and literal**: a
-   * capability the server did not name is one this session does not have.
-   * Every session belongs to a user — empty credentials simply authenticate
-   * the `anonymous` one — and its session is read exactly like any other.
-   *
-   * False means the question went unanswered, which is different from a
-   * session with no privileges.
+   * Whether the cluster answered. If so its roles are authoritative: an
+   * unnamed capability is one this session lacks. False is unknown, not
+   * unprivileged.
    */
   known: boolean;
   refresh: () => void;
@@ -40,11 +25,8 @@ export function useCurrentSession(api: UsersApi, enabled: boolean): CurrentSessi
 
   useEffect(() => {
     if (!enabled) {
-      // Only when there is something to clear. Returning a fresh object every
-      // run makes this effect its own trigger for any caller whose `api`
-      // identity is not stable, and the render loop that follows presents as
-      // the process running out of memory rather than as anything to do with
-      // sessions.
+      // Only when there is something to clear: a fresh object every run
+      // re-triggers this effect for a caller whose `api` identity is unstable.
       setState((current) => (current.known || current.session ? { known: false } : current));
       return undefined;
     }
@@ -53,12 +35,7 @@ export function useCurrentSession(api: UsersApi, enabled: boolean): CurrentSessi
       async (session) => {
         if (controller.signal.aborted) return;
         setState({ session, known: true });
-        // Identity is not guaranteed on the session. A 0.37.x node
-        // answers this route with roles, an expiry and a policy and names no
-        // user at all, so reading the signed-in name from the session alone
-        // leaves every account anonymous-looking forever. The account record is
-        // the authority on who this is; a refusal simply means the server will
-        // not say, which is the same as not knowing.
+        // A 0.37.x node names no user on the session; the account record does.
         if (session.username) return;
         try {
           const account = await api.me(controller.signal);
@@ -73,9 +50,7 @@ export function useCurrentSession(api: UsersApi, enabled: boolean): CurrentSessi
         }
       },
       () => {
-        // Deliberately not distinguishing "no such route" from "could not reach
-        // anyone": both mean roles are unknown, and nothing may be hidden on
-        // the strength of them.
+        // Any failure means roles are unknown; nothing may be hidden on that basis.
         if (!controller.signal.aborted) setState({ known: false });
       },
     );

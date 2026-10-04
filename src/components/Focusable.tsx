@@ -5,7 +5,7 @@ import type { TvDirection } from '../hooks/tvFocus';
 import { colour, radius } from '../styles/theme';
 
 export interface FocusableProps {
-  /** A stable id, when something else moves focus here by name. See `useFocusable`. */
+  /** A stable id, for moving focus here by name. See `useFocusable`. */
   focusId?: string;
   children: ReactNode | ((state: { focused: boolean }) => ReactNode);
   onSelect?: () => void;
@@ -15,25 +15,13 @@ export interface FocusableProps {
   style?: StyleProp<ViewStyle>;
   /** Style applied only while focused, on top of `style`. */
   focusedStyle?: StyleProp<ViewStyle>;
-  /**
-   * Draw the standard focus ring. Off for elements whose focus treatment is
-   * entirely their own, as the web client does for cards and episode stills.
-   */
+  /** Draw the standard focus ring. Off for elements with their own focus treatment. */
   ring?: boolean;
-  /**
-   * Notified when focus arrives or leaves.
-   *
-   * Rows use this to scroll the focused card into view — the RN equivalent of
-   * the web client's `next.scrollIntoView(false)` after it moves selection.
-   */
+  /** Focus arrived or left; rows use it to scroll the focused card into view. */
   onFocusChange?: (focused: boolean) => void;
   /**
-   * This element's box within its parent, as laid out.
-   *
-   * For a scroller that has to follow focus. `useFocusable` already measures
-   * every focusable, but in *window* coordinates for the focus scorer, which is
-   * the wrong frame for `scrollTo` — and a second `onLayout` cannot be added to
-   * the view below from outside, since the first belongs to the registry.
+   * This element's box in its parent's coordinates, for a scroller following
+   * focus. (`useFocusable` measures in window coordinates, wrong for `scrollTo`.)
    */
   onExtent?: (box: { x: number; y: number; width: number; height: number }) => void;
   /** Directions this element keeps rather than yielding to the focus scorer. */
@@ -44,15 +32,10 @@ export interface FocusableProps {
 }
 
 /**
- * One D-pad-focusable element — the RN equivalent of
- * `data-tv-focusable="true"` plus its `:focus-visible` rule.
- *
- * base.css draws focus with `outline: 1px solid var(--focus)` and a glow.
- * React Native has no outline, and a border that appears on focus would
- * reflow the element, so the border is always present and only its colour
- * changes. That keeps the geometry stable, which matters more here than it
- * does on the web: the focus scorer reads these rectangles, so an element that
- * resizes when focused would move the targets around it.
+ * One D-pad-focusable element: `data-tv-focusable="true"` plus its
+ * `:focus-visible` rule (`outline: 1px solid var(--focus)`). The border is
+ * always present and only changes colour: the focus scorer reads these
+ * rectangles, so focus must not resize the element.
  */
 export const Focusable = forwardRef<View, FocusableProps>(function Focusable(
   {
@@ -119,9 +102,8 @@ const styles = StyleSheet.create({
   },
   ringFocused: {
     borderColor: colour.focus,
-    // `box-shadow: 0 0 14px var(--accent-glow)` has no direct RN equivalent —
-    // Android's `elevation` casts a black shadow, not a coloured glow — so the
-    // wash carries the emphasis instead. It reads the same at three metres.
+    // Stands in for `box-shadow: 0 0 14px var(--accent-glow)`: Android's
+    // `elevation` cannot cast a coloured glow.
     backgroundColor: colour.accentFocusWash,
   },
 });

@@ -34,25 +34,10 @@ import {
 } from '../text/viewerText';
 
 /**
- * Settings, laid out as the web client's is.
- *
- * **Its shape, section for section**: the brand hero with the one line that
- * says whether the system is working, a row of status cards for Server,
- * Catalogue and Client, Connection — where the endpoints are *edited* rather
- * than listed — and Diagnostics.
- *
- * **Two blocks follow that have no web counterpart**, because neither question
- * arises in a browser: Hardware decoding is what `MediaCodecList` actually
- * answered, and Platform surface is what core's contract found here. They come
- * last, so the screen reads the same as the web one until it runs out of shared
- * ground. The decoder panel matters because a probe narrower than the truth
- * fails silently: the node transcodes a library that would have direct-played,
- * and the picture still works.
- *
- * **Endpoints are the one control a stranded set needs.** A television has no
- * address bar, so when a cluster stops answering this is the only way to point
- * the client somewhere else, which is why Settings stays reachable from behind
- * the login wall (`App.tsx`).
+ * Settings, section for section as the web client's: hero, status cards,
+ * Connection, Diagnostics. Hardware decoding and Platform surface follow and
+ * have no web counterpart. Endpoints are edited here because a television has
+ * no address bar, so Settings stays reachable behind the login wall (`App.tsx`).
  */
 export function SettingsScreen(): React.JSX.Element {
   const { services } = useMacha();
@@ -60,20 +45,19 @@ export function SettingsScreen(): React.JSX.Element {
 
   const [capabilities, setCapabilities] = useState<PlaybackCapabilities | undefined>();
   const [error, setError] = useState<Error | undefined>();
-  // Seeded from storage once. Each setting is only ever changed from its
-  // control here, so there is nothing to subscribe to.
+  // Seeded from storage once: each setting changes only from its control here.
   const [trailEnabled, setTrailEnabled] = useState(failureTrailEnabled);
   const [ceiling, setCeiling] = useState<QualityClass | undefined>(() => qualityPreferenceStore().get().wifi);
   const [offerAll, setOfferAll] = useState(() => qualityPreferenceStore().get().offerAll ?? false);
-  // The panel's class, which is the ceiling when none is set: core's screen
-  // rule, the one `qualityCeiling` applies, so the label names the real cap.
+  // The panel's class, the ceiling when none is set: core's screen rule,
+  // which `qualityCeiling` applies.
   const screenClass = useMemo(() => {
     const display = androidTvPlatform.display();
     return display ? displayQualityClass(display.width, display.height) : undefined;
   }, []);
   // Which limits no hardware decoder backs.
   const softwareOnly = useMemo(() => androidTvPlatform.softwareOnlyVideoCodecs(), []);
-  // Probed once: the answer cannot change while the app is running.
+  // Probed once: the answer cannot change while the app runs.
   const surface = useMemo(() => checkPlatformSurface(), []);
 
   const server = useRefreshableAsync(() => services.serverApi.status(), [services.serverApi]);
@@ -95,13 +79,9 @@ export function SettingsScreen(): React.JSX.Element {
   }, []);
 
   /**
-   * The state line under the hero.
-   *
-   * The web client's ladder in its order, so "Ready" means the same thing on
-   * both clients: an unreachable server outranks an unreachable catalogue,
-   * which outranks a catalogue still synchronising. Signed out is not an outage
-   * and outranks the rest, which would otherwise report a 401 as "catalogue
-   * unavailable".
+   * The state line, in the web client's order: server, catalogue, then
+   * synchronising. Signed out outranks them all, or a 401 would read as
+   * "catalogue unavailable".
    */
   const signedOut =
     isSignedOut(server.error) ||
@@ -130,15 +110,14 @@ export function SettingsScreen(): React.JSX.Element {
       return;
     }
     setBootstrapEndpoints(parsed);
-    // The registry is built from this list once, at startup, so the endpoints
-    // are adopted on the next launch; the notice says so.
+    // The registry is built from this list at startup, hence the restart.
     setEndpointNotice('Saved. Restart the app to connect to these.');
   };
 
   return (
     <View style={styles.fill} onLayout={measureViewport}>
       <ScrollView ref={scroller} contentContainerStyle={styles.page} scrollEnabled={false}>
-        {/* `.settings-hero`: logo, eyebrow, name, and the state line. */}
+        {/* `.settings-hero` */}
         <View style={styles.hero}>
           <Image
             source={require('../../assets/icon.png')}
@@ -152,7 +131,7 @@ export function SettingsScreen(): React.JSX.Element {
           </View>
         </View>
 
-        {/* `.settings-status-grid` — three cards, in the same order. */}
+        {/* `.settings-status-grid` */}
         <View style={styles.statusGrid}>
           <StatusCard
             label="Server"
@@ -200,7 +179,7 @@ export function SettingsScreen(): React.JSX.Element {
           <StatusCard label="Client" state="Android TV" rows={[['Version', clientVersion]]} />
         </View>
 
-        {/* `.settings-connection`, and the reason a television needs it. */}
+        {/* `.settings-connection` */}
         <View style={styles.section} onLayout={measureRow('connection')}>
           <Text style={styles.heading}>Connection</Text>
           <Text style={styles.label}>Macha bootstrap API endpoints</Text>
@@ -233,10 +212,8 @@ export function SettingsScreen(): React.JSX.Element {
         </View>
 
         {/*
-          The quality ceiling: per device, labelled by height, and unset means
-          the screen's own class. It caps automatic play only; a version picked
-          on the detail page or in the player is never capped. No web rule to
-          port: it takes Diagnostics' control.
+          Unset means the screen's own class. Caps automatic play only, never a
+          version the viewer picks. No web rule to port.
         */}
         <View style={styles.section} onLayout={measureRow('quality')}>
           <Text style={styles.heading}>Playback</Text>
@@ -266,10 +243,7 @@ export function SettingsScreen(): React.JSX.Element {
             Applies to this television only, from the next thing played. Play and Resume choose the
             best version at or below it; the quality buttons beside them play what they say.
           </Text>
-          {/*
-            Every client offers only what the device plays, with this setting
-            to turn that off. Off by default.
-          */}
+          {/* Off by default: only what the device plays is offered. */}
           <Focusable
             onSelect={() => {
               const next = !offerAll;
@@ -294,7 +268,7 @@ export function SettingsScreen(): React.JSX.Element {
           </Text>
         </View>
 
-        {/* `.settings-diagnostics`. */}
+        {/* `.settings-diagnostics` */}
         <View style={styles.section} onLayout={measureRow('diagnostics')}>
           <Text style={styles.heading}>Diagnostics</Text>
           <Focusable
@@ -314,12 +288,7 @@ export function SettingsScreen(): React.JSX.Element {
               </Text>
             </View>
           </Focusable>
-          {/*
-            The web client's label reads "…on errors", because on that client
-            it is only ever on errors. Here it is also the running trail and
-            the session id: a release build writes no console, so on a
-            television the buffer cannot be read any other way.
-          */}
+          {/* Wider than the web client's "on errors": here it is also the running trail and the session id. */}
           <Text style={styles.note}>
             Prints the last warnings and errors under the failure message on the player, and, while
             a film is running, the session id and the trail as it fills. A television has no
@@ -328,10 +297,7 @@ export function SettingsScreen(): React.JSX.Element {
           </Text>
         </View>
 
-        {/*
-          Past here is this platform's own, and has no web counterpart: a
-          browser cannot ask either question.
-        */}
+        {/* From here on, no web counterpart. */}
         <View style={styles.section} onLayout={measureRow('decoding')}>
           <ReadingStop onFocus={() => revealRow('decoding')}>
           <Text style={styles.heading}>Hardware decoding</Text>
@@ -416,11 +382,8 @@ export function SettingsScreen(): React.JSX.Element {
 }
 
 /**
- * A section with nothing to press, made a focus stop so it can be read.
- *
- * The page follows focus and nothing else scrolls it, so a section with no
- * control in it below the last control could never be brought on screen. OK
- * does nothing; the ring says where you are.
+ * A focus stop with nothing to press: the page scrolls only by following
+ * focus, so a section without a control could not otherwise be reached.
  */
 function ReadingStop({ onFocus, children }: { onFocus: () => void; children: React.ReactNode }): React.JSX.Element {
   return (
@@ -430,7 +393,7 @@ function ReadingStop({ onFocus, children }: { onFocus: () => void; children: Rea
   );
 }
 
-/** `.settings-status-card`: a label, a state, and a short definition list. */
+/** `.settings-status-card` */
 function StatusCard({
   label,
   state,
@@ -466,12 +429,7 @@ function Capability({ name, value }: { name: string; value: string }): React.JSX
   );
 }
 
-/**
- * Breathing room above and below a control scrolled to.
- *
- * One line of text. Flush against the edge of a panel reads as cut off from
- * three metres, where there is no scrollbar to say otherwise.
- */
+/** Margin above and below a control scrolled to: one line of text. */
 const SCROLL_LEAD = rem(1.5);
 
 const styles = StyleSheet.create({

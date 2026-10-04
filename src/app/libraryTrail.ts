@@ -1,24 +1,10 @@
 import type { MediaSummary } from '@machafoundation/core';
 
 /**
- * What sits beneath a TV item, whichever way the viewer reached it.
- *
- * Back from an episode goes to its season, Back from a season goes to its
- * series, and Back from a series goes to TV Shows — always, not only when the
- * viewer happened to walk down that way. An episode resumed from Continue
- * Watching on Home, or a season found by Search, has to land in the same place
- * as one reached through the library. (A film's Back goes to its own detail
- * screen instead.)
- *
- * So the stack is synthesised from what the item says about its ancestry
- * rather than from the path taken. An episode names its series and season in
- * `playbackContext`; a season names its show in `showId` or `parentId`. When
- * an item does not say, there is no trail and the caller keeps the plain
- * stack — a guessed parent is worse than an honest Back to where the viewer
- * came from.
- *
- * `returnTo` is the card each level should hand focus back to, so Back from
- * the player lands on the episode that was playing, not the season's first.
+ * What sits beneath a TV item, however the viewer reached it: episode ->
+ * season -> series -> TV Shows. Built from the item's stated ancestry
+ * (`playbackContext`, `showId`, `parentId`); with none stated there is no
+ * trail and the caller keeps the plain stack.
  */
 export type TrailRoute =
   | { name: 'shows' }
@@ -31,12 +17,7 @@ export interface TrailLevel {
   returnTo: string;
 }
 
-/**
- * Only what is on hand without a fetch: the item itself, plus whatever core's
- * `episodeNeighbours` has already resolved for an episode that carried no
- * context. Kept to ids and titles because that is all the screens need to
- * mount — each fetches its own details by id.
- */
+/** Ancestry on hand without a fetch, e.g. from core's `episodeNeighbours`. */
 export interface KnownAncestry {
   show?: { id: string; title: string };
   season?: { id: string; title: string };
@@ -58,9 +39,7 @@ export function libraryTrail(media: MediaSummary, known: KnownAncestry = {}): Tr
       ?? media.parentId
       ?? known.show?.id;
     if (!showId) return undefined;
-    // A season found by Search knows its show's id and not its name. The
-    // series screen titles itself from its own fetch, so an empty title here
-    // is filled in as soon as that lands.
+    // The show's title may be unknown here; the series screen fetches its own.
     const title = known.show?.id === showId ? known.show.title : '';
     return [
       { route: { name: 'shows' }, returnTo: showId },

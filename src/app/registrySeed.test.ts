@@ -17,11 +17,8 @@ function memoryStorage(): StorageLike {
 }
 
 /**
- * With its one configured node down, a set must still reach the nodes it
- * remembers. The remembered list has to survive the restart that reads it, or
- * it is a fallback for exactly one start.
- *
- * Exercises core's `seedEndpoints` in the way `MachaProvider` seeds.
+ * With its configured node down, a set must still reach remembered nodes, and
+ * the remembered list must survive a restart. Seeds as `MachaProvider` does.
  */
 describe('registry seeding', () => {
   it('keeps the remembered nodes remembered across a restart', () => {

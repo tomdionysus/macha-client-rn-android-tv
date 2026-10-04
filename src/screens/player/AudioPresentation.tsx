@@ -7,20 +7,15 @@ import { trackFacts } from '../../text/viewerText';
 import { colour, font, rem, vh, vw } from '../../styles/theme';
 
 /**
- * A track in the player: its artwork, and the artist, album, year and track
- * beneath it.
- *
- * The web client's `.audio-player-*` presentation, ported from `macha-client`
- * `src/styles/base.css`. The radial gradient behind it is not ported: React
- * Native has none built in, and the plain background is what the gradient
- * fades to.
+ * A track in the player: artwork above artist, album, year and track. Ports
+ * `.audio-player-*` from `macha-client` `src/styles/base.css`, without the
+ * radial gradient (React Native has none).
  */
 export function AudioPresentation({ track }: { track: MediaSummary }): React.JSX.Element {
   const { services } = useMacha();
   const artwork = track.artwork?.poster ?? track.artwork?.thumbnail;
   const facts = trackFacts(track);
-  // Its format, "3:45 · FLAC · 24-bit · 96 kHz · Stereo · 2,304 kbps", where
-  // the track plays, as the phone client shows it under the same lines.
+  // The format line, e.g. "3:45 · FLAC · 24-bit · 96 kHz · Stereo · 2,304 kbps".
   const lines = useFileLines(track);
   return (
     <View style={styles.fill} pointerEvents="none">
@@ -51,25 +46,25 @@ export function AudioPresentation({ track }: { track: MediaSummary }): React.JSX
 
 /** `.audio-player-art { width: min(42vh, 38vw, 420px) }` */
 const ART = Math.min(vh(42), vw(38), 420);
-/** `.audio-player-art { top: 44% }`, centred on that line. */
+/** `.audio-player-art { top: 44% }` */
 const ART_CENTRE = vh(44);
 
 const styles = StyleSheet.create({
   fill: StyleSheet.absoluteFill,
-  /** `.audio-player-art` — centred, rounded, on `--surface-2`. */
+  /** `.audio-player-art` */
   art: {
     position: 'absolute',
     left: (vw(100) - ART) / 2,
     top: ART_CENTRE - ART / 2,
     width: ART,
     height: ART,
-    /** `.audio-player-art { border-radius: .8rem }` — not `radius.card`, which is .75rem. */
+    /** `.audio-player-art { border-radius: .8rem }`; `radius.card` is .75rem. */
     borderRadius: rem(0.8),
     overflow: 'hidden',
     backgroundColor: colour.surface2,
   },
   image: { width: '100%', height: '100%' },
-  /** `.audio-player-placeholder` — the web client's glyph is a note; the TV uses the initial, as its cards do. */
+  /** `.audio-player-placeholder`; the TV shows the initial, as its cards do. */
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   placeholderGlyph: { fontFamily: font.family, fontSize: rem(7), color: colour.audioPlaceholderGlyph },
   /** `.audio-player-facts { top: calc(44% + half the art + 1.3rem); width: min(90vw, 36rem) }` */
@@ -92,10 +87,7 @@ const styles = StyleSheet.create({
     fontSize: rem(0.85),
     letterSpacing: rem(0.85) * 0.06,
   },
-  /**
-   * The format line: the detail page's `.media-profile-summary` (text-dim,
-   * .95rem), a step below the album so the facts still lead.
-   */
+  /** `.media-profile-summary` (text-dim, .95rem) */
   formatLine: {
     fontFamily: font.family,
     marginTop: rem(0.45),

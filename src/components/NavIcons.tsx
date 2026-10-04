@@ -2,16 +2,8 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { colour, px } from '../styles/theme';
 
 /**
- * The top bar's two trailing glyphs, ported from the web client.
- *
- * Both are its own geometry rather than a lookalike: `AccountMenu`'s `UserIcon`
- * and `ManageIcons`'s `SettingsIcon`, with the same paths, the same stroke
- * weight and the same 24-unit viewBox. The cog is the tooth profile as an
- * outline because a cog drawn from spokes reads as brightness at three metres.
- *
- * Sized in CSS px through `px()`, like every other glyph here: the web client
- * draws the user at 18 and the cog at 18, and a raw number would be twice that
- * on this panel.
+ * The web client's glyphs, same paths and stroke: `AccountMenu`'s `UserIcon`
+ * and `ManageIcons`'s `SettingsIcon`. Sized in CSS px through `px()`.
  */
 
 interface NavIconProps {
@@ -51,10 +43,7 @@ export function SettingsIcon({ size, colour: stroke = colour.textDim }: NavIconP
   );
 }
 
-/**
- * `ManageIcons`'s `RefreshIcon`, same path, same 1.8 stroke. Search's control
- * row ends in it (`.search-bar-refresh`).
- */
+/** `ManageIcons`'s `RefreshIcon`, same path and stroke. */
 export function RefreshIcon({ size, colour: stroke = colour.textDim }: NavIconProps): React.JSX.Element {
   const dimension = size ?? px(18);
   return (

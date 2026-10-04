@@ -16,8 +16,6 @@ function entry(overrides: Partial<ClientLogEntry> = {}): ClientLogEntry {
 
 describe('playbackFailureTrail', () => {
   it('keeps only warnings and errors', () => {
-    // A screen that also listed every routine step would bury the three lines
-    // that matter under the fifty that do not.
     const trail = playbackFailureTrail([
       entry({ level: 'debug', event: 'tick' }),
       entry({ level: 'info', event: 'first-fragment' }),
@@ -29,8 +27,6 @@ describe('playbackFailureTrail', () => {
   });
 
   it('keeps the most recent entries, not the first', () => {
-    // A cluster walk generates more than a dozen lines and the useful ones
-    // are always the last.
     const many = Array.from({ length: 40 }, (_, index) =>
       entry({ event: `step-${index}`, elapsedMs: index }));
 
@@ -41,8 +37,6 @@ describe('playbackFailureTrail', () => {
   });
 
   it('reads the message out of an Error rather than printing {}', () => {
-    // An Error nested in a data object stringifies to `{}`, and the message
-    // inside it is the whole point of the line.
     const trail = playbackFailureTrail([
       entry({ data: { cause: new Error('node refused the fragment') } }),
     ]);
@@ -70,7 +64,6 @@ describe('playbackFailureTrail', () => {
   });
 
   it('survives a circular structure', () => {
-    // Losing a log line is acceptable; losing the failure screen to one is not.
     const circular: Record<string, unknown> = {};
     circular.self = circular;
 
@@ -81,8 +74,6 @@ describe('playbackFailureTrail', () => {
   });
 
   it('carries the elapsed time, which is what distinguishes the causes', () => {
-    // Whether a failover followed a rewind or a hold is answered by when the
-    // lines happened relative to each other.
     const trail = playbackFailureTrail([
       entry({ elapsedMs: 4_200, event: 'stalled' }),
       entry({ elapsedMs: 11_300, level: 'error', event: 'failure' }),
@@ -94,9 +85,6 @@ describe('playbackFailureTrail', () => {
 
 describe('trailSignature', () => {
   it('is stable while nothing new is logged', () => {
-    // The live trail polls once a second for the whole of a film. A poll that
-    // set state unconditionally would re-render the player against the
-    // decoder, which is the scarcest thing on this panel.
     const trail = playbackFailureTrail([entry({ event: 'stalled' })]);
 
     expect(trailSignature(trail)).toBe(trailSignature(playbackFailureTrail([
@@ -115,8 +103,7 @@ describe('trailSignature', () => {
   });
 
   it('changes when the tail moves under a full buffer', () => {
-    // The count stops rising once the trail is at its cap, so the count alone
-    // would report a failover as no change at all.
+    // The count stops rising once the trail is at its cap.
     const many = (from: number) => playbackFailureTrail(
       Array.from({ length: 20 }, (_, index) => entry({
         event: `step-${from + index}`,

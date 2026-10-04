@@ -5,13 +5,8 @@ import { availabilityMarker, type AvailabilityMarkerKind } from './availability'
 import { colour, rem } from '../styles/theme';
 
 /**
- * A title's availability marker on a dark disc, or nothing.
- *
- * `overlay` places it at the artwork's top left, mirroring the Continue
- * Watching remove button at the top right; without it, it sits inline before
- * a heading. Outlines, stroked and never filled; the dots are round-capped
- * strokes. Icons only: a television has no hover to carry the web client's
- * tooltip.
+ * A title's availability marker on a dark disc, or nothing. `overlay` places
+ * it at the artwork's top left; otherwise it sits inline before a heading.
  */
 export function AvailabilityMarker({
   media,

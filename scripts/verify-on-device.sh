@@ -19,11 +19,8 @@
 #   ./scripts/verify-on-device.sh bundle <literal>...  # is this literal in the APK's bundle?
 set -uo pipefail
 
-# The set that can be switched on when the work needs it, and therefore the one
-# a bare invocation means. Both TCLs are targets, but `10.34.1.115` is updated
-# **opportunistically when it happens to be up, and not run** — install on it,
-# leave it alone, and take no measurement from it unless somebody is standing
-# in front of it.
+# Default target. `10.34.1.115` is install-only: take no measurement from it
+# unless somebody is in front of it.
 TV="${TV:-10.35.1.133:5555}"
 PKG="foundation.macha.client.tv"
 APK="android/app/build/outputs/apk/release/app-release.apk"
@@ -47,12 +44,8 @@ install)
   say "Macha packages currently installed"
   "$ADB" -s "$TV" shell "pm list packages | grep -i macha" | tr -d '\r' || echo "(none)"
 
-  # INSTALL FIRST, THEN REMOVE. The two packages have different ids and can
-  # coexist, so there is never a moment with no Macha app on the set.
-  #
-  # Removing first risks the television dropping off the network between the
-  # uninstall and the install, leaving a set with nothing on it. On a link this
-  # unreliable, order is the difference between a retryable step and a hole.
+  # Install first, then remove: the package ids differ and can coexist, so a
+  # dropped link never leaves the set with no Macha app.
   say "Installing $APK"
   [ -f "$APK" ] || { echo "APK missing — build it first." >&2; exit 1; }
   "$ADB" -s "$TV" install -r -d "$APK" || { echo "install failed — nothing removed" >&2; exit 1; }
@@ -63,13 +56,8 @@ install)
     exit 1
   fi
 
-  # Present is not the same as *replaced*. `versionCode` is the only thing the
-  # package manager compares, and `install -r` hides a failed replace
-  # completely: the risk is not the install, it is reading new source while the
-  # set runs old bytecode.
-  #
-  # So assert rather than report — compare both versionCode and versionName on
-  # the device against what this APK actually declares.
+  # Present is not replaced: `install -r` hides a failed replace, so compare
+  # versionCode and versionName on the device with what the APK declares.
   say "Confirming the device is running THIS build"
   aapt2="$(ls "${ANDROID_HOME:-$HOME/Library/Android/sdk}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)"
   if [ -z "$aapt2" ]; then
@@ -107,32 +95,22 @@ install)
 
 capabilities)
   connect
-  # The app logs nothing at startup by design; this reads the same source it
-  # does, so the two can be compared. A disagreement means the probe is wrong.
+  # Reads the source the app builds its capabilities from; a disagreement
+  # means the probe is wrong.
   say "Platform decoders (the app builds its capabilities from this)"
   "$ADB" -s "$TV" shell "dumpsys media.player" | grep -E "^Media type" | sed 's/Media type //' | sort -u
   ;;
 
 audio)
   connect
-  # The measurement that settles the premise.
-  #
-  # "Listen for the dialogue" is the symptom; this is the evidence. Three things
-  # must all hold for the client to have done its job:
-  #
-  #   1. the DECODER is a platform E-AC-3/AC-3 decoder, not an AAC one
-  #      — an AAC decoder means the node transcoded and nothing was gained;
-  #   2. the channel COUNT reaching AudioTrack is 6, not 2
-  #      — 2 means something downmixed upstream of the set;
-  #   3. the channel MASK is POSITIONAL, not an index mask
-  #      — 0x8000003F is the index mask that loses the centre channel, and is
-  #        exactly what Chromium hands AudioFlinger. A positional 5.1 mask is
-  #        0x3F (FRONT_LEFT|FRONT_RIGHT|FRONT_CENTER|LOW_FREQUENCY|BACK_LEFT|
-  #        BACK_RIGHT). The high bit is the whole difference.
-  #
-  # If 1 and 2 hold but 3 shows an index mask, the client is direct-playing and
-  # the set still cannot fold down — which is core's speaker-layout gap, not
-  # this client's bug, and is the answer core is waiting for.
+  # All three must hold:
+  #   1. the decoder is a platform E-AC-3/AC-3 decoder, not AAC (AAC means the
+  #      node transcoded);
+  #   2. the channel count reaching AudioTrack is 6, not 2;
+  #   3. the channel mask is positional (0x3F), not the index mask 0x8000003F,
+  #      which loses the centre channel.
+  # 1 and 2 with an index mask means direct play works and the set cannot fold
+  # down: core's speaker-layout gap, not this client's.
   say "Active audio tracks at AudioFlinger (channel mask and format)"
   "$ADB" -s "$TV" shell "dumpsys media.audio_flinger" \
     | grep -iE "channel|format|sample|track|mixer" | head -40
@@ -146,16 +124,9 @@ audio)
 
 instances)
   connect
-  # Gates the seamless-failover design: priming a standby means two live
-  # ExoPlayer instances, and therefore two concurrent decoder sessions.
-  # Hardware decoder instances are scarce and enumerable — often one or two for
-  # HEVC on a set like this. If the panel allows only one, a standby fails to
-  # allocate exactly when it is most needed, and the design has to fall back to
-  # an audio-only or lower-profile prime.
-  #
-  # dumpsys reports this per codec where the platform populates it. Where it
-  # does not, the honest answer is "unknown", and the fallback is to try
-  # allocating a second decoder and see — which is app work, not a shell check.
+  # A primed standby is a second ExoPlayer, so a second concurrent decoder
+  # session. dumpsys reports the limit per codec only where the platform
+  # populates it; otherwise it is unknown.
   say "Concurrent decoder instances per codec"
   "$ADB" -s "$TV" shell "dumpsys media.player" \
     | grep -iE "^Media type|instances|concurrent" | head -60
@@ -166,7 +137,7 @@ instances)
 
 headers)
   connect
-  # Turns the source-verified "no custom headers" claim into a wire-verified one.
+  # Checks on the wire that Media3 sends no custom headers.
   say "Media3 HTTP requests (watch while something plays)"
   "$ADB" -s "$TV" logcat -c
   echo "Playing now? Ctrl-C when you have a fragment or two."
@@ -174,28 +145,12 @@ headers)
   ;;
 
 bundle)
-  # **Did the bundle in the APK actually move?** Gradle cannot see inside the
-  # symlinked core, so an "up to date" build ships stale JavaScript while every
-  # version string agrees. The check is to name a literal only the new code
-  # emits and look for it in the APK's own bundle.
+  # Gradle cannot see inside the symlinked core, so an "up to date" build can
+  # ship stale JavaScript. Name a literal only the new code emits and look for
+  # it in the APK's bundle.
   #
-  # **`grep -a`, always.** The bundle is Hermes bytecode, and a grep that
-  # decides it is binary can skip it silently — this shell's `grep` is a
-  # wrapper carrying `-I`, which exits 1 with no output on it. That is
-  # indistinguishable from "the literal is missing", which is the exact wrong
-  # conclusion: it says the bundle is stale when it is fine. `strings` is not
-  # needed.
-  #
-  # **And a second way to reach the same wrong conclusion, measured: Hermes
-  # stores a string containing any non-ASCII character as UTF-16**, so a byte
-  # grep misses it even when the ASCII part of the same template is found.
-  # Every sentence this client shows a viewer is a candidate: the house style
-  # uses `—` and `…` throughout.
-  #
-  # So each literal is looked for in **both** encodings and counted as present
-  # in either. Searching UTF-16 needs the needle transcoded rather than the
-  # haystack: `iconv` on 1.8 MB of bytecode would have to guess at an encoding
-  # it does not have, while the needle is known text.
+  # Each literal is searched in UTF-8 and UTF-16: Hermes stores any string with
+  # a non-ASCII character (`—`, `…`) as UTF-16, which a byte grep misses.
   shift
   [ $# -gt 0 ] || { echo "usage: verify-on-device.sh bundle <literal>..." >&2; exit 1; }
   [ -f "$APK" ] || { echo "APK missing — build it first." >&2; exit 1; }
@@ -208,11 +163,8 @@ bundle)
   echo "  bytes: $(wc -c < "$b" | tr -d ' ')"
   echo "  sha:   $(shasum -a 256 < "$b" | cut -c1-16)"
   missing=0
-  # Counted in Python rather than with `grep`, because the UTF-16 needle is
-  # mostly NUL bytes: every shell mechanism for handing a pattern to grep —
-  # an argument, `xargs -0`, a `-f` pattern file — either splits on NUL or
-  # truncates at the first one, and each fails by reporting *absent*. Which is
-  # the one answer this stage must never give wrongly.
+  # Counted in Python: the UTF-16 needle is mostly NUL bytes, which every way
+  # of passing a pattern to grep splits or truncates, reporting "absent".
   for lit in "$@"; do
     read -r n enc <<<"$(LIT="$lit" B="$b" python3 -c '
 import os, sys
@@ -236,12 +188,9 @@ print(0, "-")
 
 logs)
   connect
-  # **A release build prints no JavaScript here, and that is deliberate.**
-  # `ReactNativeJS` does not carry core's client log in the only build that
-  # reaches a television: `playbackLog.ts` sets `console: __DEV__`, because the
-  # JS/native console bridge costs real CPU on this panel and nobody is
-  # attached to it with a cable. Measured on `10.35.1.133` with the release
-  # APK: a full playback session's logcat holds **zero** ReactNativeJS lines.
+  # A release build prints no JavaScript here: `playbackLog.ts` sets
+  # `console: __DEV__` because the console bridge costs CPU on this panel
+  # (measured on `10.35.1.133`: zero ReactNativeJS lines in a session).
   say "What the PLATFORM reports (decoder, audio routing, media3)"
   "$ADB" -s "$TV" logcat -c
   echo "Native only. For this client's own playback evidence — the chosen"

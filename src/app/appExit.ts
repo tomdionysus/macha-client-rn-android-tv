@@ -1,16 +1,9 @@
 let leaving: Promise<void> | undefined;
 
 /**
- * Leave the app once everything the viewer would miss has reached the device.
- *
- * Back from Home exits with no confirmation, so Continue Watching and the
- * rest must be persisted first. Storage writes land in memory at once and reach AsyncStorage through a
- * chained queue (`src/state/storage.ts`), so an exit taken mid-queue could
- * lose the last of them; `flush` is that queue's end.
- *
- * Bounded by `budgetMs` (`EXIT_FLUSH_BUDGET_MS`): a write that never
- * finishes must not keep a viewer in an app they have asked to leave. Presses
- * that arrive while it waits join the same exit rather than starting another.
+ * Exit once queued storage writes (`src/state/storage.ts`) have reached the
+ * device, or after `budgetMs` (`EXIT_FLUSH_BUDGET_MS`) so a stuck write cannot
+ * hold the viewer in. Presses during the wait join the same exit.
  */
 export function exitAfterFlush(flush: () => Promise<unknown>, exit: () => void, budgetMs: number): Promise<void> {
   if (leaving) return leaving;

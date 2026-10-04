@@ -14,11 +14,7 @@ import { MediaRow } from '../components/MediaRow';
 import { usePageFocusScroll } from '../hooks/usePageFocusScroll';
 import { rem } from '../styles/theme';
 
-/**
- * Home, matching the web client's screen of the same name: Continue Watching
- * first, then the three catalogue rails, each trimmed to the fourteen most
- * recently catalogued items by `newestCatalogueFirst` from core.
- */
+/** Home, as the web client's: Continue Watching, then three rails of the fourteen newest. */
 export function HomeScreen({
   api,
   catalogue,
@@ -28,20 +24,18 @@ export function HomeScreen({
   onRemoveFromContinueWatching,
 }: {
   api: MediaApi;
-  /** For Continue Watching's current availability; see below. */
+  /** For Continue Watching's current availability. */
   catalogue: CatalogueApi;
   continueWatching: PlaybackProgress[];
   onOpen: (media: MediaSummary) => void;
   onResume: (media: MediaSummary) => void;
-  /** The card's ×: forget this entry, as the web client's does. */
+  /** Forget this entry. */
   onRemoveFromContinueWatching: (media: MediaSummary) => void;
 }): React.JSX.Element {
   const home = useRefreshableAsync(() => api.home(), [api]);
   /**
-   * An entry stores its title without availability, since that changes as
-   * nodes come and go; the row's markers come from a fresh read of each title.
-   * Until it answers, and for a title it could not read, a card has no marker
-   * and stays playable.
+   * Entries store no availability, so markers come from a fresh read of each
+   * title. Without an answer a card has no marker and stays playable.
    */
   const continueIds = continueWatching.flatMap((entry) => (entry.media ? [entry.media.id] : []));
   const continueKey = continueIds.join('\n');
@@ -73,8 +67,7 @@ export function HomeScreen({
     <ScrollView
       ref={scroller}
       contentContainerStyle={styles.page}
-      // A television has no touch: the page follows focus instead, so a row
-      // below the fold is scrolled into view when it takes focus.
+      // No touch: the page follows focus instead.
       scrollEnabled={false}
     >
       <PageTitle>Home</PageTitle>

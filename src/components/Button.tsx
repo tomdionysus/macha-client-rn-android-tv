@@ -3,12 +3,8 @@ import { Focusable } from './Focusable';
 import { colour, font, radius, rem, type } from '../styles/theme';
 
 /**
- * The client's one text button: `.primary-button` / `.settings button` in
- * base.css, focused the way every button here is — the standard 1px `--focus`
- * ring over the stronger accent fill.
- *
- * Every text button looks and focuses the same; use this rather than a styled
- * `Focusable` for any new one.
+ * The client's one text button, from `.primary-button` / `.settings button` in
+ * base.css. Use it rather than a styled `Focusable`.
  */
 export function Button({
   label,
@@ -27,13 +23,9 @@ export function Button({
   disabled?: boolean;
   /** For a screen that scrolls its focused row into view. */
   onFocusChange?: (focused: boolean) => void;
-  /**
-   * `.modal-danger-action`'s dark red fill, without its red border: on a
-   * television a red border is what focus looks like, so an unfocused
-   * destructive button would read as focused. Focus is the standard ring.
-   */
+  /** `.modal-danger-action`'s fill without its red border, which here would read as focus. */
   destructive?: boolean;
-  /** Placement only — margins, alignment. Never colour. */
+  /** Placement only, never colour. */
   style?: StyleProp<ViewStyle>;
 }): React.JSX.Element {
   return (

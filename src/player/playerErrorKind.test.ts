@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { decoderFailureKind } from './playerErrorKind';
 
-/**
- * expo-video hands JS only a sentence: "A playback exception has occurred: "
- * then ExoPlayer's message and its cause's (`expo-video`
- * `records/PlaybackError.kt`). The renderer message below is one `.133`
- * logged for an AVI with MPEG-4 Part 2 video.
- */
+// expo-video's message is this prefix plus ExoPlayer's. The MPEG-4 renderer
+// message below is as logged on the TCL set.
 const PREFIX = 'A playback exception has occurred: ';
 
 describe('decoderFailureKind', () => {

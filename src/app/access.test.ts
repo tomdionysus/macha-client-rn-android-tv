@@ -13,11 +13,7 @@ const unreachable: SessionMintFailure = {
   message: 'All configured API endpoints are unreachable.',
 };
 
-/**
- * **"The server told us we may not" is not "we could not ask".** A login wall on
- * a network blip tells the viewer to sign in, which cannot work with no
- * reachable node.
- */
+/** A login wall when nothing answered offers an action that cannot work. */
 describe('refused versus unreachable', () => {
   it('offers a sign-in when a node answered and said no', () => {
     expect(accessState(true, refused, undefined)).toEqual({
@@ -27,8 +23,6 @@ describe('refused versus unreachable', () => {
   });
 
   it('never offers a sign-in when nothing answered', () => {
-    // The away-from-home case. A login here claims a policy no cluster stated
-    // and offers an action that cannot succeed.
     expect(accessState(true, unreachable, undefined)).toEqual({ kind: 'offline' });
   });
 
@@ -45,10 +39,7 @@ describe('refused versus unreachable', () => {
   });
 });
 
-/**
- * Roles come from core and use `undefined` for unknown, so a caller cannot
- * mistake "not said yet" for "granted nothing" by forgetting a separate flag.
- */
+/** Core's roles use `undefined` for unknown, distinct from `[]`. */
 describe('what the roles say', () => {
   it('locks a session the cluster granted nothing', () => {
     expect(accessState(true, undefined, [])).toEqual({ kind: 'sign-in' });
@@ -73,28 +64,21 @@ describe('before the question has been answered', () => {
   });
 
   it('is checking even if a stale failure is still hanging about', () => {
-    // `isReady === false` means the question is open; a reason from a previous
-    // attempt must not put a wall up while a retry is in flight.
+    // A reason left from a previous attempt must not raise a wall mid-retry.
     expect(accessState(false, refused, []).kind).toBe('checking');
   });
 });
 
 describe('precedence', () => {
   it('puts the mint failure above the roles question', () => {
-    // When the mint failed there is no session whose roles could mean anything,
-    // so an empty list alongside a failure must not be read as a grant of none.
+    // A failed mint has no session, so `[]` beside it is not a grant of none.
     expect(accessState(true, unreachable, []).kind).toBe('offline');
   });
 });
 
 /**
- * A wall raised *after* the viewer was admitted, which the latch exists to
- * prevent — and the two cases where preventing it is wrong.
- *
- * Measured on the cluster: a re-mint presenting no credentials returns
- * `username: anonymous` with `roles: []`, and `/catalogue/items` then answers
- * `403 requires the 'media_viewer' role`. That session is not a blip to be
- * ridden out; it can do nothing.
+ * The two cases the latch lets through. Measured on the cluster: a re-mint
+ * without credentials returns `username: anonymous` with `roles: []`.
  */
 describe('admission ending', () => {
   it('raises the wall when the viewer asked to be signed out', () => {
@@ -105,9 +89,7 @@ describe('admission ending', () => {
   });
 
   it('outranks a lifecycle that has not settled', () => {
-    // `signOut` does not mint a replacement, so `isReady` may well be false
-    // afterwards. Answering `checking` there would leave a viewer who asked to
-    // leave staring at "Connecting…" instead of at a login form.
+    // `signOut` mints no replacement, so `isReady` may be false afterwards.
     expect(accessState(false, undefined, undefined, 'signed-out').kind).toBe('sign-in');
   });
 
@@ -119,18 +101,11 @@ describe('admission ending', () => {
   });
 
   it('says nothing new when nothing ended the admission', () => {
-    // The ordinary wall carries no reason, so the latch cannot mistake a
-    // first-run refusal for a session that lapsed under a viewer.
+    // No reason on the ordinary wall, so the latch cannot take it for a lapse.
     expect(accessState(true, undefined, [])).toEqual({ kind: 'sign-in' });
   });
 });
 
-/**
- * The latch itself, as a value rather than through a renderer.
- *
- * A failed *refresh* must never replace a player mid-film with a login screen,
- * but two states are not that, and must get through it.
- */
 describe('the latch', () => {
   it('admits once allowed, and stays admitted through a later refusal', () => {
     expect(stillAdmitted(false, { kind: 'allowed' })).toBe(true);
@@ -143,7 +118,6 @@ describe('the latch', () => {
   });
 
   it('lets a lapsed identity through', () => {
-    // A demotion mid-session locks the viewer out when core can report it.
     expect(stillAdmitted(true, { kind: 'sign-in', because: 'identity-changed' })).toBe(false);
   });
 
@@ -153,11 +127,6 @@ describe('the latch', () => {
   });
 });
 
-/**
- * Reading core's two halves together, which is the host's job and nobody
- * else's — core reports the change and the capability separately and states no
- * sentence about either.
- */
 describe('a lapsed identity', () => {
   const changed = { from: 'tvtest', to: 'anonymous', at: 1_790_017_613_383 };
 
@@ -166,21 +135,17 @@ describe('a lapsed identity', () => {
   });
 
   it('is not an ordinary sign-in', () => {
-    // anonymous -> tvtest is a change too, and the arriving session can do
-    // things. Treating the change alone as a lapse would throw a viewer out at
-    // the moment they signed in.
+    // anonymous -> tvtest is a change too, and the arriving session has roles.
     expect(lapsedIdentity({ from: 'anonymous', to: 'tvtest', at: 1 }, ['media_viewer'])).toBe(false);
   });
 
   it('is not an empty role set that nothing changed into', () => {
-    // Already `sign-in` from the roles alone, and the latch was never set. What
-    // the change adds is that the lockout is new.
+    // The roles alone already give `sign-in`; the latch was never set.
     expect(lapsedIdentity(undefined, [])).toBe(false);
   });
 
   it('does not fire while roles are unknown', () => {
-    // `undefined` is core's "nothing has said yet" and permits everything. A
-    // change observed before the roles arrive must not be read as a lapse.
+    // `undefined` roles are unknown, not empty.
     expect(lapsedIdentity(changed, undefined)).toBe(false);
   });
 });

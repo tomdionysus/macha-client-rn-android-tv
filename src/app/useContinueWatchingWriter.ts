@@ -15,28 +15,11 @@ import {
 import { attributableProgress } from './progressAttribution';
 
 /**
- * Keep the viewer's place on disk while they are still watching.
- *
- * **The rule is core's** (`progressWriteDue`, `nextWatermark`). What stays here
- * is platform: the tick, the playback subscription, the app-scope placement,
- * the interval, the `isFinished` short-circuit and the reset between films.
- *
- * **At app scope rather than the player screen's, for the reason
- * `usePlaybackRuntime` gives for the live-session record**: the whole job of
- * this write is to outlive things, and a screen that unmounts when the viewer
- * presses Back would stop writing exactly when there is still something to
- * record. The two are the same rule applied to the two halves of a kill — that
- * one tracks what the *node* is still holding, this one tracks where the
- * *viewer* was.
- *
- * `closePlayer` also writes, but only when a viewer leaves deliberately;
- * `SIGKILL` runs nothing, so a killed process relies on this.
- *
- * Two triggers, because neither is sufficient alone: every playback snapshot,
- * so a pause is recorded when it happens rather than up to five minutes later;
- * and a tick, because snapshots cannot be relied on to keep arriving while a
- * film simply plays. `progressWriteDue` decides in both cases, so the rule
- * lives in one tested place rather than in two timers.
+ * Writes the viewer's place while they watch, so a killed process loses at
+ * most one interval. The rule is core's (`progressWriteDue`, `nextWatermark`).
+ * At app scope so it outlives the player screen. Evaluated on every snapshot
+ * (a pause is recorded at once) and on a tick (snapshots may not arrive while
+ * a film plays).
  */
 export function useContinueWatchingWriter(
   runtime: PlaybackRuntime,
@@ -54,14 +37,7 @@ export function useContinueWatchingWriter(
       const now = Date.now();
 
       if (!snapshot) {
-        // No playback is the boundary between one film and the next. Resetting
-        // here stops the next film inheriting this one's clock and waiting a
-        // full interval for its first attempt.
-        //
-        // It does **not** put the next film into Continue Watching
-        // immediately: core stores nothing below 30 s of position, so the
-        // earliest a film can appear is the first tick after that. Something
-        // opened and abandoned inside half a minute is not unfinished business.
+        // Between films: reset so the next does not inherit this one's clock.
         watermark.current = { paused: true, wroteAtMs: 0, attemptedAtMs: 0 };
         return;
       }
@@ -81,9 +57,7 @@ export function useContinueWatchingWriter(
 
       const playing = mediaRef.current;
       if (!playing) {
-        // The player route has gone but the runtime has not stopped yet. There
-        // is nothing to attach the record to, and an entry saved without its
-        // media renders in Continue Watching as a bare id.
+        // The route has gone but the runtime has not stopped: no media to attach.
         watermark.current = { ...watermark.current, paused: current.paused };
         return;
       }
@@ -96,17 +70,12 @@ export function useContinueWatchingWriter(
       }
 
       if (isFinished(progress)) {
-        // Core drops a finished item from the list rather than storing a
-        // position in it, so attempting this every tick through the closing
-        // credits is a storage write per tick that removes an entry already
-        // gone. `closePlayer` does the removal once, on the way out.
+        // Core drops a finished item; `closePlayer` removes it once on the way out.
         watermark.current = nextWatermark(watermark.current, current.paused, now, true);
         return;
       }
 
-      // **Core may decline this, and says so by returning a list without it** —
-      // it stores nothing below 30 s of position. Read the outcome rather than
-      // re-deriving the rule, so its floor can move without this moving.
+      // Core may decline (nothing below 30 s is stored); read the outcome.
       const stored = continueWatching.update(progress);
       const landed = stored.some((entry) => entry.itemId === progress.itemId);
       watermark.current = nextWatermark(watermark.current, current.paused, now, landed);

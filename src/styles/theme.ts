@@ -1,44 +1,20 @@
 /**
- * The Macha appearance, ported from the web client's `src/styles/base.css`.
+ * The Macha appearance, ported from the web client's `src/styles/base.css`;
+ * the single source of appearance. `base.css` sizes are rem, and one rem is
+ * 14 CSS px (`html { font-size: 87.5% }`).
  *
- * The web client sets `html { font-size: 87.5% }`, so one rem is 14 CSS px,
- * and every size in that stylesheet is expressed in rem.
- *
- * **dp and the web client's CSS px are not the same unit.** Measured on the TCL
- * `G10_4K_GB_NF_32BIT` (Android 12): `wm size` reports a 1920x1080 surface and
- * `wm density` reports **320**, so React Native's viewport is **960x540 dp** —
- * half the web client's CSS px viewport in each axis. Unconverted, every
- * `rem()` draws at twice its intended size, and every `clamp()` floor expressed
- * in px wins where the web client's ceiling wins.
- *
- * So there is one conversion and everything goes through it: `px()` takes a
- * length as `base.css` states it and returns dp for **this** viewport,
- * against the 1920 CSS px viewport the stylesheet's clamps were read at.
- * `vw()` and `vh()` need no conversion — a percentage of the viewport is the
- * same fraction in either unit, which is why the two families must not be
- * mixed by hand.
- *
- * Keep this file the single source of appearance. A colour written inline in a
- * component is a colour that will not follow when base.css changes.
+ * dp is not CSS px: the TCL set reports a 1920x1080 surface at density 320, so
+ * the viewport is 960x540 dp (measured). `px()` converts a `base.css` length
+ * to dp for this viewport; `vw()` and `vh()` need no conversion.
  */
 import { Dimensions } from 'react-native';
 
 const screen = Dimensions.get('window');
 
-/**
- * The viewport `base.css` is read against: the TV WebView's CSS px width.
- *
- * The web client's own clamps resolve against it, and the notes below on which
- * side of each `clamp()` wins assume it.
- */
+/** The viewport `base.css` is read against: the TV WebView's CSS px width. */
 export const DESIGN_WIDTH = 1920;
 
-/**
- * CSS px to dp for this set.
- *
- * `1` on a device whose dp grid really is 1920 wide; `0.5` on the 4K TCL, which
- * reports a 1920x1080 surface at density 320.
- */
+/** CSS px to dp: `0.5` on the TCL set. */
 export const scale = screen.width / DESIGN_WIDTH;
 
 /** A length as `base.css` states it, in dp. */
@@ -66,12 +42,7 @@ export function clamp(min: number, preferred: number, max: number): number {
   return Math.min(Math.max(preferred, min), max);
 }
 
-/**
- * The palette, verbatim from `:root` in base.css.
- *
- * React Native accepts `#rrggbbaa` with the same alpha-last ordering as CSS,
- * so the translucent accents carry across unchanged.
- */
+/** The palette, verbatim from `:root` in base.css. `#rrggbbaa` carries across unchanged. */
 export const colour = {
   /** `background: #0e0e0f` on `:root`. */
   background: '#0e0e0f',
@@ -100,7 +71,7 @@ export const colour = {
   accentFocusWash: '#39000b24',
   accentGlow: '#62001428',
 
-  // Literals that recur in base.css and deserve names rather than repetition.
+  // Literals that recur in base.css.
   heading: '#dedee2',
   headingDim: '#d7d7db',
   cardTitle: '#dcdce0',
@@ -111,7 +82,7 @@ export const colour = {
   inputBorder: '#3a3a40',
   inputBackground: '#19191c',
   placeholderGlyph: '#ffffff16',
-  /** `.audio-player-placeholder { color: #ffffff22 }` — a track's initial in the player. */
+  /** `.audio-player-placeholder { color: #ffffff22 }`. */
   audioPlaceholderGlyph: '#ffffff22',
   /** `.audio-player-artist { color: #f2f2f4 }`. */
   audioArtist: '#f2f2f4',
@@ -119,29 +90,18 @@ export const colour = {
   optionSurface: '#09090ab8',
   /** `.player-option-group button { color: #bcbcc2 }`. */
   optionText: '#bcbcc2',
-  /** `.search-type-pill { color: #9a9aa2 }` — a type toggle that is off. */
+  /** `.search-type-pill { color: #9a9aa2 }`. */
   toggleOff: '#9a9aa2',
-  /**
-   * The availability markers' red (unavailable) and yellow (partial and
-   * unknown). base.css has no rule for them yet; these are this client's, and
-   * the web client has been given them to match.
-   */
+  /** Red is unavailable, yellow partial or unknown. This client's own: base.css has no rule for them. */
   availabilityRed: '#ff4d4f',
   availabilityYellow: '#ffc53d',
-  /** The dark disc behind a marker, so it reads against any artwork: `.card-close-button`'s fill. */
+  /** The disc behind a marker: `.card-close-button`'s fill. */
   markerSurface: '#08080ac9',
   scrubberTrack: '#e7e7ea',
   scrubberBuffered: '#d7a3af',
   scrubberPlayed: '#620014',
 
-  /**
-   * `.modal-backdrop { background: #000b }`.
-   *
-   * The web rule also carries `backdrop-filter: blur(7px)`, which React Native
-   * has no equivalent for. Not approximated: the scrim alone is what separates
-   * the dialogue from what is behind it, and a wrong blur would be a difference
-   * from the web client rather than a missing one.
-   */
+  /** `.modal-backdrop { background: #000b }`. Its `backdrop-filter: blur(7px)` has no React Native equivalent. */
   scrim: '#000000b8',
   /** `.modal-panel { background: #171719f7 }`. */
   modalSurface: '#171719f7',
@@ -149,11 +109,7 @@ export const colour = {
   dangerSurface: '#39080e',
 } as const;
 
-/**
- * Type scale. The web client's headings are `clamp()`ed against viewport
- * width, so they resolve differently on a phone and a television; these are
- * the values that clamp settles on at a 1920-wide TV viewport.
- */
+/** Type scale, from the web client's `clamp()`ed sizes. */
 export const type = {
   /** `h1`: clamp(2rem, 4vw, 4rem) — 4vw is 76.8 at 1920, so the 4rem ceiling wins. */
   h1: clamp(rem(2), vw(4), rem(4)),
@@ -176,7 +132,7 @@ export const type = {
 /** Font stack. `Roboto` is the Android system font, matching the web client's `Roboto Variable`. */
 export const font = {
   family: 'Roboto',
-  /** base.css uses `font-weight: 650` on primary buttons; RN accepts numeric weights as strings. */
+  /** base.css uses `font-weight: 650` on primary buttons. */
   weightSemibold: '600' as const,
   weightMedium: '500' as const,
   weightBold: '700' as const,
@@ -193,28 +149,16 @@ export const radius = {
   pill: 999,
 } as const;
 
-/**
- * How faint a control is drawn when it cannot act.
- *
- * `.player-button-row button:disabled { opacity: .35 }` — the player's own row,
- * which is where the episode buttons live and which greys them out rather than
- * hiding them: the buttons always appear.
- */
+/** `.player-button-row button:disabled { opacity: .35 }`: dimmed, not hidden. */
 export const disabledOpacity = {
   playerButton: 0.35,
 } as const;
 
 /**
- * The focus look every selectable media card wears: a border that is always
- * there and only changes colour, standing off the artwork by a gap, and a
- * card-level wash and scale.
- *
- * **One definition, so there is one look**: episodes and search results are
- * focused the same as film cards. The border is thicker than base.css's 1px outline and the gap reproduces its
- * `outline-offset` — see `MediaCard`'s `poster` for why a hairline touching
- * the picture read as nothing at three metres. The scale and wash are
- * `.media-card:focus-visible { transform: scale(1.04); background:
- * var(--accent-focus-wash) }`.
+ * The focus look of every selectable media card: an always-present border
+ * that changes colour, a gap reproducing base.css's `outline-offset`, and
+ * `.media-card:focus-visible { transform: scale(1.04); background: var(--accent-focus-wash) }`.
+ * The border is thicker than base.css's 1px outline, to read at three metres.
  */
 export const focusFrame = {
   border: 3,
@@ -222,24 +166,12 @@ export const focusFrame = {
   scale: 1.04,
 } as const;
 
-/**
- * How far a card's artwork stands inside the card's own box.
- *
- * The focus border plus its offset — see `MediaCard`'s `poster`. Declared here
- * because the gaps between cards have to account for it, and two files reading
- * the same three numbers by eye is how they stop agreeing.
- */
+/** How far a card's artwork stands inside the card's box: the focus border plus its gap. Gaps between cards account for it. */
 export const CARD_FRAME = focusFrame.border + focusFrame.gap;
 
 /**
- * One height and one shape for every control in a row of them — Search's
- * field, sort, type toggles and refresh.
- *
- * `.search-bar { --search-control-height: 3.5rem }` with `.search-bar > *
- * { height: var(--search-control-height) }`, and `.search-input`,
- * `.search-type-pill` and the refresh button all at `border-radius: .65rem`.
- * The web client's own note: one height for the row so the refresh button can
- * be square to it.
+ * One height and radius for every control in Search's row:
+ * `.search-bar { --search-control-height: 3.5rem }`, `border-radius: .65rem`.
  */
 export const controlRow = {
   height: rem(3.5),
@@ -251,29 +183,14 @@ export const layout = {
   topbarHeight: px(62),
   /** `.section-nav-slot { top: 62px }`. */
   sectionNavTop: px(62),
-  /**
-   * `.media-card { flex: 0 0 clamp(145px, 13vw, 225px) }`.
-   *
-   * **The bound is in CSS px and the preferred value is in viewport units**, so
-   * only one of the three converts. Unconverted, the 145 floor is 145 dp — 290
-   * px on this set — and beats a `13vw` that is already correct, drawing cards
-   * larger than the web client's ceiling.
-   */
+  /** `.media-card { flex: 0 0 clamp(145px, 13vw, 225px) }`. Only the px bounds convert; the vw value does not. */
   mediaCardWidth: clamp(px(145), vw(13), px(225)),
   /** `.episode-rail-item { flex: 0 0 clamp(300px, 31vw, 480px) }`. */
   episodeCardWidth: clamp(px(300), vw(31), px(480)),
   /**
-   * `.media-row { gap: 1rem }`, less what the focus frame takes.
-   *
-   * **The declared gap is not the visible one.** Each card carries a 3 dp
-   * focus border and 2 CSS px of padding *inside* its width, so the artwork
-   * stands about 4 dp in from the card's edge on every side and two neighbours
-   * would sit eight dp further apart than the stylesheet says.
-   *
-   * So the gap is stated against the *artwork*, which is what a viewer actually
-   * sees the space between. A negative result would mean the frame alone
-   * exceeds the web client's gap, which is a sign the frame has grown too far
-   * rather than something to lay out with — hence the floor.
+   * `.media-row { gap: 1rem }`, less the focus frame each card carries inside
+   * its width, so the gap is between artwork. Floored in case the frame
+   * exceeds the gap.
    */
   rowGap: Math.max(rem(0.25), rem(1) - CARD_FRAME * 2),
   /** `.episode-rail { gap: 1.15rem }`. */

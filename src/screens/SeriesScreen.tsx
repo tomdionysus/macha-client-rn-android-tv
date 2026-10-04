@@ -8,12 +8,7 @@ import { firstAvailableIndex } from '../components/availability';
 import { EpisodeCard } from '../components/EpisodeCard';
 import { colour, layout, pageGutter, rem, type } from '../styles/theme';
 
-/**
- * A show and its seasons, from `.series-content` in the web client.
- *
- * Seasons are drawn with the same poster rail as everything else, so a viewer
- * arriving from the library sees the same shape of thing they just left.
- */
+/** A show and its seasons, from `.series-content` in the web client. */
 export function SeriesScreen({
   api,
   show,
@@ -25,8 +20,7 @@ export function SeriesScreen({
 }): React.JSX.Element {
   const details = useRefreshableAsync(() => api.details(show.id), [api, show.id]);
   const seasons = (details.value as ShowDetails | undefined)?.seasons ?? [];
-  // The route's summary may be only an id and a title — an episode's stack is
-  // built from its `playbackContext` — so the fetched show wins once it lands.
+  // The route's summary may be only an id and a title, so the fetched show wins.
   const shown = details.value ?? show;
 
   return (
@@ -46,13 +40,7 @@ export function SeriesScreen({
   );
 }
 
-/**
- * One season's episodes, from `.episode-rail`.
- *
- * The rail is horizontal on the web and stays horizontal here: a 10-foot UI
- * reads a row of 16:9 stills far better than a vertical list, and left/right is
- * the natural D-pad gesture for "next episode".
- */
+/** One season's episodes, from `.episode-rail`. */
 export function SeasonScreen({
   api,
   season,

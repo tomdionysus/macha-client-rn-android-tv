@@ -5,22 +5,9 @@ import { colour, controlRow, focusFrame, rem, type } from '../styles/theme';
 import { sortChoiceLabel } from '../text/viewerText';
 
 /**
- * The sort choice, as one control that reads "Sort By Title" and moves to the
- * next choice on each press.
- *
- * No separate "Sort by" heading; each option reads "Sort By <label>". The
- * choices are core's lists (`SEARCH_SORTS`, `LIBRARY_SORTS`), the same on all
- * four clients.
- *
- * The web client's control is a `<select>`, which shows exactly one of these
- * labels until it is opened. A drop-down has no D-pad form here — it needs its
- * own focus scope and its own Back, and Back on a top-level screen leaves the
- * app — so pressing the control steps to the next choice instead, wrapping at
- * the end. It is the select's closed face, and four choices are never more
- * than three presses away.
- *
- * Focus is the media cards' thick border (`focusFrame`), always present so
- * nothing moves when it lands.
+ * The sort choice as one control: each press steps to the next of core's
+ * sorts (`SEARCH_SORTS`, `LIBRARY_SORTS`), wrapping. It stands in for the web
+ * client's `<select>`, which has no D-pad form.
  */
 export function SortControl({
   sorts,
@@ -57,8 +44,7 @@ const styles = StyleSheet.create({
   /**
    * `.search-bar .sort-control select { padding: 1rem 1.2rem; border-radius:
    * .65rem; font-size: 1.05rem }` over `.sort-control select { background:
-   * #19191c; color: #d7d7da }`, with `focusFrame.border` in place of its 1px
-   * so focus can be seen from the sofa.
+   * #19191c; color: #d7d7da }`, with `focusFrame.border` for its 1px.
    */
   control: {
     paddingHorizontal: rem(1.2),

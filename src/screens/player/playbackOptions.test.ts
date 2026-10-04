@@ -22,13 +22,6 @@ function report(overrides: Partial<PlaybackInstructionReport> = {}): PlaybackIns
   } as PlaybackInstructionReport;
 }
 
-/**
- * The chooser's worst failure has no symptom without these notes: a facts
- * lookup that fails falls back to transcode, the viewer sees a working picture,
- * and a whole library can be transcoded that would have direct-played. On a
- * television there is no console anyone will open, so this text is the only
- * place it can show.
- */
 describe('explaining why the stream is served this way', () => {
   it('says nothing when there is no instruction to explain', () => {
     expect(instructionNote(undefined)).toBeUndefined();
@@ -45,8 +38,6 @@ describe('explaining why the stream is served this way', () => {
   });
 
   it('puts the no-facts case above the reasons, since it explains them all', () => {
-    // A fallback decision may still carry reasons; leading with them would
-    // describe reasoning that did not happen.
     const note = instructionNote(report({ withoutFacts: true, reasons: ['no-technical-facts'] }));
     expect(note).toContain('without facts');
   });
@@ -65,8 +56,7 @@ describe('explaining why the stream is served this way', () => {
   });
 
   it('passes an unrecognised reason through rather than dropping it', () => {
-    // A reason core adds before this map does must still reach the screen:
-    // silence is the one failure mode this whole note exists to prevent.
+    // A reason core adds before this map does must still reach the screen.
     const note = instructionNote(report({ reasons: ['something-new' as never] }));
     expect(note).toContain('something-new');
   });
@@ -113,8 +103,6 @@ describe('labelling a stream a viewer is choosing between', () => {
 
 describe('reporting what the server is doing to the audio', () => {
   it('names the output codec on a transcode, which is the 5.1 question', () => {
-    // The measurement this project exists for is whether E-AC-3 reaches the
-    // panel. "transcode → AAC" is that failure, stated.
     expect(audioProcessingNote('transcode', 'aac')).toBe('Server processing: transcode → AAC');
   });
 
@@ -145,7 +133,6 @@ describe('the modes offered', () => {
   });
 
   it('keeps a mode offered despite an objection, and says why', () => {
-    // The offer-everything setting: core offers it and still gives the reason.
     const offered = [
       { mode: 'direct', offered: true, reasons: ['video-size-exceeds-client'] },
       { mode: 'remux', offered: true, reasons: [] },

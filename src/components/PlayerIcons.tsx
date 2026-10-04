@@ -15,19 +15,10 @@ export type PlayerIconName =
   | 'volume'
   | 'mute';
 
-/**
- * The transport glyphs, with the same path data as the web client's
- * `PlayerIcon` and `PlaybackIcons`.
- *
- * Copied rather than redrawn: these are small shapes at a fixed 24-unit
- * viewBox, and an eyeballed redraw would differ in weight from the same button
- * on the web client sitting next to it on a desk.
- */
+/** The transport glyphs: the web client's `PlayerIcon` and `PlaybackIcons` path data. */
 export function PlayerIcon({
   name,
-  // `<svg width="20" height="20">` on the web client's `PlaybackIcons`. A raw
-  // number here would be CSS px drawn as dp, twice the size on this panel, and
-  // would fill the transport button the web client's glyph sits inside.
+  // `<svg width="20" height="20">` on the web; CSS px, so through `px()`.
   size = px(20),
   color = colour.heading,
 }: {

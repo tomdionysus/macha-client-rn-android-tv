@@ -2,8 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    // Pure logic only. Anything importing `react-native` needs the Metro
-    // resolver and belongs on a device, not here.
+    // Pure logic only: anything importing `react-native` needs Metro and a device.
     include: ['src/**/*.test.ts'],
     environment: 'node',
   },

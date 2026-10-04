@@ -10,10 +10,8 @@ import {
 } from '../player/volume';
 
 /**
- * The player's volume, persisted across sessions.
- *
- * Wires `VolumeStore`, constructed in `MachaProvider`. The rule about what gets
- * written is in `player/volume.ts`: the setting persists, the mute does not.
+ * The player's volume, persisted through `VolumeStore`. The setting persists,
+ * the mute does not: see `player/volume.ts`.
  */
 export interface PlayerVolume extends VolumeState {
   step: (direction: 'up' | 'down') => void;
@@ -24,16 +22,14 @@ export function usePlayerVolume(runtime: PlaybackRuntime, store: VolumeStore): P
   const [state, setState] = useState<VolumeState>(() => initialVolume(store.load()));
   const applied = useRef<number | undefined>(undefined);
 
-  // Apply to the player whenever what it should be hearing changes, including
-  // on mount — the stored volume is meaningless until the player is told.
+  // Includes mount: the stored volume means nothing until the player is told.
   useEffect(() => {
     if (applied.current === state.effective) return;
     applied.current = state.effective;
     runtime.setVolume(state.effective);
   }, [runtime, state.effective]);
 
-  // Persist the setting rather than what is being heard, so a mute at shutdown
-  // does not come back as silence.
+  // The setting, not what is heard, so a mute at shutdown does not return as silence.
   useEffect(() => {
     store.save(state.setting);
   }, [store, state.setting]);

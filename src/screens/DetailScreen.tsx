@@ -11,13 +11,8 @@ import { useFileLines } from '../app/useFileLines';
 import { qualityChoiceText, qualityLabel } from '../text/viewerText';
 
 /**
- * Movie detail, from `.detail` / `.movie-detail-layout` in base.css.
- *
- * The web layout is a two-column grid — a poster of `clamp(190px, 22vw, 310px)`
- * beside the copy — with the backdrop washed in behind at 28% under a fade
- * mask. React Native has no mask-image, so the backdrop is drawn at a reduced
- * opacity and the copy sits on the page background below it; at three metres
- * the difference is not visible.
+ * Movie detail, from `.detail` / `.movie-detail-layout` in base.css. React
+ * Native has no mask-image, so the backdrop is drawn at reduced opacity.
  */
 export function DetailScreen({
   media,
@@ -34,7 +29,7 @@ export function DetailScreen({
   const poster = media.artwork?.poster ?? media.artwork?.thumbnail;
   const backdrop = media.artwork?.backdrop;
   const canResume = resumePositionMs > 0;
-  // An unavailable title offers nothing to play; Back keeps the focus.
+  // An unavailable title offers nothing to play.
   const playable = availableToPlay(media);
   const { versions } = usePlaybackVersions(media);
   const lines = useFileLines(media);
@@ -48,7 +43,7 @@ export function DetailScreen({
         <Image source={{ uri: backdrop.url }} style={styles.backdrop} contentFit="cover" />
       ) : null}
 
-      {/* `.back-button`, which shares the nav link's shape and sits above the copy. */}
+      {/* `.back-button` */}
       <Focusable
         ring={false}
         onSelect={onBack}
@@ -76,22 +71,14 @@ export function DetailScreen({
             {media.title}
           </Text>
           {media.year ? <Text style={styles.subtitle}>{media.year}</Text> : null}
-          {/*
-            One line per file, under the title and above the synopsis: the web
-            client's `.media-profile-summary`, which every client matches.
-          */}
+          {/* `.media-profile-summary`: one line per file. */}
           {lines.map((line) => (
             <Text key={line} style={styles.fileLine}>
               {line}
             </Text>
           ))}
 
-          {/*
-            `.play-actions.detail-play-controls`: round icon buttons, not
-            labelled pills, as the web client draws them. A play glyph, and a
-            restart glyph beside it when there is a position to resume from, on
-            the same `.media-control-button` the transport row uses.
-          */}
+          {/* `.play-actions.detail-play-controls`: round `.media-control-button`s. */}
           {playable ? (
             <View style={styles.actions}>
               <ControlButton
@@ -100,13 +87,7 @@ export function DetailScreen({
                 onSelect={() => onPlay(canResume ? resumePositionMs : 0)}
               />
               {canResume ? <ControlButton icon="restart" onSelect={() => onPlay(0)} /> : null}
-              {/*
-                Per-quality Play: the generic Play above means
-                "decide for me", and beside it one button per quality, each playing
-                that version as the viewer's choice. One row, crossed with
-                Left/Right, Play first and focused. Each plays from the same place
-                Play would.
-              */}
+              {/* One button per quality, each playing that version as the viewer's choice. */}
               {steps.map((step) => (
                 <VersionButton
                   key={step.quality}
@@ -122,12 +103,7 @@ export function DetailScreen({
         </View>
       </View>
 
-      {/*
-        The synopsis below the poster, across the page. A TV divergence from
-        the web client, which keeps it in the copy column: at ten feet the
-        column beside the poster is short, and the title, file lines and
-        buttons read better together without it.
-      */}
+      {/* A TV divergence: the web client keeps the synopsis in the copy column. */}
       {media.synopsis ? (
         <Text style={styles.synopsisBelow} numberOfLines={6}>
           {media.synopsis}
@@ -137,13 +113,7 @@ export function DetailScreen({
   );
 }
 
-/**
- * `.media-control-button`: a 3.25rem circle with a glyph in it.
- *
- * The same rule as the transport row — `border: 1px solid #48484f`, background
- * `#080809d6`, and on focus the accent fill with the focus border — because on
- * the web they are literally the same selector.
- */
+/** `.media-control-button`: the transport row's 3.25rem circle. */
 function ControlButton({
   icon,
   onSelect,
@@ -166,13 +136,7 @@ function ControlButton({
   );
 }
 
-/**
- * One version, labelled by its quality alone, as the web client's
- * `.media-quality-button` is.
- *
- * It takes the transport button's frame and fill so the row reads as one
- * control group, at the same height, stretched to a pill for its two words.
- */
+/** `.media-quality-button`: one version, labelled by its quality, as a pill. */
 function VersionButton({ step, onSelect }: { step: VersionStep; onSelect: () => void }): React.JSX.Element {
   return (
     <Focusable
@@ -265,7 +229,6 @@ const styles = StyleSheet.create({
     letterSpacing: rem(0.95) * 0.025,
   },
   // `.synopsis { max-width: 70ch; line-height: 1.65; font-size: clamp(1rem,1.35vw,1.25rem) }`
-  /** `.synopsis`'s type, set below the poster row at the page gutter. */
   synopsisBelow: {
     marginTop: rem(1.4),
     marginHorizontal: pageGutter,

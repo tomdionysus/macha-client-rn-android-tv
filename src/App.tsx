@@ -57,17 +57,8 @@ import {
 import { colour, screenSize } from './styles/theme';
 
 /**
- * The web client's navigation, less the two that do not belong on a remote.
- *
- * Its list is Home, Movies, TV Shows, Music, Search, Import, Status, Manage.
- * **Import and Manage are out regardless of what the account may do.** That
- * client drops Import on a TV build for the reason it states in `App.tsx`:
- * importing wants a keyboard, a file browser and somebody willing to type
- * paths, none of which a remote has. Manage is the same argument: a 10-foot UI
- * is a poor place to retag a film.
- *
- * Settings is not here and is not missing: it is the cog at the trailing edge,
- * as it is there.
+ * The web client's navigation less Import and Manage, which want a keyboard.
+ * Settings is the cog at the trailing edge, as there.
  */
 const NAV: NavItem[] = [
   { key: 'home', label: 'Home' },
@@ -92,13 +83,7 @@ type Route =
   | { name: 'player'; media: MediaSummary };
 
 
-/**
- * Which screen a catalogue item opens.
- *
- * A show is not playable and a season is not playable — only their descendants
- * are — so opening one drills in rather than offering a Play button that has no
- * media behind it.
- */
+/** A show or season is not playable, so opening one drills in. */
 function routeForMedia(media: MediaSummary): Route {
   if (media.kind === 'show') return { name: 'series', media };
   if (media.kind === 'season') return { name: 'season', media };
@@ -107,30 +92,21 @@ function routeForMedia(media: MediaSummary): Route {
 
 function Shell(): React.JSX.Element {
   const { services, continueWatching, sessionReady } = useMacha();
-  // Identity, for display only. The gate below does not consult it: roles
-  // arrive with the token, so there is no whoami race to get wrong.
+  // Identity, for display only; the gate below reads roles from the token.
   const { session, refresh: refreshSession } = useCurrentSession(services.usersApi, sessionReady);
-  // Three outcomes, not two: the server said no, nothing answered, or the
-  // question is still open. Every input is a fact core states — nothing here
-  // infers access from an absent token, which would put a login wall in front
-  // of a network blip. Latched, so a failed refresh mid-film can never replace
-  // the player.
+  // Refused, unreachable or still open, from facts core states; an absent
+  // token is never read as a refusal. Latched, so a failed refresh mid-film
+  // cannot replace the player.
   const { failure, roles, identity } = useSessionFacts();
-  /** Set the moment the viewer's sign-out is committed, and cleared by signing in again. */
+  /** Set when sign-out is committed; cleared by signing in again. */
   const [signedOut, setSignedOut] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string>();
   /**
-   * The two things that end an admission the viewer already had.
-   *
-   * Everything else that looks like a refusal after admission is a transient
-   * the latch is there to absorb. These are not: one is the viewer asking, and
-   * the other is core stating that the session stopped belonging to them and
-   * that what replaced it can do nothing. Without this the second state has no
-   * exit at all — the shell stays up, every screen answers
-   * `403 requires the 'media_viewer' role`, and there is nothing to press.
-   * See `access.ts`.
+   * What ends an admission already held: the viewer signing out, or core
+   * stating the session's identity changed to one with no roles. Anything
+   * else after admission is a transient the latch absorbs. See `access.ts`.
    */
   const ended: AdmissionEnded | undefined = signedOut
     ? 'signed-out'
@@ -139,25 +115,15 @@ function Shell(): React.JSX.Element {
       : undefined;
   const access = useAccessLatched(accessState(sessionReady, failure, roles, ended));
   const [settingsWhileLocked, setSettingsWhileLocked] = useState(false);
-  /**
-   * A stack, so Back unwinds season → series → library rather than jumping to
-   * Home from three levels deep. The last entry is the visible screen.
-   */
+  /** A stack, so Back unwinds level by level. The last entry is the visible screen. */
   const [stack, setStack] = useState<Route[]>([{ name: 'home' }]);
   const route = stack[stack.length - 1] ?? { name: 'home' };
   const [progress, setProgress] = useState<PlaybackProgress[]>([]);
 
   /**
-   * Where focus was on each screen beneath the top, so Back can put it back.
-   *
-   * Indexed by stack depth. Without it, Back re-seeds focus to the screen
-   * default, which on a library page is the navigation bar, and the viewer's
-   * place in several hundred titles is gone; a remote has no scrollbar and no
-   * pointer to get it back with.
-   *
-   * Only what is addressable can be restored: a card registers under
-   * `mediaFocusId` when a screen asks for it (`LibraryScreen`), and everything
-   * else falls back to the default.
+   * Focus on each screen beneath the top, by stack depth, so Back restores it.
+   * Only media cards (`mediaFocusId`) are restorable; anything else falls back
+   * to the screen default.
    */
   const focusMemory = useRef<(string | undefined)[]>([]);
   const focusToRestore = useRef<string | undefined>(undefined);
@@ -166,8 +132,7 @@ function Shell(): React.JSX.Element {
 
   const push = useCallback(
     (next: Route) => {
-      // Only a media card is worth remembering: everything else takes a
-      // generated id that is a different string next time the screen mounts.
+      // Only a media card: other focus ids are regenerated at each mount.
       const selected = tvFocus.selected();
       focusMemory.current[stack.length - 1] = isMediaFocusId(selected) ? selected : undefined;
       setStack((current) => [...current, next]);
@@ -186,15 +151,9 @@ function Shell(): React.JSX.Element {
   }, []);
 
   /**
-   * Put a TV item on its library trail: TV Shows, then its series, then its
-   * season, with `top` above them. See `libraryTrail` for the rule.
-   *
-   * The focus memory is rebuilt with the stack, one card per level, so each
-   * Back lands on the thing the viewer came up from — the episode that was
-   * playing, its season, its series — exactly as if they had walked down.
-   *
-   * Answers false when the item names no ancestry, and the caller keeps its
-   * ordinary stack.
+   * Put a TV item on its library trail (`libraryTrail`) beneath `top`, with
+   * focus memory rebuilt so each Back lands on the level it came from.
+   * False when the item names no ancestry; the stack is then untouched.
    */
   const placeOnTrail = useCallback((top: Route, media: MediaSummary, known?: KnownAncestry): boolean => {
     const trail = libraryTrail(media, known);
@@ -206,18 +165,9 @@ function Shell(): React.JSX.Element {
   }, []);
 
   /**
-   * What the instruction chooser reasons from.
-   *
-   * The playback facts endpoint, not the catalogue profile: it carries the
-   * canonical container, real bit depth, colour transfer and Dolby Vision
-   * profile, plus the node's `operations` — what this build will actually mux
-   * and copy, which no catalogue profile knows.
-   *
-   * **Every file, not the first.** The client chooses among an item's files,
-   * not the server: core's coordinator picks the best file from the whole
-   * list, reports it as `snapshot.instruction.mediaId` and sends it on the
-   * session. Handing it `[0]` would leave a multi-file item's choice to
-   * whichever file came first.
+   * The playback facts endpoint rather than the catalogue profile: it carries
+   * the node's `operations`. Every file is passed, since core's coordinator
+   * chooses among an item's files.
    */
   const runtimeOptions = useMemo(
     () => ({
@@ -225,12 +175,10 @@ function Shell(): React.JSX.Element {
         const files = await services.playbackFactsApi.facts({ itemId: media.id });
         return files.length > 0 ? files : undefined;
       },
-      // Read at each start, so a ceiling changed in Settings applies to the
-      // next play. Caps automatic play only; a version the viewer picks is not.
+      // Read at each start. Caps automatic play only, not a version the
+      // viewer picks.
       qualityCeiling: deviceQualityCeiling,
-      // Offer only what this set plays, unless the setting asks to offer
-      // everything. Read with the versions; automatic play stays within the
-      // device either way.
+      // Offer only what this set plays, unless the setting asks for everything.
       offerAll: () => qualityPreferenceStore().get().offerAll ?? false,
     }),
     [services.playbackFactsApi],
@@ -239,13 +187,8 @@ function Shell(): React.JSX.Element {
   const { runtime } = usePlaybackRuntime(androidTvPlatform, services.playbackResolver, runtimeOptions);
 
   /**
-   * Write the resume point while the viewer is still watching, not only when
-   * they leave.
-   *
-   * `closePlayer` below covers the deliberate exit and cannot cover anything
-   * else: a process killed without warning runs none of it, and the TCL set
-   * has been measured force-stopping this app in the foreground while it
-   * updated Android System WebView.
+   * Writes the resume point during playback: `closePlayer` covers only a
+   * deliberate exit, and the TCL set has been measured force-stopping the app.
    */
   useContinueWatchingWriter(
     runtime,
@@ -257,18 +200,16 @@ function Shell(): React.JSX.Element {
     if (route.name === 'home') setProgress(continueWatching.list());
   }, [continueWatching, route.name]);
 
-  /**
-   * Leaving the player writes the resume point, then tears the session down.
-   *
-   * The stop matters as much as the position: a session left open holds the
-   * node's single transcode slot, and the next viewer is refused with a 429.
-   */
   const recordPlayingProgress = useCallback(() => {
     const media = route.name === 'player' ? route.media : undefined;
     const progress = attributableProgress(runtime.getPlaybackSnapshot(), media);
     if (progress) continueWatching.update(progress);
   }, [runtime, route, continueWatching]);
 
+  /**
+   * Leaving the player writes the resume point, then stops the session: one
+   * left open holds the node's single transcode slot (429 for the next viewer).
+   */
   const closePlayer = useCallback(() => {
     recordPlayingProgress();
     void runtime.stop();
@@ -276,24 +217,10 @@ function Shell(): React.JSX.Element {
   }, [runtime, recordPlayingProgress, pop]);
 
   /**
-   * Leave the account, which on a television is a thing a viewer can otherwise
-   * not do at all.
-   *
-   * **Playback is stopped first, and that ordering is core's requirement rather
-   * than tidiness.** Nothing connects a playback session to an identity, so
-   * once the token changes a session created under the old one can no longer be
-   * closed: the node holds its transcode entitlement until `session_idle` —
-   * thirty minutes — and on a one-slot node the next viewer gets
-   * `429 resource_limit` with nothing pointing at the client that caused it.
-   * The stop is awaited for the same reason `closePlayer`'s is not: there,
-   * nothing follows that could invalidate it; here, the very next line does.
-   *
-   * **The revoke's failure is shown rather than swallowed.** Core clears local
-   * state first and unconditionally — once the viewer has asked to be signed
-   * out, still being signed in is the one outcome that must not happen — and
-   * only then revokes, so a throw here means the session is gone from this
-   * television but may still be live on a node. That is worth a sentence,
-   * because the remedy is somebody else's.
+   * Playback is stopped, and awaited, before the token changes: afterwards
+   * the session cannot be closed and holds the node's transcode slot until
+   * `session_idle`. Core clears local state before revoking, so a throw means
+   * the session may still be live on a node; that is shown, not swallowed.
    */
   const signOut = useCallback(async () => {
     setSignOutError(undefined);
@@ -305,10 +232,8 @@ function Shell(): React.JSX.Element {
       setSignOutError(SIGN_OUT_REVOKE_FAILED);
     } finally {
       setSigningOut(false);
-      // Regardless of the revoke: local state is cleared either way, so this
-      // television is signed out and the wall belongs up. Sending the stack
-      // home as well, so signing back in does not resume three levels deep in
-      // somebody else's library.
+      // Local state is cleared whether or not the revoke succeeded. The stack
+      // goes home so the next sign-in does not resume deep in the library.
       setSignedOut(true);
       setConfirmingSignOut(false);
       setStack([{ name: 'home' }]);
@@ -324,9 +249,8 @@ function Shell(): React.JSX.Element {
       closePlayer();
       return true;
     }
-    // Only Home leaves the app, and only once storage has caught up
-    // (`backAction`, `exitAfterFlush`). The press is consumed either way: the
-    // exit is taken by us, after the flush, not by the platform before it.
+    // Only Home exits, and only after storage is flushed (`backAction`,
+    // `exitAfterFlush`); the press is always consumed.
     const action = backAction(route.name, stack.length);
     if (action === 'exit') void exitAfterFlush(flushStorage, () => BackHandler.exitApp(), EXIT_FLUSH_BUDGET_MS);
     else if (action === 'home') setStack([{ name: 'home' }]);
@@ -343,9 +267,8 @@ function Shell(): React.JSX.Element {
     onRewind: () => route.name === 'player' && runtime.seekBy(-10_000),
     onFastForward: () => route.name === 'player' && runtime.seekBy(10_000),
     onStop: () => route.name === 'player' && closePlayer(),
-    // The remote's next / previous keys do exactly what the player's episode
-    // buttons do, and nothing where those buttons are greyed. `episodeNav` and
-    // `switchEpisode` are declared below; these run on a key, long after.
+    // Same as the player's episode buttons. `episodeNav` and `switchEpisode`
+    // are declared below; these run later, on a key.
     onNext: () => {
       if (route.name === 'player' && episodeNav.next) switchEpisode(episodeNav.next);
     },
@@ -354,13 +277,9 @@ function Shell(): React.JSX.Element {
     },
   });
 
-  // Re-seed focus when the screen changes, the job the web client's
-  // `hashchange` listener does — except on the way *back*, where the screen
-  // being returned to already has a place the viewer left from.
-  //
-  // A remembered id that no longer registers is not a failure case worth
-  // guarding: `TvFocusRegistry.current()` falls through a dangling selection to
-  // the screen's default.
+  // Re-seed focus when the screen changes; on the way back, restore the place
+  // the viewer left. A remembered id that no longer registers falls through
+  // to the default (`TvFocusRegistry.current()`).
   useEffect(() => {
     const remembered = focusToRestore.current;
     focusToRestore.current = undefined;
@@ -368,9 +287,8 @@ function Shell(): React.JSX.Element {
     chosenFromNav.current = false;
     const action = routeFocus({ fromNav, remembered });
     if (action === 'keep') {
-      // Re-selecting what is already selected makes it the viewer's choice
-      // rather than the fallback's, so the new screen's default card cannot
-      // take it when it registers.
+      // Re-selecting makes the selection the viewer's choice, so the new
+      // screen's default card cannot take it.
       tvFocus.select(tvFocus.selected());
       return;
     }
@@ -379,15 +297,9 @@ function Shell(): React.JSX.Element {
       return;
     }
 
-    // **Seed the default, then arm the restore.** The screen being returned to
-    // re-mounts and re-fetches, so its cards are usually not registered yet
-    // (measured on the television).
-    //
-    // So something is highlighted immediately, and the card claims focus when
-    // it registers. If the viewer presses anything first the restore is
-    // abandoned, and if the card never arrives the default simply stands.
-    // No timer, deliberately: a delay long enough to wait out a fetch would be
-    // a timing budget with nothing to calibrate it against.
+    // The returned-to screen re-fetches, so its cards are usually not yet
+    // registered (measured on the TCL set): seed the default now, and let the
+    // card claim focus when it registers. A key press abandons the restore.
     tvFocus.focusDefault();
     tvFocus.restoreWhenPresent(remembered);
   }, [route.name]);
@@ -401,37 +313,24 @@ function Shell(): React.JSX.Element {
   );
 
   /**
-   * Playing leaves the item's own detail screen underneath the player.
-   *
-   * **Back out of a film arrives at the media detail screen**, however playback
-   * was started — from a detail screen, Continue Watching or a list.
-   *
-   * So the route is synthesised here rather than at each caller: whatever a
-   * viewer presses Play on, the screen for that item is put under the player
-   * unless it is already the screen they are standing on. `routeForMedia`
-   * decides which screen that is, so an episode gets its own detail rather
-   * than its season's.
-   *
-   * It is the same stack in both directions — Back walks it, and so does the
-   * player's own close — so nothing else has to know this happened.
+   * Puts the item's own detail screen (`routeForMedia`) beneath the player
+   * unless the viewer is already on it, so Back from playback lands there.
    */
   const play = useCallback(
     (media: MediaSummary, startPositionMs: number, known?: KnownAncestry, version?: VersionStep) => {
-      // An unavailable title never starts, whichever control asked: every
-      // screen already withholds it, and this is the one path they all share.
+      // The one path every Play control shares: an unavailable title never starts.
       if (!availableToPlay(media)) {
         playbackLog.info('play-refused-unavailable', { mediaId: media.id });
         return;
       }
-      // A version the viewer picked starts as their choice: never capped, and
-      // no fallback overrides it. Without one, core decides.
+      // A version the viewer picked is never capped or overridden; without
+      // one, core decides.
       const start = () =>
         void runtime.play(
           { media, startPositionMs, returnTo: 'detail' },
           startPreferences(startPositionMs, continueWatching.entryFor(media.id), version),
         );
       // An episode goes on its library trail, so Back arrives at its season.
-      // Everything else keeps the detail-beneath rule below.
       if (placeOnTrail({ name: 'player', media }, media, known)) {
         start();
         return;
@@ -457,13 +356,9 @@ function Shell(): React.JSX.Element {
   const episodeNav = useEpisodeNeighbours(services.mediaApi, playingMedia);
 
   /**
-   * Previous / next from inside the player.
-   *
-   * The place in the episode being left is written first — the same write
-   * Back makes — and the neighbour then plays from its own resume point.
-   * `runtime.play` closes the current session itself, and the player screen
-   * stays mounted across the switch: remounting it would detach the surface
-   * in the middle of the handover.
+   * Previous / next from inside the player. Writes the place being left, then
+   * plays the neighbour from its own resume point. The player screen stays
+   * mounted: remounting would detach the surface mid-handover.
    */
   const switchEpisode = useCallback(
     (episode: Episode) => {
@@ -474,13 +369,8 @@ function Shell(): React.JSX.Element {
   );
 
   /**
-   * When an episode ends, play the next one, across seasons too; see
-   * `episodeToPlayOnEnd`. The same call as the player's next
-   * button, so the ended episode's place is written first (finished, so it
-   * leaves Continue Watching) and the next one starts from its own.
-   *
-   * Once per ending: the latch clears when playback is no longer ended, so an
-   * episode played again and finished again advances again.
+   * When an episode ends, play the next (`episodeToPlayOnEnd`), once per
+   * ending: the latch clears when playback is no longer ended.
    */
   const [playbackEnded, setPlaybackEnded] = useState(false);
   useEffect(
@@ -499,9 +389,8 @@ function Shell(): React.JSX.Element {
     switchEpisode(next);
   }, [playbackEnded, playingMedia, episodeNav, switchEpisode]);
 
-  // An episode resumed without its ancestry (a Continue Watching entry that
-  // lacks `playbackContext`) cannot be placed on its trail until core has
-  // looked it up. Once it has, put the season beneath it after all.
+  // An episode resumed without `playbackContext` goes on its trail once core
+  // has looked its ancestry up.
   useEffect(() => {
     if (!playingMedia || playingMedia.kind !== 'episode' || playingMedia.playbackContext) return;
     if (!episodeNav.show || !episodeNav.season) return;
@@ -533,14 +422,12 @@ function Shell(): React.JSX.Element {
       continueWatching={progress}
       onOpen={open}
       onResume={(media) => play(media, continueWatching.positionFor(media.id))}
-      // Core's `clear`, as the web client's `removeFromContinueWatching`; the
-      // list it returns is the rail's new state.
+      // The list `clear` returns is the rail's new state.
       onRemoveFromContinueWatching={(media) => setProgress(continueWatching.clear(media.id))}
     />
   ) : route.name === 'movies' ? (
-    // Keyed by kind: both lists are one component, and without a key React
-    // keeps it mounted between them, so a sort chosen on Movies would carry
-    // over to TV Shows. Each list starts at Title.
+    // Keyed by kind, or React keeps one instance mounted across both lists and
+    // a sort chosen on Movies carries over to TV Shows.
     <LibraryScreen key="movies" api={services.mediaApi} kind="movies" onOpen={open} />
   ) : route.name === 'shows' ? (
     <LibraryScreen key="shows" api={services.mediaApi} kind="shows" onOpen={open} />
@@ -574,14 +461,9 @@ function Shell(): React.JSX.Element {
   ) : null;
 
   /**
-   * Nothing answered. **This is not an access problem and must not look like
-   * one.** Offering a sign-in here would be a lie — the viewer is away from
-   * home, not unauthorised — and it would also be useless, because signing in
-   * needs a reachable node as much as watching does.
-   *
-   * Settings stays reachable, because pointing the set at a different cluster
-   * is the one action that can actually help, and a television has no address
-   * bar to do it any other way.
+   * Nothing answered: not an access problem, so no sign-in is offered.
+   * Settings stays reachable, since pointing the set at another cluster is
+   * the only action that can help.
    */
   if (access.kind === 'offline') {
     return (
@@ -596,18 +478,9 @@ function Shell(): React.JSX.Element {
   }
 
   /**
-   * A session the server granted nothing may not use this client at all.
-   *
-   * This replaces the shell rather than rendering inside it: leaving the
-   * navigation up would offer rows that cannot load and a player that cannot
-   * start, which reads as a broken client rather than as a server that
-   * requires an account.
-   *
-   * **Settings stays reachable from behind the wall.** A television has no
-   * address bar, so without it a set whose node stops granting roles can
-   * neither sign in nor be pointed at a different cluster — bricked, with a
-   * reinstall as the only remedy. The web client keeps its connection screen
-   * reachable for the same reason.
+   * A session granted no roles may not use the client; the wall replaces the
+   * shell. Settings stays reachable, or a set whose node stops granting roles
+   * could not be pointed at another cluster.
    */
   if (access.kind === 'sign-in') {
     return (
@@ -618,13 +491,8 @@ function Shell(): React.JSX.Element {
           <LoginScreen
             guestAllowed={false}
             /*
-             * Said only for the case core can actually report, and said as what
-             * it is. "Signed out" would be a guess: a 401 does not separate an
-             * expiry from a revoke from a role change, and core states no
-             * sentence for exactly that reason. What is known is that the
-             * session stopped belonging to this account and the one that
-             * replaced it may do nothing — which is what the viewer is looking
-             * at, and it is not a fault in the television.
+             * Said only for the case core reports. A 401 does not separate an
+             * expiry from a revoke from a role change, so nothing else is said.
              */
             notice={
               access.kind === 'sign-in' && access.because === 'identity-changed'
@@ -633,9 +501,8 @@ function Shell(): React.JSX.Element {
             }
             onSignIn={(username, password) => sessionManager.signIn({ username, password })}
             onSignedIn={() => {
-              // Clears the wall this screen was raised by. Without it a viewer
-              // who signs out and straight back in is held at the login screen
-              // by their own earlier decision.
+              // Clears the wall; otherwise signing straight back in stays held
+              // at the login screen.
               setSignedOut(false);
               refreshSession();
             }}
@@ -656,22 +523,16 @@ function Shell(): React.JSX.Element {
       />
       <TopBar
         items={NAV}
-        // The section the stack is rooted in, not only the screen on top: a
-        // season reached from Continue Watching sits on the TV Shows trail,
-        // and the bar should say so.
+        // The section the stack is rooted in, not only the screen on top.
         active={TOP_LEVEL.has(route.name) ? route.name : TOP_LEVEL.has(stack[0]?.name ?? '') ? stack[0]!.name : 'home'}
         onSelect={(key) => {
-          // Only where the screen changes: an unchanged route runs no effect
-          // to spend the flag, and a stale one would hold focus on the bar at
-          // the next, unrelated change.
+          // Only when the screen changes: otherwise no effect spends the flag
+          // and it would hold focus on the bar at the next change.
           if (key !== route.name) chosenFromNav.current = true;
           replaceTop({ name: key } as Route);
         }}
         username={session?.username}
-        // Only where there is an account to leave. An unnamed session is one
-        // nobody chose to be, so signing out of it would do nothing a viewer
-        // could see — the web client draws the same line, offering a way *in*
-        // there rather than an account to manage.
+        // Only for a named account; an unnamed session has nothing to leave.
         onSignOut={session?.username ? () => setConfirmingSignOut(true) : undefined}
         settingsActive={route.name === 'settings'}
         onOpenSettings={() => replaceTop({ name: 'settings' })}
@@ -681,12 +542,8 @@ function Shell(): React.JSX.Element {
         <ConfirmDialog
           title="Sign out?"
           /*
-           * What sign-out actually does, in the web client's words: `logout`
-           * revokes *this* token, and the revocation propagating to every node
-           * means this token cannot be used against a different one — not that
-           * every session the account holds is ended. Telling somebody their
-           * other devices have been signed out when they have not stops them
-           * doing the thing they actually needed.
+           * Sign-out revokes this token only; other devices stay signed in,
+           * and the wording must not claim otherwise.
            */
           body={`This signs ${session?.username ?? 'you'} out on this television only — anywhere else stays signed in. Anything playing here will stop.`}
           confirmLabel="Sign out"
@@ -702,11 +559,8 @@ function Shell(): React.JSX.Element {
 }
 
 /**
- * Settings, reached from behind the login wall.
- *
- * Wrapped only to give Back a way home: there is no navigation stack here, so
- * without this the viewer reaches the one screen that can point the set at
- * another cluster and then cannot leave it.
+ * Settings from behind the login wall. There is no navigation stack here, so
+ * Back is handled locally.
  */
 function LockedSettings({ onBack }: { onBack: () => void }): React.JSX.Element {
   useEffect(() => {
@@ -724,21 +578,16 @@ function LockedSettings({ onBack }: { onBack: () => void }): React.JSX.Element {
 export function App(): React.JSX.Element {
   const [ready, setReady] = useState(false);
 
-  // Storage must be hydrated before the host is configured, and the host must
-  // be configured before any service is constructed — so nothing renders until
-  // the read completes.
+  // Order: hydrate storage, then configure the host, then construct services.
+  // Nothing renders until the read completes.
   useEffect(() => {
     void hydrateStorage().then(() => {
-      // The buffer configured itself at import, before the setting could be
-      // read; a set left with Diagnostics on comes up at the level it asked for.
+      // The buffer configured itself at import, before the setting was readable.
       syncDiagnosticsLevel();
 
-      // Snapshot what a previous run left open, *before* this one records
-      // anything — after that the list is a mixture and only the leftovers are
-      // candidates to close. The reconcile that acts on it belongs in core
-      // (`state/liveSessions.ts`); meanwhile this makes an orphan visible from
-      // the set, saying a session was abandoned rather than leaving the next
-      // viewer's 429 looking like a server fault.
+      // Snapshot what a previous run left open before this one records
+      // anything. The reconcile belongs in core (`state/liveSessions.ts`);
+      // meanwhile this puts an abandoned session on the trail.
       const orphaned = orphanedSessions();
       if (orphaned.length > 0) {
         playbackLog.warn('sessions-orphaned-by-previous-run', { count: orphaned.length });
@@ -769,8 +618,7 @@ const WATERMARK = Math.min(Math.max(220, screenSize.width * 0.28), 430);
 
 const styles = StyleSheet.create({
   // `body { background: radial-gradient(circle at 50% -20%, #27272c 0, #0e0e0f 45%) }`
-  // flattened to its dominant stop: RN has no CSS gradient without a library,
-  // and the top stop is barely separable from the base on a panel.
+  // flattened to its dominant stop: RN has no CSS gradient.
   shell: {
     flex: 1,
     backgroundColor: colour.background,

@@ -6,25 +6,11 @@ import android.media.MediaCodecList
 import android.view.Display
 
 /**
- * What this television can actually decode, read from `MediaCodecList`.
+ * What this television can decode, read from `MediaCodecList` rather than
+ * asked of a browser, so AC-3/E-AC-3 and the rest direct-play.
  *
- * This is the reason the app exists. The WebView client asks Chromium what it
- * can play, and Chromium ships no AC-3/E-AC-3 support whatever the panel is
- * wired to — so `canPlayType` answers `aac, opus, vorbis, mp3, flac`, the node
- * transcodes 5.1 E-AC-3 to 5.1 AAC, and Chromium hands AudioFlinger a
- * six-channel track with an *index* channel mask (0x8000003F) that the mixer
- * cannot fold down. The centre channel — the dialogue — is lost.
- *
- * The platform decoder list on the target set is much wider than the browser's:
- * measured on a TCL 55B6B (Android 11) it includes ac3, eac3, ac4, hevc, av01,
- * vp9 and mpeg2. Reading the hardware directly is what lets most of the library
- * direct-play with no transcode at all.
- *
- * Two honest limits on this enumeration, both from `docs/writing-a-player.md`:
- * `MediaCodecList` says nothing about **containers** — those are ExoPlayer's
- * extractor set, fixed at build time — so containers are curated below. And a
- * codec list answers "which decoders exist", not "will this file play", which
- * is why bit depth and HDR are reported as separate, independently-gated facts.
+ * `MediaCodecList` says nothing about containers (curated below), and a codec
+ * list is not "will this file play": bit depth and HDR are gated separately.
  */
 object Capabilities {
 
@@ -57,21 +43,16 @@ object Capabilities {
   )
 
   /**
-   * Containers ExoPlayer's `DefaultExtractorsFactory` can demux.
-   *
-   * Curated deliberately: this is not discoverable from the device, and a
-   * codec list without the container that carries it is not a capability.
-   * Getting this wrong is expensive in a specific way — advertising `mp3` as a
-   * codec but not as a container makes a node transcode every MP3 in the
-   * library, burning CPU to produce something strictly worse than the original.
-   * The bare audio containers are therefore listed explicitly.
+   * Containers ExoPlayer's `DefaultExtractorsFactory` can demux; not
+   * discoverable from the device. Bare audio containers are listed because a
+   * codec claimed without its container makes a node transcode every such file.
    */
   private val CONTAINERS = listOf(
     "mp4", "m4v", "mov", "mkv", "matroska", "webm", "avi", "ts", "mpegts", "ps",
     "mp3", "m4a", "aac", "wav", "flac", "ogg", "oga", "opus",
   )
 
-  /** Dolby Vision profile constants are powers of two; the exponent is the profile number. */
+  /** Platform constant to Dolby Vision profile number. */
   private val DOLBY_VISION_PROFILES = mapOf(
     CodecProfileLevel.DolbyVisionProfileDvavPer to 0,
     CodecProfileLevel.DolbyVisionProfileDvavPen to 1,
@@ -113,7 +94,7 @@ object Capabilities {
 
   data class Decoder(val name: String, val mimeType: String, val hardwareAccelerated: Boolean)
 
-  /** Everything read off the device, kept so a person can see it on the Status screen. */
+  /** Everything read off the device; shown on the Status screen. */
   data class Inventory(
     val videoCodecs: List<String>,
     val audioCodecs: List<String>,
@@ -135,7 +116,6 @@ object Capabilities {
     val decoders = mutableListOf<Decoder>()
     val dolbyVision = sortedSetOf<Int>()
     var bitDepth = 8
-    // Sizes kept apart by decoder kind; see the return for why.
     val hardwareMax = mutableMapOf<String, Pair<Int, Int>>()
     val softwareMax = mutableMapOf<String, Pair<Int, Int>>()
     val decoderPq = mutableSetOf<Int>()
@@ -152,9 +132,8 @@ object Capabilities {
       for (mimeType in info.supportedTypes) {
         val mime = mimeType.lowercase()
 
-        // `isHardwareAccelerated` needs API 29; below it, software decoders are
-        // conventionally named. Reported for diagnostics only — a software
-        // decoder is still a decoder and is not excluded from the claim.
+        // `isHardwareAccelerated` needs API 29; below it, go by the conventional
+        // software names. Diagnostics only: software decoders still count.
         val hardware = if (android.os.Build.VERSION.SDK_INT >= 29) {
           runCatching { info.isHardwareAccelerated }.getOrDefault(false)
         } else {
@@ -191,14 +170,9 @@ object Capabilities {
 
     if (decoderTenBit) bitDepth = 10
 
-    // **Hardware first, software only where a codec has no hardware decoder.**
-    // A software decoder's declared size is what it will accept, not what the
-    // set's CPU decodes in real time: one that declares 4K plays 4K as a
-    // stutter, which the decode fallback cannot see, since nothing fails.
-    // The caution is core's; the policy is this device's. So each codec's
-    // limit is its hardware decoders' largest frame, and the overall limit is
-    // the largest over those, falling back to software only for a codec (or a
-    // device) with no hardware decoder at all.
+    // Hardware first, software only for a codec with no hardware decoder: a
+    // software decoder's declared size is what it accepts, not what the CPU
+    // decodes in real time, and a stutter is not a failure the fallback sees.
     val codecMax = (hardwareMax.keys + softwareMax.keys).associateWith { codec ->
       hardwareMax[codec] ?: softwareMax.getValue(codec)
     }
@@ -212,23 +186,17 @@ object Capabilities {
       decoders = decoders,
       videoBitDepth = bitDepth,
       hdr = transferCharacteristics(context, decoderPq.isNotEmpty(), decoderTenBit),
-      // A profile the panel cannot present is a black picture, so the display
-      // has to agree before any Dolby Vision profile is claimed.
+      // Claimed only if the display agrees: an unpresentable profile is a black picture.
       dolbyVision = if (displaySupports(context, Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION)) {
         dolbyVision.toList()
       } else {
         emptyList()
       },
-      // Real decoder limits, not the panel's resolution. Screen size is not a
-      // decoder limit: claiming 1920x1080 on a set with a 4K-capable decoder
-      // forces a transcode that buys nothing.
+      // Decoder limits, not the panel's resolution.
       maxWidth = maxWidth.takeIf { it > 0 },
       maxHeight = maxHeight.takeIf { it > 0 },
-      // Each codec's own largest frame, where it is below the
-      // overall one, which is a maximum over every decoder and so claims 4K
-      // for a codec whose decoders stop at 1080p (VP8 on `.133`, per its vendor
-      // XML). The largest over that codec's decoders, because the player may
-      // use any of them. Only the short ones are stated, as core asks.
+      // Only codecs whose own largest frame is below the overall maximum
+      // (VP8 on `.133` stops at 1080p).
       videoCodecMaxSize = codecMax
         .filterKeys { it in VIDEO_MIME.values }
         .filterValues { (w, h) -> w < maxWidth || h < maxHeight },
@@ -237,12 +205,8 @@ object Capabilities {
   }
 
   /**
-   * HDR transfers, gated on decode *and* presentation.
-   *
-   * Over-claiming here is the dangerous direction — an over-claimed capability
-   * is a black screen, an under-claimed one is a transcode nobody needed — so
-   * both halves must agree before a transfer is named. A codec probe alone is
-   * not evidence that anything reaches the panel.
+   * HDR transfers, named only when decoder and display both support them:
+   * an over-claim is a black screen, an under-claim only a transcode.
    */
   private fun transferCharacteristics(context: Context, decoderPq: Boolean, decoderTenBit: Boolean): List<String> {
     val transfers = mutableListOf<String>()

@@ -15,10 +15,8 @@ function snapshot(sessionMediaId: string | undefined, positionMs: number): Playb
 }
 
 /**
- * Between a switch and React's next render the route still names the old
- * episode while the player reports the new one near 0. A write in that gap
- * would store 0 under the old episode, which core then drops (nothing below
- * 30 s is kept), erasing the place.
+ * Just after a switch the route names the old episode while the player reports
+ * the new one near 0; a write then would erase the old episode's place.
  */
 describe('attributableProgress', () => {
   it('attributes the position to the episode actually playing', () => {
@@ -34,11 +32,7 @@ describe('attributableProgress', () => {
   });
 });
 
-/**
- * A session names the *file* it plays (`mediaId: "macha:…"`) and the item
- * separately (`itemId`); matching the file against the item's id would record
- * nothing.
- */
+/** A session names its file as `mediaId` and the item as `itemId`. */
 describe('a session that names its file', () => {
   const film = { id: 'tmdb:movie:286217', kind: 'movie', title: 'The Martian', mediaIds: ['macha:uhd', 'macha:hd'] } as unknown as MediaSummary;
   const session = (mediaId: string, itemId?: string) =>

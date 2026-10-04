@@ -5,24 +5,11 @@ import { colour, font, radius, rem, type } from '../styles/theme';
 import { alphabetKeyLabel } from '../text/viewerText';
 
 /**
- * Jump-to-letter, from `.alphabet-index` in base.css.
- *
- * A fixed vertical strip down the right edge, as on the web — but this is the
- * component that earns its keep far more on a television than in a browser.
- * With a pointer, a long library is a scrollbar drag. With a D-pad it is one
- * focus step per card, and a library of a few hundred titles is unusable
- * without this.
- *
- * Letters with nothing behind them render dimmed and **not focusable**, so the
- * D-pad skips them rather than making the viewer press through dead entries —
- * the equivalent of the web client's `disabled` plus its missing
- * `data-tv-focusable`.
+ * Jump-to-letter strip, from `.alphabet-index` in base.css. Letters with no
+ * titles are dimmed and not focusable, so the D-pad skips them.
  */
 
-/**
- * Horizontal space the strip occupies, so a grid beside it can reserve the
- * room rather than laying cards underneath it.
- */
+/** Width a grid beside the strip must reserve. */
 export const alphabetStripWidth = rem(2.7);
 
 export function AlphabetIndex({
@@ -66,12 +53,7 @@ export function AlphabetIndex({
 }
 
 const styles = StyleSheet.create({
-  /**
-   * `position: fixed; right: max(.35rem, 1vw); top: 78px; bottom: .8rem`.
-   *
-   * Absolute rather than fixed, because React Native has no fixed positioning
-   * — the parent is the screen, so the effect is the same.
-   */
+  // `.alphabet-index { position: fixed; right: max(.35rem, 1vw); top: 78px; bottom: .8rem }`
   strip: {
     position: 'absolute',
     right: rem(0.8),
@@ -99,10 +81,7 @@ const styles = StyleSheet.create({
   labelFocused: {
     color: colour.text,
   },
-  /**
-   * Dimmed rather than hidden: the strip keeps a stable height and the letters
-   * stay where the viewer expects them, which is the point of an index.
-   */
+  // Dimmed, not hidden, so the letters keep their positions.
   labelUnavailable: {
     color: colour.textFaint,
     opacity: 0.45,

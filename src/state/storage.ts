@@ -2,41 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { StorageLike } from '@machafoundation/core';
 
 /**
- * `AsyncStorage` behind the core's synchronous `StorageLike`.
- *
- * The core's storage interface is synchronous by design — making it async
- * would push `await` into every state read in the core, most of which sit on
- * paths that must not yield — so the bridge belongs here. This is the shape
- * documented in `macha-ts/docs/async-storage.md`: hydrate once at startup,
- * read from memory, write through a serialized chain.
+ * `AsyncStorage` behind core's synchronous `StorageLike`, as in
+ * `macha-ts/docs/async-storage.md`: hydrate once at startup, read from memory,
+ * write through a serialized chain.
  */
 
 /**
- * Which keys the startup hydrate must load.
- *
- * **Both of core's conventions, deliberately.** Core names state stores with a
- * dotted `macha.<name>.v<n>` and its runtime and cluster layers with a
- * hyphenated `macha-<name>`; `MACHA_STORAGE_KEY_PREFIXES` lists both.
- *
- * **A missed key is worse than a missing value.** `macha-client-id` is
- * hyphenated, and `MachaClientConfiguration.clientId()` cannot tell an
- * unhydrated key from an absent one, so it would mint a fresh id; every
- * per-client store (`…v1.<clientId>`) would then be read under an identity
- * that changes every cold start.
- *
- * **A caching host has an obligation a read-through host does not.** Core's
- * `StorageLike` is synchronous, so on React Native the store must be hydrated
- * into memory before core reads anything — and core's read-time migrations
- * (`macha-client-progress:` adopted when the current Continue Watching key is
- * empty, `macha-server-url` folded into the endpoint list) ask for keys that
- * a narrow filter never loaded. Core reads `null` and concludes "absent", so
- * the migration silently does not run. Anything core may read has to be here,
- * not merely anything core currently writes.
- *
- * `isMachaStorageKey` is not sufficient on its own: it answers "is this one of
- * core's", and `macha-playback-failure-trail-v1` is ours. Matching the bare
- * word covers both conventions, every key either side owns, and any key added
- * later — which is the point, since the failure mode is silent.
+ * Which keys the startup hydrate loads: every key core may read, including
+ * ones it only migrates from, plus this client's own. Core reads an unhydrated
+ * key as absent, so a miss fails silently (`macha-client-id` would be re-minted
+ * every cold start). The bare word covers core's dotted and hyphenated
+ * conventions; `isMachaStorageKey` would miss this client's keys.
  */
 const KEY_PREFIX = 'macha';
 
@@ -48,13 +24,7 @@ export function shouldHydrate(key: string): boolean {
 let cache = new Map<string, string>();
 let hydrated = false;
 
-/**
- * Writes are chained rather than issued concurrently.
- *
- * Two `setItem` calls for one key racing to the device can land in the wrong
- * order, and the losing value is the one that survives the restart. Chaining
- * costs nothing at this write frequency and removes the reordering entirely.
- */
+/** Chained: two concurrent `setItem` calls for one key can land out of order. */
 let writes: Promise<unknown> = Promise.resolve();
 
 export async function hydrateStorage(): Promise<void> {
@@ -64,9 +34,7 @@ export async function hydrateStorage(): Promise<void> {
     const entries = keys.length > 0 ? await AsyncStorage.multiGet(keys) : [];
     cache = new Map(entries.filter((entry): entry is [string, string] => entry[1] !== null));
   } catch {
-    // A failed hydrate is a cold start with no remembered state, which is a
-    // usable app. Failing to start because Continue Watching is unreadable
-    // would not be.
+    // A failed hydrate is a cold start with no remembered state.
     cache = new Map();
   }
   hydrated = true;

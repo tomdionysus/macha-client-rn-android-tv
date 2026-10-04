@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 
 /**
  * How long `active` has been true, ticking once a second; 0 when it is not.
- * The web client's `hooks/useElapsedMs.ts`, which counts a start here because
- * core says `starting` without saying since when.
+ * Mirrors the web client's `hooks/useElapsedMs.ts`.
  */
 export function useElapsedMs(active: boolean, tickMs = 1_000): number {
   const [elapsedMs, setElapsedMs] = useState(0);

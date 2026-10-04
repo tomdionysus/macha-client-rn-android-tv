@@ -20,14 +20,9 @@ function fakeStorage(seed: Record<string, string> = {}): StorageLike & { map: Ma
 const KEY = 'macha-playback-live-sessions-v1';
 
 /**
- * The record exists so that a session which outlived its process can be closed
- * by the run that follows it. Everything here is about that one property: what
- * is on disk when the process dies is what core gets to reconcile.
- *
- * The reclaim itself is core's — a client cannot tell its own orphan from
- * another device's live session on the same account, and closing the wrong one
- * kills someone else's film. These ids are the discriminator, and they are ids
- * this install was handed rather than ids it found.
+ * What is on disk when the process dies is what core reconciles. The reclaim
+ * is core's: only these ids tell this install's orphan from another device's
+ * live session.
  */
 describe('the live-session record', () => {
   beforeEach(() => resetLiveSessionTracking());
@@ -57,10 +52,7 @@ describe('the live-session record', () => {
     expect(orphanedSessions({ storage })).toEqual(['node-a::orphan']);
   });
 
-  /**
-   * The case the whole module is for. A run records a session and dies without
-   * ever reporting `undefined`; the next run must still find it.
-   */
+  // The process dies without ever reporting `undefined`.
   it('keeps a session a killed process never got to close', () => {
     const storage = fakeStorage();
     trackLiveSession('node-a::killed', { storage });
@@ -82,11 +74,6 @@ describe('the live-session record', () => {
     expect(JSON.parse(storage.map.get(KEY)!)).toEqual(['b::2']);
   });
 
-  /**
-   * Bounded against the server's own per-account cap, so a reconcile that never
-   * arrives cannot grow the record without end. Asserted as the relationship —
-   * the record never describes more sessions than an account may hold.
-   */
   it('never remembers more sessions than an account may have open', () => {
     const storage = fakeStorage();
     for (let i = 0; i < 50; i += 1) {
@@ -95,7 +82,7 @@ describe('the live-session record', () => {
     }
     const remembered: string[] = JSON.parse(storage.map.get(KEY)!);
     expect(remembered.length).toBeLessThanOrEqual(32);
-    // And it keeps the newest, which are the ones most likely still live.
+    // Keeps the newest.
     expect(remembered).toContain('node-a::s49');
   });
 

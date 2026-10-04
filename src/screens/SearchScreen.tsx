@@ -28,20 +28,10 @@ import { tvFocus } from '../hooks/tvFocus';
 import { CARD_FRAME, colour, controlRow, focusFrame, layout, pageGutter, px, rem } from '../styles/theme';
 
 /**
- * Search, from the web client's screen of the same name.
- *
- * Typing uses the television's own on-screen keyboard: a React Native
- * `TextInput` raises the leanback IME the viewer already knows, with its own
- * voice input. `TvTextInput` is that field, and the reason
- * `tvFocus.suspend()` exists — while the IME owns the D-pad the focus registry
- * must stand down, or selection wanders behind the keyboard.
- *
- * The query rules are the web client's exactly, because a viewer moving between
- * the two should not find one of them answering and the other not: **two
- * characters before anything is asked of the node**, and a **180 ms** settle so
- * a word typed on a remote is one request rather than eight. Below two
- * characters the results are cleared rather than left standing, since a stale
- * grid under a half-typed query reads as an answer to it.
+ * Search, with the web client's query rules: nothing is asked below core's
+ * minimum, and results clear rather than stand under a half-typed query.
+ * `TvTextInput` raises the leanback IME, and the focus registry stands down
+ * (`tvFocus.suspend()`) while it owns the D-pad.
  */
 export function SearchScreen({
   api,
@@ -56,13 +46,12 @@ export function SearchScreen({
   const [error, setError] = useState<Error | undefined>();
   const [sort, setSort] = useState<MediaSortKey>(DEFAULT_SEARCH_SORT);
   const [categories, setCategories] = useState<SearchCategoryKey[]>([...DEFAULT_SEARCH_CATEGORIES]);
-  // Every hit arrives already named by core's search: an episode with its
-  // series, a track as "Artist - Album (year)".
+  // Core's search names every hit: an episode with its series, a track as
+  // "Artist - Album (year)".
   const ordered = useMemo(() => orderMedia(results, sort, SEARCH_SORTS), [results, sort]);
-  // Asks the same question again; the row's last control (`.search-bar-refresh`).
+  // Asks the same question again (`.search-bar-refresh`).
   const [refreshToken, setRefreshToken] = useState(0);
-  // The A-Z index, as on Movies and TV Shows, and like theirs only in title
-  // order, where a letter marks a run of the grid.
+  // The A-Z index only in title order, where a letter marks a run of the grid.
   const indexed = sort === 'title';
   // A letter leads only to titles that can take focus.
   const alphabet = useAlphabetIndex(useMemo(() => (indexed ? ordered.filter(availableToPlay) : []), [indexed, ordered]));
@@ -76,8 +65,7 @@ export function SearchScreen({
 
   useEffect(() => {
     const normalised = query.trim();
-    // Core's rule, not a local minimum: "the", "an" and "a" do not count
-    // towards it, because titles are not ordered by them.
+    // Core's rule: "the", "an" and "a" do not count towards the minimum.
     if (!isSearchable(normalised)) {
       setResults([]);
       setError(undefined);
@@ -106,12 +94,7 @@ export function SearchScreen({
     };
   }, [api, query, categories, refreshToken]);
 
-  /**
-   * A letter on the strip: focus to its first title, and that title's row to
-   * the top of the screen rather than wherever least movement leaves it
-   * (`jumpTarget`). The card's own reveal follows on its focus change, finds
-   * it in view, and does nothing.
-   */
+  /** Focus the letter's first title and put its row at the top (`jumpTarget`). */
   const jumpToKey = (key: AlphabetIndexKey) => {
     const mediaId = alphabet.jumpTo(key);
     const index = mediaId === undefined ? -1 : ordered.findIndex((entry) => entry.id === mediaId);
@@ -158,10 +141,8 @@ export function SearchScreen({
         <PageTitle>Search</PageTitle>
 
         {/*
-          * `.search-bar { --search-control-height: 3.5rem; display: flex;
-          * gap: 1rem; width: 100% }`: field, sort, type toggles, refresh, in
-          * that order, every one the same height and shape (`controlRow`).
-          * The field takes whatever width the others leave.
+          * `.search-bar { --search-control-height: 3.5rem; display: flex; gap: 1rem;
+          * width: 100% }`: field, sort, type toggles, refresh (`controlRow`).
           */}
         <View style={styles.bar}>
           <TvTextInput
@@ -196,17 +177,14 @@ export function SearchScreen({
         {query.trim().length === 0 ? null : searching && results.length === 0 ? (
           <Loading />
         ) : !isSearchable(query) || categories.length === 0 || results.length === 0 ? (
-          // One line for every way a query can come back empty — no match,
-          // every toggle off, or only words titles are not ordered by — and
-          // nothing at all while the field is empty (the web's `.search-empty`).
+          // `.search-empty`: one line for every way a query comes back empty.
           <Text style={styles.empty}>Nothing found. Try different search terms or filters.</Text>
         ) : (
           <View
             style={[styles.grid, indexed && styles.gridIndexed]}
             onLayout={(event) => {
               gridY.current = event.nativeEvent.layout.y;
-              // The grid can report its place after its cards report theirs;
-              // a restored card revealed before this would miss by the gap.
+              // The grid can report its place after its cards do.
               const focusedIndex = ordered.findIndex((entry) => tvFocus.selected() === mediaFocusId(entry.id));
               if (focusedIndex >= 0 && cards.current.has(focusedIndex)) revealCard(focusedIndex);
             }}
@@ -220,9 +198,7 @@ export function SearchScreen({
                 onSelect={() => onOpen(item)}
                 onExtent={(box) => {
                 cards.current.set(index, { y: box.y, height: box.height });
-                // Focus restored by Back lands on a card before it has laid
-                // out, when there was nothing to scroll to. Reveal it once its
-                // box is known, if it still holds focus.
+                // Focus restored by Back lands before layout; reveal once the box is known.
                 if (tvFocus.selected() === mediaFocusId(item.id)) revealCard(index);
               }}
                 onFocusChange={(focused) => focused && revealCard(index)}
@@ -238,13 +214,7 @@ export function SearchScreen({
   );
 }
 
-/**
- * How long the field is left alone before the node is asked.
- *
- * The web client's figure, kept identical so search feels the same on both
- * clients. Not tuned up for a remote: keystrokes on an on-screen keyboard are
- * already further apart than the settle.
- */
+/** Settle before the node is asked. Asserted: the web client's figure, kept identical. */
 const SETTLE_MS = 180;
 
 const styles = StyleSheet.create({
@@ -271,8 +241,7 @@ const styles = StyleSheet.create({
   },
   /**
    * `.search-input { background: #19191c; border: 1px solid #3a3a40;
-   * border-radius: .65rem; font-size: 1.15rem }` in the row's height, with
-   * `focusFrame.border` for the 1px so focus reads as it does on every card.
+   * border-radius: .65rem; font-size: 1.15rem }`, with `focusFrame.border`.
    */
   fieldBox: {
     height: controlRow.height,
@@ -316,12 +285,11 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    // Less the focus frame each card holds inside its own box. See `layout.rowGap`.
+    // Less each card's focus frame. See `layout.rowGap`.
     rowGap: Math.max(rem(0.4), rem(1) - CARD_FRAME * 2),
     columnGap: layout.rowGap,
     paddingHorizontal: pageGutter,
-    // Cards align to the top of their row, so one with a longer caption
-    // cannot push the others' titles down.
+    // Top-aligned, so a longer caption cannot push the other titles down.
     alignItems: 'flex-start',
   },
   // The strip is pinned over this edge when it is showing.

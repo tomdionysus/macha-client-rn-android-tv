@@ -9,30 +9,17 @@ import { colour, font, rem, type } from '../styles/theme';
 export const LOGIN_SCOPE = 'login';
 
 /**
- * What the viewer has typed, kept while the sign-in wall is away: the screen
- * unmounts on a visit to Server settings.
- *
- * In memory only, never storage; the username is forgotten after a sign-in
- * that succeeds, and the password after every attempt.
+ * The typed draft, kept across the unmount for Server settings. Memory only:
+ * the username clears on a successful sign-in, the password on every attempt.
  */
 const draft = { username: '', password: '' };
 
 /**
- * Sign in as somebody.
- *
- * Usually there is nothing to "enter" here in the sense of gaining access — a
- * viewer already has a session, because every session belongs to a user and
- * empty credentials authenticate the anonymous one. This exchanges that session
- * for one belonging to a named account.
- *
- * With `guestAllowed={false}`, the anonymous account lacks `media_viewer` and an
- * unauthenticated viewer may do nothing, so this screen stands *in front of*
- * the application rather than beside it. **What the server permits decides which it is**, not a
- * build flag — the same screen, positioned by what the roles say.
- *
- * The wording, the identical treatment of a wrong user and a wrong password,
- * and the guest affordance are all the web client's; only the input method
- * differs, because typing here goes through the television's own keyboard.
+ * Exchanges the anonymous session for a named account's. With
+ * `guestAllowed={false}` the anonymous account lacks `media_viewer`, and this
+ * screen stands in front of the application. Wording, the identical treatment
+ * of a wrong user and a wrong password, and the guest option are the web
+ * client's.
  */
 export function LoginScreen({
   onSignIn,
@@ -45,32 +32,14 @@ export function LoginScreen({
   /** Exchanges credentials for a session. Rejects on a refusal. */
   onSignIn: (username: string, password: string) => Promise<void>;
   onSignedIn: () => void;
-  /**
-   * Whether there is anything to browse without signing in.
-   *
-   * False where the server grants the anonymous account no roles. "Browse as
-   * guest" there would navigate home and be bounced straight back, so the
-   * choice is removed rather than left to fail.
-   */
+  /** False where the anonymous account has no roles: browsing would bounce straight back. */
   guestAllowed?: boolean;
   onBrowseAsGuest?: () => void;
-  /**
-   * The way out.
-   *
-   * A television has no address bar. Without a route to the endpoint settings,
-   * a set whose node stops granting roles can neither sign in nor be pointed
-   * anywhere else, and the only remedy is a reinstall. The web client keeps its
-   * connection screen reachable behind the same wall for the same reason.
-   */
+  /** The only route to the endpoint settings for a set whose node stops granting roles. */
   onOpenSettings?: () => void;
   /**
-   * Why this screen is up, when it is up for a reason the viewer did not
-   * expect — replacing the standing blurb rather than joining it.
-   *
-   * A session that lapses under a viewer empties the library and would
-   * otherwise look exactly like a fault, so this says what happened. A false
-   * "you were signed out" is worse than a missing one, so the caller supplies
-   * this only where it knows; core reports no identity change at all against a
+   * Why the screen is up unexpectedly, replacing the standing blurb. Supplied
+   * only where the caller knows: core reports no identity change against a
    * node too old to state a username.
    */
   notice?: string;
@@ -88,12 +57,7 @@ export function LoginScreen({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
-  /**
-   * Claim the focus scope while this screen is up. The registry only offers
-   * candidates matching the active scope, and every focusable here declares
-   * one, so without this push nothing on the screen is reachable. It also keeps
-   * anything still mounted behind the wall out of reach.
-   */
+  /** Every focusable here declares this scope, so nothing is reachable without the push. */
   useEffect(() => {
     tvFocus.pushScope(LOGIN_SCOPE);
     return () => tvFocus.popScope(LOGIN_SCOPE);
@@ -109,7 +73,7 @@ export function LoginScreen({
       draft.username = '';
       onSignedIn();
     } catch (cause) {
-      // The server's own words where it gave them — see `signInErrorText`.
+      // See `signInErrorText`.
       setError(signInErrorText(cause));
       setPassword('');
     } finally {
@@ -150,10 +114,8 @@ export function LoginScreen({
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {/*
-          * Sign in on its own row, the width of the fields, so Down from the
-          * password lands on it rather than on a button whose centre sits
-          * nearer the field's. Geometry, not a focus override: the scoring
-          * weights are the web client's and stay untouched.
+          * On its own row, the width of the fields, so Down from the password lands
+          * here by geometry; the scoring weights stay the web client's.
           */}
         <Button
           label={busy ? 'Signing in…' : 'Sign in'}

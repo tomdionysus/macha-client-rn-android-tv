@@ -9,19 +9,9 @@ import { scrollTarget } from '../hooks/focusScroll';
 import { CARD_FRAME, layout, pageGutter, rem } from '../styles/theme';
 
 /**
- * Music — albums, and only albums for now.
- *
- * **This is one of the web client's seven music routes, not a port of them.**
- * That client has artists, albums, tracks, playlists and a page for each, all
- * hanging off an `OverflowMenu` this client does not have yet, and a queue that
- * outlives the screen.
- *
- * Albums stand alone: a grid of things a viewer recognises, opening the same
- * detail screen everything else opens, so the nav entry goes somewhere real.
- *
- * **What a viewer cannot do here yet**, so it is not mistaken for a bug: play a
- * whole album in order, queue anything, or reach an artist. All three need the
- * queue and the menu.
+ * Music: albums only, one of the web client's seven music routes. Playing an
+ * album in order, queueing and artists need the queue and the `OverflowMenu`,
+ * which this client does not have.
  */
 export function MusicScreen({
   api,
@@ -106,8 +96,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    // `.media-grid { gap: 1.4rem 1rem }`, less the focus frame each card holds
-    // inside its own box. See `layout.rowGap`.
+    // `.media-grid { gap: 1.4rem 1rem }`, less each card's focus frame. See `layout.rowGap`.
     rowGap: Math.max(rem(0.5), rem(1.4) - CARD_FRAME * 2),
     columnGap: layout.rowGap,
     paddingHorizontal: pageGutter,

@@ -22,21 +22,10 @@ import { tvFocus } from '../hooks/tvFocus';
 import { CARD_FRAME, layout, pageGutter, rem } from '../styles/theme';
 
 /**
- * The full catalogue grid, from `.media-grid` in base.css.
- *
- * The web client's `repeat(auto-fill, minmax(145px, 1fr))` becomes a wrapping
- * flex row over a computed column count, because React Native has no grid and
- * `auto-fill` has no flex equivalent. The column count is derived from the same
- * inputs the CSS uses, so the two lay out identically at a given width.
- *
- * Ordering is core's (`LIBRARY_SORTS`, `orderMedia`), offered as a sort
- * control because every media list has one. Title, the default, is
- * `sortMediaByIndexedTitle`, the comparator that knows about leading articles
- * and numeric titles.
- *
- * **The alphabet index only in title order.** Under Year or Recently added a
- * letter names no run of the grid, and jumping to it would land somewhere
- * arbitrary.
+ * The catalogue grid, from `.media-grid` in base.css: a wrapping flex row over
+ * a column count derived from the CSS's own inputs. Ordering is core's
+ * (`LIBRARY_SORTS`, `orderMedia`). The alphabet index shows only in title
+ * order, where a letter names a run of the grid.
  */
 export function LibraryScreen({
   api,
@@ -61,9 +50,7 @@ export function LibraryScreen({
   const gridY = useRef(0);
   const contentHeight = useRef(0);
   const cardExtents = useRef(new Map<number, { y: number; height: number }>());
-  // Jumping moves focus to the first title in the bucket; the grid's existing
-  // scroll-on-focus below does the revealing. See `useAlphabetIndex` for why
-  // scrolling alone is the wrong behaviour on a D-pad.
+  // A jump moves focus and scroll-on-focus reveals it (see `useAlphabetIndex`).
   // A letter leads only to titles that can take focus.
   const alphabet = useAlphabetIndex(useMemo(() => items.filter(availableToPlay), [items]));
 
@@ -77,12 +64,7 @@ export function LibraryScreen({
     );
   }
 
-  /**
-   * A letter on the strip: focus to its first title, and that title's row to
-   * the top of the screen rather than wherever least movement leaves it
-   * (`jumpTarget`). The card's own reveal follows on its focus change, finds
-   * it in view, and does nothing.
-   */
+  /** Focus the letter's first title and put its row at the top (`jumpTarget`). */
   const jumpToKey = (key: AlphabetIndexKey) => {
     const mediaId = alphabet.jumpTo(key);
     const index = mediaId === undefined ? -1 : items.findIndex((entry) => entry.id === mediaId);
@@ -98,9 +80,8 @@ export function LibraryScreen({
   };
 
   /**
-   * Bring the focused card fully into view, from the box the card measured
-   * rather than a computed row height: a title that wraps makes its row taller
-   * than any formula. A card already fully visible does not scroll at all.
+   * Bring the focused card fully into view, from its measured box: a wrapped
+   * title makes its row taller than any formula.
    */
   const revealCard = (index: number) => {
     const extent = cardExtents.current.get(index);
@@ -117,13 +98,11 @@ export function LibraryScreen({
   };
 
   return (
-    // The strip is a sibling of the scroller, not a child of it: it is pinned
-    // to the screen edge and must not scroll away with the grid.
+    // The strip is a sibling of the scroller, so it stays pinned to the screen edge.
     <View
       style={styles.screen}
       onLayout={(event) => {
-        // The wrapper, not the scroller: a `ScrollView`'s own `onLayout`
-        // reports no height here.
+        // A `ScrollView`'s own `onLayout` reports no height here.
         viewportHeight.current = event.nativeEvent.layout.height;
       }}
     >
@@ -145,8 +124,7 @@ export function LibraryScreen({
           style={styles.grid}
           onLayout={(event) => {
             gridY.current = event.nativeEvent.layout.y;
-            // The grid can report its place after its cards report theirs;
-            // a restored card revealed before this would miss by the gap.
+            // The grid can report its place after its cards do.
             const focusedIndex = items.findIndex((entry) => tvFocus.selected() === mediaFocusId(entry.id));
             if (focusedIndex >= 0 && cardExtents.current.has(focusedIndex)) revealCard(focusedIndex);
           }}
@@ -160,9 +138,7 @@ export function LibraryScreen({
               defaultFocus={index === firstFocus}
               onExtent={(box) => {
                 cardExtents.current.set(index, { y: box.y, height: box.height });
-                // Focus restored by Back lands on a card before it has laid
-                // out, when there was nothing to scroll to. Reveal it once its
-                // box is known, if it still holds focus.
+                // Focus restored by Back lands before layout; reveal once the box is known.
                 if (tvFocus.selected() === mediaFocusId(item.id)) revealCard(index);
               }}
               onFocusChange={(focused) => focused && revealCard(index)}
@@ -193,13 +169,11 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    // `.media-grid { gap: 1.4rem 1rem }`, less the focus frame each card holds
-    // inside its own box. See `layout.rowGap`.
+    // `.media-grid { gap: 1.4rem 1rem }`, less each card's focus frame. See `layout.rowGap`.
     rowGap: Math.max(rem(0.5), rem(1.4) - CARD_FRAME * 2),
     columnGap: layout.rowGap,
     paddingLeft: pageGutter,
-    // The alphabet strip is pinned over this edge, so the grid keeps clear of
-    // it rather than laying its last column underneath.
+    // Keeps clear of the alphabet strip pinned over this edge.
     paddingRight: pageGutter + alphabetStripWidth,
   },
 });

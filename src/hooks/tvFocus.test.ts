@@ -5,11 +5,7 @@ function rect(left: number, top: number, width = 50, height = 50): FocusRect {
   return { left, top, width, height };
 }
 
-/**
- * The scorer is a port of the web client's `scoreTvCandidate`, so these assert
- * the behaviour that port has to preserve rather than an implementation of it.
- * If the web client's weights change, these should fail.
- */
+/** The scorer ports the web client's `scoreTvCandidate`: if its weights change there, these should fail. */
 describe('spatial focus scoring', () => {
   it('rejects candidates behind the direction of travel', () => {
     const current = rect(100, 100);
@@ -35,11 +31,6 @@ describe('spatial focus scoring', () => {
     expect(near!).toBeLessThan(far!);
   });
 
-  /**
-   * The lane-gap penalty is the weight that keeps focus inside a row or column
-   * rather than cutting diagonally across a grid. A candidate slightly further
-   * away but in the same lane must beat a closer one in a different lane.
-   */
   it('penalises leaving the current lane six-fold', () => {
     const current = rect(0, 0);
     const sameLaneFurther = scoreTvCandidate(current, rect(0, 140), 'down');
@@ -49,8 +40,7 @@ describe('spatial focus scoring', () => {
 
   it('discounts cross-axis drift to a fifth of primary distance', () => {
     const current = rect(0, 0);
-    // Both candidates are 100 below; one is offset horizontally but still
-    // overlapping the lane, so only the secondary term separates them.
+    // Both are 100 below and in the lane, so only the secondary term separates them.
     const aligned = scoreTvCandidate(current, rect(0, 100), 'down')!;
     const drifted = scoreTvCandidate(current, rect(40, 100), 'down')!;
     expect(drifted - aligned).toBeCloseTo(40 * 0.2, 5);
@@ -66,8 +56,8 @@ describe('spatial focus scoring', () => {
 
 describe('suspension', () => {
   beforeEach(() => {
-    // The registry is a module singleton; a leaked suspension would make every
-    // later test in this file silently pass by doing nothing.
+    // The registry is a module singleton: a leaked suspension would make every
+    // later test pass by doing nothing.
     while (tvFocus.suspended) tvFocus.suspend()();
   });
 
@@ -111,10 +101,8 @@ describe('suspension', () => {
   });
 
   it('recovers from a suspension whose holder went away', () => {
-    // Android TV keeps a ReactEditText natively focused after the IME closes,
-    // so `onBlur` may never fire and a token can be left in a ref on an
-    // unreachable component. Reference counting cannot recover from a lost
-    // token by construction, so there has to be a way out.
+    // Android TV keeps a ReactEditText focused after the IME closes, so
+    // `onBlur` may never fire and a token can be lost.
     tvFocus.suspend();
     tvFocus.suspend();
     expect(tvFocus.suspended).toBe(true);
@@ -144,11 +132,7 @@ describe('suspension', () => {
   });
 });
 
-/**
- * On the device, focusables are routinely measured *before* they register. A
- * rectangle discarded then leaves the scorer nothing to work with, and focus
- * falls back to registration order.
- */
+/** On the device, focusables are routinely measured before they register. */
 describe('geometry arriving out of order', () => {
   beforeEach(() => {
     while (tvFocus.suspended) tvFocus.suspend()();
@@ -157,8 +141,6 @@ describe('geometry arriving out of order', () => {
   it('keeps a rectangle that arrives before registration', () => {
     tvFocus.measure('early', { left: 10, top: 20, width: 100, height: 50 });
     const stop = tvFocus.register({ id: 'early' });
-    // Proven through behaviour rather than a getter: a scored move only happens
-    // when the current element has geometry.
     expect(tvFocus.debugGeometry()).toContain('measured=1');
     stop();
   });
@@ -173,11 +155,8 @@ describe('geometry arriving out of order', () => {
   });
 
   it('keeps geometry when an element is disabled and enabled again in place', () => {
-    // React re-runs a registration by calling the old cleanup *first*, which
-    // deletes the entry and its rectangle; the element then comes back with no
-    // geometry and the scorer cannot move from it. So `useFocusable` patches
-    // `disabled` through `update` instead of re-registering, and this is the
-    // contract it relies on. (The hook itself has no renderer to run under here.)
+    // `useFocusable` patches `disabled` through `update`, because a
+    // re-registration loses the rectangle. This is the contract it relies on.
     const card = tvFocus.register({ id: 'toggle-card' });
     const button = tvFocus.register({ id: 'toggle-button', disabled: true });
     tvFocus.measure('toggle-card', { left: 0, top: 0, width: 100, height: 100 });
@@ -200,16 +179,14 @@ describe('geometry arriving out of order', () => {
     tvFocus.measure('ghost', { left: 0, top: 0, width: 10, height: 10 });
     const stop = tvFocus.register({ id: 'ghost' });
     stop();
-    // Re-registering must not resurrect geometry from a previous mount, which
-    // would place the element where it used to be.
+    // Re-registering must not resurrect geometry from a previous mount.
     const again = tvFocus.register({ id: 'ghost' });
     expect(tvFocus.debugGeometry()).toContain('measured=0');
     again();
   });
 
   it('scores by geometry rather than registration order once measured', () => {
-    // Registered right-to-left, laid out left-to-right: a sequential fallback
-    // would move the wrong way.
+    // Registered right-to-left, laid out left-to-right.
     const right = tvFocus.register({ id: 'right' });
     const left = tvFocus.register({ id: 'left' });
     tvFocus.measure('right', { left: 500, top: 0, width: 100, height: 100 });
@@ -226,8 +203,6 @@ describe('geometry arriving out of order', () => {
   });
 
   it('prefers the element below over the next one registered, for a down press', () => {
-    // In registration order, Down from a nav item would go sideways to the
-    // next nav item.
     const navA = tvFocus.register({ id: 'nav-a' });
     const navB = tvFocus.register({ id: 'nav-b' });
     const card = tvFocus.register({ id: 'card' });
@@ -244,15 +219,7 @@ describe('geometry arriving out of order', () => {
   });
 });
 
-/**
- * Revealing focus before moving it.
- *
- * `current()` invents an answer when `selectedId` names nothing reachable —
- * after a scope change, or after the screen that owned the selection
- * unmounted. Moving *from* that invented element would skip it, and in a
- * direction with no candidate would select nothing at all: a screen whose
- * D-pad does nothing and shows no focus ring.
- */
+/** `current()` is a fallback when `selectedId` names nothing reachable; the first press adopts it. */
 describe('the first press on a screen with no selection', () => {
   /** Two focusables side by side, with geometry, in the default scope. */
   function mountRow(): () => void {
@@ -262,8 +229,7 @@ describe('the first press on a screen with no selection', () => {
     ];
     tvFocus.measure('left-button', rect(0, 100));
     tvFocus.measure('right-button', rect(200, 100));
-    // `register` queues a default focus on a microtask; clear it so these
-    // assert the no-selection case deliberately rather than by accident.
+    // `register` queues a default focus on a microtask; clear it.
     tvFocus.select(undefined);
     return () => { for (const off of offs) off(); };
   }
@@ -276,8 +242,7 @@ describe('the first press on a screen with no selection', () => {
     const stop = mountRow();
     expect(tvFocus.selected()).toBeUndefined();
 
-    // Nothing is above either element; returning false here would leave the
-    // screen with no selection and no ring.
+    // Nothing is above either element.
     expect(tvFocus.handle('up')).toBe(true);
     expect(tvFocus.selected()).toBeDefined();
 
@@ -305,17 +270,7 @@ describe('the first press on a screen with no selection', () => {
   });
 });
 
-/**
- * Restoring focus across a screen change, which is what Back owes a viewer.
- *
- * Pressing Back out of a detail screen should put the highlight back on the
- * poster it was opened from. The registry already lets something name that
- * card — `mediaFocusId` — but the two events arrive in the wrong order: the
- * screen selects the remembered id while the grid is still fetching, and the
- * card registers a moment later. Selection survives that (it is only a
- * string), but the *card* would never learn unless registration tells it,
- * because `select` notifies only whatever is registered at the time.
- */
+/** A card restored by name is selected while its grid is fetching, and registers later. */
 describe('an element that mounts into an existing selection', () => {
   beforeEach(() => {
     tvFocus.resumeAll();
@@ -343,18 +298,7 @@ describe('an element that mounts into an existing selection', () => {
   });
 })
 
-/**
- * A restore that outlives the fetch, which is what a library screen needs.
- *
- * `App` remembers the card Back should return to, but the screen it returns to
- * re-mounts and re-fetches: the grid's cards have not registered by the time
- * the route effect runs (measured on the television), so a restore applied
- * there would find nothing and fall back to the navigation bar.
- *
- * So the restore is armed rather than applied, and registration claims it. It
- * is abandoned the moment the viewer presses anything, because focus jumping
- * under a hand already moving is worse than focus starting in the wrong place.
- */
+/** A screen returned to re-fetches, so the restore is armed and registration claims it. */
 describe('a restore armed before its card exists', () => {
   beforeEach(() => {
     tvFocus.resumeAll();
@@ -395,11 +339,7 @@ describe('a restore armed before its card exists', () => {
   });
 })
 
-/**
- * A series screen's default card — its first season — registers only after the
- * series is fetched, by which time `focusDefault` has fallen back to the first
- * thing on screen, the top bar's Home (measured on `.133`).
- */
+/** A screen's default card registers only after its fetch, when `focusDefault` has already fallen back. */
 describe('a default that registers after the screen has fallen back', () => {
   beforeEach(() => {
     tvFocus.resumeAll();
@@ -455,13 +395,9 @@ describe('a default that registers after the screen has fallen back', () => {
 });
 
 /**
- * Search's control row, measured off `.133` (1920-wide screenshot): a field
- * that takes most of the width, the sort control to its right, and a row of
- * result cards below.
- *
- * Scoring from centres would count anything whose centre lay right of the wide
- * field's centre as "right" of it, and a card one row down would be nearer
- * than the sort control on the same row.
+ * Search's control row, measured on the TCL set (1920-wide screenshot): a wide
+ * field, the sort control to its right, result cards below. Scoring from
+ * centres would put a card one row down nearer than the sort control.
  */
 describe('a wide element beside smaller ones', () => {
   const field = { id: 'field', rect: rect(58, 172, 1264, 46) };
@@ -491,10 +427,6 @@ describe('a wide element beside smaller ones', () => {
   });
 });
 
-/**
- * Going down from a row and straight back up lands on the control the viewer
- * left, not on whatever happens to be nearest.
- */
 describe('reversing a move', () => {
   beforeEach(() => {
     tvFocus.resumeAll();
@@ -508,9 +440,8 @@ describe('reversing a move', () => {
     return stop;
   }
 
-  // Search's row: the wide field, then the sort control; results below. The
-  // cards sit under the field's right end, so Up from them is — by geometry —
-  // the field.
+  // Search's row and results. The cards sit under the field's right end, so by
+  // geometry Up from them is the field.
   const layout = (): (() => void)[] => [
     place('field', rect(58, 172, 1264, 46)),
     place('sort', rect(1340, 172, 152, 46)),
@@ -541,9 +472,8 @@ describe('reversing a move', () => {
 });
 
 /**
- * Home, measured off `.133`: the top bar, a Continue Watching row of three
- * cards at the left, and a full Movies row below. Up from a Movies card with
- * nothing directly above it must not skip Continue Watching for the top bar.
+ * Home, measured on the TCL set: the top bar, a Continue Watching row of three
+ * cards at the left, and a full Movies row below.
  */
 describe('moving between rows', () => {
   const nav = [
@@ -566,10 +496,6 @@ describe('moving between rows', () => {
   });
 });
 
-/**
- * Left from Home, the first item in the top bar, has nothing further left in
- * its own row; it must stop rather than drop to the card below it.
- */
 describe('the end of a row', () => {
   const home = { id: 'nav-home', rect: rect(740, 20, 60, 40) };
   const movies = { id: 'nav-movies', rect: rect(820, 20, 80, 40) };
@@ -584,12 +510,6 @@ describe('the end of a row', () => {
   });
 });
 
-/**
- * A screen's own default registers only after its content is fetched, so the
- * fallback would otherwise always be the first thing on screen, the top bar's
- * Home. It prefers the nav item the viewer last used, remembered for the life
- * of the app.
- */
 describe('the fallback remembers the last nav item used', () => {
   beforeEach(() => {
     tvFocus.resumeAll();
@@ -639,12 +559,8 @@ describe('the fallback remembers the last nav item used', () => {
 });
 
 /**
- * The alphabet strip beside a grid: a column of small keys pinned to the
- * screen edge, shorter than the grid, so the grid's bottom row sits below
- * its last key. Geometry as on `.133`'s 960x540 dp viewport.
- *
- * Right only takes candidates sharing the row, and no key shares a row below
- * the strip, so the rail must still be reachable from there.
+ * The alphabet strip beside a grid: shorter than the grid, so the bottom row
+ * sits below its last key. Geometry as on the TCL set's 960x540 dp viewport.
  */
 describe('a side rail beside a grid', () => {
   const keys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((key, index) => ({

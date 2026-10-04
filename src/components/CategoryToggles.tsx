@@ -5,16 +5,9 @@ import { colour, controlRow, focusFrame, rem, type } from '../styles/theme';
 import { categoryLabel } from '../text/viewerText';
 
 /**
- * Which kinds of media a search covers: Movies, TV Shows, Music, each on or
- * off, in any combination including none.
- *
- * The categories and the kinds each covers are core's (`SEARCH_CATEGORIES`); core also answers an
- * empty selection with nothing and no request. The web client draws them as
- * toggle pills, and so does this: a pill is one focus target and one press, so
- * it needs no D-pad translation.
- *
- * Focus is the media cards' thick border (`focusFrame`), always present so
- * nothing moves; being switched on is the fill.
+ * Which media categories a search covers, each on or off; none is allowed.
+ * The categories are core's `SEARCH_CATEGORIES`. Focus is the `focusFrame`
+ * border; "on" is the fill.
  */
 export function CategoryToggles({
   categories,
@@ -40,8 +33,7 @@ export function CategoryToggles({
               onChange(
                 on
                   ? selected.filter((key) => key !== category.key)
-                  // Rebuilt in core's order, so the list sent is stable
-                  // whatever order the viewer switched them on in.
+                  // Rebuilt in core's order, so the list sent is stable.
                   : categories.map((entry) => entry.key).filter((key) => key === category.key || selected.includes(key)),
               )
             }
@@ -66,14 +58,9 @@ const styles = StyleSheet.create({
   },
   /**
    * `.search-type-pill { padding: 0 1.1rem; border: 1px solid #3a3a40;
-   * border-radius: .65rem; background: #19191c; color: #9a9aa2 }` — the
-   * field's own shape, not a pill, whatever the class says — with
-   * `focusFrame.border` in place of its 1px.
-   *
-   * **One deviation, and it is the television's.** On the web a toggle that is
-   * on wears the focus colour on its border. Here a red border *is* focus, so
-   * "on" is the fill and the bright text alone, and the border stays free to
-   * say where the D-pad is.
+   * border-radius: .65rem; background: #19191c; color: #9a9aa2 }`, with
+   * `focusFrame.border` for its 1px. Unlike the web, "on" does not colour the
+   * border: here a red border means focus.
    */
   pill: {
     paddingHorizontal: rem(1.1),
