@@ -1,6 +1,6 @@
 # Completed
 
-## 2026-10-01 to 2026-10-04 — wording ports, a comment pass, 0.9.1 on the experiment branch, and availability
+## 2026-10-01 to 2026-10-04 — wording ports, comments and docs rationalised, 0.9.1 on the experiment branch, and availability
 
 **Asserted from source and tests unless it says measured.** Nothing in this
 section has been driven on the set (Tom's "Don't test" stands); one install
@@ -60,6 +60,23 @@ was made, on Tom's word.
   no scope, so core walks on past it and charges no node. Checked here against
   that core's built `dist`: typecheck, 391 tests and the export pass. Home
   saying every endpoint failed now means every node refused, not cooldowns.
+- **Documentation and comments rationalised for brevity** (Tom's ask,
+  `63534b4`, `08c863e`, `cd8008d`): README an install and build guide that
+  matches the code (it had said search and status did not exist, named the
+  wrong player, and said core never comes from a sibling checkout); AGENTS,
+  ROADMAP and HISTORY cut to current rules, open items and decisions; ACTIVE
+  from 2,642 lines to about 450, the rest moved here verbatim; code comments
+  from 5,664 lines to about 2,400, checked comment-only by the syntax-tree
+  comparison. Three reviewers then read the comment diff and nine lost
+  hazards were restored, the worst a `PlayerEngine.kt` comment left on the
+  wrong function claiming a mapping core already has.
+- **Ported "This stream is no longer available. Start it again."** for core's
+  `session_provenance_unknown` and `regeneration_endpoint_gone`, which fell to
+  "Something went wrong." (`512f27d`, red first).
+- **Read from the peers, settled:** the server's entitlement release is
+  deployed (in 0.48.1); core's standby window reads the node's
+  `pipeline_idle_ms`; the GitHub repository is public; the modal backdrop
+  takes the web's `#000b`.
 
 ### Mistakes
 
@@ -69,9 +86,15 @@ was made, on Tom's word.
 - **One comment-pass agent trimmed a reason away** ("The web client's case."
   lost why the case exists). Restored; others like it may remain. Read
   `dd0f30c`'s diff with that in mind.
-- **A wrong commit hash sent to core** (`7b51a3c` for `8e044b8`), corrected
-  the same minute. The fix, core's: read a SHA with `git log -1
-  --format=%h` in a separate step before quoting it.
+- **A wrong commit hash sent to core, twice** (`7b51a3c` for `8e044b8`, then
+  `0f61e27` for `d6522f2`), each corrected the same minute. The second came
+  from sending a message in the same batch as the commit it named. Commit,
+  read the SHA with `git log -1 --format=%h`, then send.
+- **A misread of core sent to core:** ACTIVE said `route()` asked
+  `failureBlamesEndpoint`; the call at that line was in `pinned()`. Core
+  caught it. Name the function, not only the line, when reading another tree.
+- **The brevity pass wasn't purely comments:** it also deleted three unused
+  player styles, and its first commit message claimed no code changed.
 - **zsh again:** an unquoted `$F` holding several file names is one word in
   zsh, and `--include=*.tsx` is a glob that aborts the command. Both produced
   silent wrong answers in the dead-code scan before being noticed. Quote the

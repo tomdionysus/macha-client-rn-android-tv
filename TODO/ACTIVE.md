@@ -25,9 +25,10 @@ everything this client depends on. Pushing is Tom's word.
 
 ### Where things stand
 
-- **The branch is ahead of `origin`** by the availability work, the install
-  record and the documentation and comment rationalisation; `git status -sb`
-  gives the count. Typecheck, 390 tests and the export pass.
+- **The branch is ahead of `origin`** (`git status -sb` gives the count;
+  everything since `60d4a3a`, the 0.9.1 tag): the availability work, the
+  install record, the documentation and comment rationalisation, one ported
+  sentence and §1.9's close. Typecheck, 391 tests and the export pass.
 - **Tag `0.9.1`** (annotated, pushed) is on `60d4a3a`, on this branch, **not
   on `main`**; versionCode 901. Its tree uses `file:../macha-ts`, so it builds
   only beside a compatible core checkout. `main` is still `263e308`, tag
@@ -92,8 +93,9 @@ everything this client depends on. Pushing is Tom's word.
    too-slow-to-play screen with Try again and Choose another quality; the
    stepped-down notice; ", which the server can't do fast enough" (needs a
    node's `transcode_rates`, empty until a transcode of a minute or more
-   finishes on it); the two error sentences ported from the web client
-   (no node answered; the server cannot be reached).
+   finishes on it); the three error sentences ported from the web client
+   (no node answered; the server cannot be reached; the stream is no longer
+   available).
 4. **The next failover: capture `playback.coordinator source-failover-start`**,
    whose `error` names what began it. The first failover seen on this client
    (2026-09-28) has no recorded cause: it scrolled off the eight-line
