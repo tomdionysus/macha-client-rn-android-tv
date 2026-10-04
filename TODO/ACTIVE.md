@@ -25,9 +25,9 @@ everything this client depends on. Pushing is Tom's word.
 
 ### Where things stand
 
-- **Branch tip `8e044b8`**, four commits ahead of `origin` (`ad1d60f`,
-  `5c2d2cb`, `7e6187a`, `8e044b8`: the availability work and the install
-  record). Typecheck, 390 tests and the export pass.
+- **The branch is ahead of `origin`** by the availability work, the install
+  record and the documentation and comment rationalisation; `git status -sb`
+  gives the count. Typecheck, 390 tests and the export pass.
 - **Tag `0.9.1`** (annotated, pushed) is on `60d4a3a`, on this branch, **not
   on `main`**; versionCode 901. Its tree uses `file:../macha-ts`, so it builds
   only beside a compatible core checkout. `main` is still `263e308`, tag
@@ -74,7 +74,7 @@ everything this client depends on. Pushing is Tom's word.
 
 ### Open, in order
 
-1. **Push** the four commits ahead of `origin`, when Tom says.
+1. **Push** the commits ahead of `origin`, when Tom says.
 2. **See the availability markers on the set**, once server 0.83.0 is
    deployed and Tom says to drive it: a yellow outline triangle (partial), a
    red outline crossed circle on a greyed card that takes no focus
