@@ -2,171 +2,57 @@
 
 _v0.9.1_
 
-The Macha client for **Android TV** — React Native, leanback, D-pad only.
+The Macha client for **Android TV**: React Native, leanback, D-pad only.
 
-It reproduces the appearance and D-pad behaviour of the WebView TV interface in
-[`macha-client`](https://github.com/tomdionysus/macha-client), though not yet all of its screens — nine of
-that client's twenty-eight routes, with a tenth only half-built. There is no
-music, search, status or endpoint editing here yet; ingest and the sponsor page
-are deliberately not planned for a television.
+It plays the original file on the set's own hardware decoders, which a WebView
+cannot reach. Chromium has no AC-3 or E-AC-3 decoder, so the web client on a
+television makes the node transcode surround sound and loses the channel
+layout. The measure of this client is how little it transcodes.
 
-Everything that is not presentation is shared with the other clients through
-[`@machafoundation/core`](https://www.npmjs.com/package/@machafoundation/core), and the remaining gap is almost entirely
-presentation: core already ships the search, music, status and alphabet-index
-logic those screens would sit on.
-[`TODO/ACTIVE.md`](TODO/ACTIVE.md) §4 is the complete parity list.
+It matches the look and D-pad behaviour of the web client,
+[`macha-client`](https://github.com/tomdionysus/macha-client). Everything that
+is not presentation comes from
+[`@machafoundation/core`](https://www.npmjs.com/package/@machafoundation/core).
 
-> **Status: it plays.** Direct play, remux and transcode all run on the TCL,
-> 5.1 has been measured reaching the set as six positional channels, and
-> failover has carried a film from one node to another (2026-09-28, twice:
-> once watched across a node restart, once recorded in the Diagnostics trail).
-> Standby promotion has not been seen, and the 5.1 downmix measurement this
-> project exists to make is still open. [`docs/HISTORY.md`](docs/HISTORY.md)
-> distinguishes what was measured from what is merely asserted.
+## What works
+
+- Home, Movies, TV Shows, series and seasons, detail, Search, Music (albums),
+  Status, Settings, sign-in: 11 of the web client's 28 routes.
+  [`TODO/ACTIVE.md`](TODO/ACTIVE.md) §4 lists the rest.
+- Direct play, remux and transcode, on the TCL sets. 5.1 reaches the set as six
+  positional channels (measured).
+- Failover from one node to another, at the same position (measured twice).
+  Standby promotion has not been seen.
 
 ## Where this sits
 
-Macha is a server cluster with four clients over one shared core. Two of the
-clients are televisions, which is the distinction most easily got wrong:
+| Repo | What it is |
+| --- | --- |
+| [`macha`](https://github.com/tomdionysus/macha) | The server: a distributed filesystem and media server, every node an equal peer |
+| [`macha-ts`](https://github.com/tomdionysus/macha-core-npm) | `@machafoundation/core`: API, cluster routing, playback coordination, client state |
+| [`macha-client`](https://github.com/tomdionysus/macha-client) | React web client, and the Samsung/Tizen TV app |
+| [`macha-client-rn`](https://github.com/tomdionysus/macha-client-rn) | React Native phone app |
+| **`macha-client-rn-tv`** | This: React Native Android TV |
 
-| Repo | What it is | Owns |
-| --- | --- | --- |
-| [`macha`](https://github.com/tomdionysus/macha) | The server — a C++20 distributed filesystem (MachaDFS) and media server; every node is an equal peer, serving media directly or through FFmpeg remux/transcode | the cluster |
-| [`macha-ts`](https://github.com/tomdionysus/macha-core-npm) | `@machafoundation/core` — API, cluster routing, playback coordination, client state | the shared brain |
-| [`macha-client`](https://github.com/tomdionysus/macha-client) | React web client; also the **Samsung/Tizen** TV app | web + Samsung |
-| [`macha-client-rn`](https://github.com/tomdionysus/macha-client-rn) | React Native **phone** app | iOS/Android handsets |
-| [**`macha-client-rn-tv`**](https://github.com/tomdionysus/macha-client-rn-android-tv) | **this** — React Native **Android TV** | the TCL set |
+This is not the phone app. `android.software.leanback` is required, so the APK
+does not install on a handset.
 
-This is not the phone app, and the phone app's screens are not a reference for
-it. This targets the 10-foot UI only — no touch, no gestures, no phone layouts —
-and declares `android.software.leanback` as **required**, so the APK will not
-install on a handset.
+## Install on a television
 
-## Why it exists
+The set must be Android TV with a 32-bit ARM ABI (`armeabi-v7a`) and network
+adb switched on in Developer options.
 
-**The React UI in a WebView is insufficient to properly play media on a
-television.** That is the whole reason for this project, and it is not a
-question of polish: a browser engine cannot reach the set's hardware decoders,
-so anything it cannot decode itself must be converted by the node before it
-arrives, and the channel layout is destroyed on the way.
-
-The WebView host does render and does put a picture on screen. That is not the
-same as playing the media properly, and the difference is audible rather than
-visible.
-
-Chromium ships no AC-3/E-AC-3 support whatever the panel is wired to, so the
-node is forced to transcode 5.1 E-AC-3 into 5.1 AAC. Chromium then hands
-AudioFlinger a six-channel track with an *index* channel mask rather than a
-positional one, the mixer cannot fold it down, and the centre channel — the
-dialogue — is lost.
-
-The panel's own decoders are much wider than the browser's:
-
-| | Platform decoders | Chromium reports |
-| --- | --- | --- |
-| Video | avc, hevc, vp8, vp9, av01, mpeg2, mp4v, dolby-vision | h264, vp8, vp9 |
-| Audio | aac, **ac3**, **eac3**, **ac4**, mp3, mp2, flac, opus, vorbis, raw | aac, opus, vorbis, mp3, flac |
-
-ExoPlayer can use those decoders and direct-play the original file, leaving the
-television to perform its own downmix. **Whether that actually rescues the
-dialogue is untested by anyone** — see [Open questions](#open-questions); it is
-the hypothesis this client exists to try, not a result it has delivered.
-
-**So the measure of this client is how little it transcodes.** Capabilities are
-built from `MediaCodecList`, not a browser probe, and what was actually read off
-the hardware is shown on the Settings screen — because the failure that matters
-here is silent. A probe that under-reports means the node transcodes a library
-that would have direct-played, the picture still works, and nothing prompts
-anyone to look.
-
-## Architecture
-
-```
-PlaybackRuntime ── PlaybackCoordinator ── ExoPlayerAdapter ── MachaPlayer ── ExoPlayer
-     (core)              (core)             (src/player)      (modules/, Kotlin)
+```sh
+adb connect <tv-address>:5555
+TV=<tv-address>:5555 ./scripts/verify-on-device.sh install
 ```
 
-**Playback goes through `PlaybackCoordinator`.** Nothing here drives
-`ClusterPlaybackResolver` directly. The coordinator is what provides node
-failover, stall recovery, standby promotion and segment-container restatement;
-a host gets all of it by handing over a `Player` and reimplementing none of it.
+The script installs the APK you built, checks the set is running that exact
+build, and does not launch it. The build carries one server address, set in
+`app.json` under `extra.machaEndpoints`; change it there, or in the app's
+Settings.
 
-`ExoPlayerAdapter` implements that `Player` and nothing more. No playback
-*policy* lives on the native side — which node, when to fail over, what
-instruction to ask for are all core's decisions.
-
-**The native module** (`modules/macha-player`, a local Expo module) owns only
-what the platform can answer:
-
-- capabilities from `MediaCodecList`, with HDR and Dolby Vision gated on the
-  *display* agreeing as well as the decoder, since an over-claim is a black
-  screen. Containers are curated — `MediaCodecList` says nothing about them.
-- audio focus, held as `AUDIOFOCUS_GAIN` and yielded on loss;
-- `FLAG_KEEP_SCREEN_ON`, or the set dims and sleeps through a film;
-- failure classification into core's evidence kinds, so a decoder failure is not
-  reported as a stream failure and retried around the whole cluster.
-
-**Two faults reach core only because they are wired here.** ExoPlayer reports
-real errors, but a source that delivers no bytes and a picture frozen with bytes
-still arriving are not errors on any platform. Core's `MediaStartWatchdog` and
-`MediaStallWatchdog` cover them and are deliberately *not* inside the
-coordinator — each host wires its own. Without them `prepareAlternate` is
-unreachable, since it is fed only by the optional `subscribeDegradation`.
-
-**The player is `expo-video` for now** (Tom, 2026-09-10), not the native engine
-in `modules/macha-player`. That engine is complete and has never been run, and
-the shortest path to the 5.1 measurement this project exists to make is the
-component the phone client has already proven. It is Media3 underneath, so the
-hardware-decoder premise above is unaffected.
-
-It does build its `OkHttpDataSource.Factory` internally with no injection point,
-which costs per-request control and HTTP status reporting — but **not seamless
-failover**, which an earlier version of this paragraph claimed. Handover does
-not live in the transport: `VideoView`'s player setter checks
-`hasSentFirstFrameForCurrentMediaItem` on the incoming player and holds the
-shutter open for a pre-warmed one, so a second `VideoPlayer` can be primed and
-promoted. `ExoPlayerAdapter` and `PlayerEngine.kt` remain in the tree for the
-revisit once the 5.1 answer is in.
-
-**Capabilities did not move with it.** `expo-video` exposes no codec enumeration
-at all, so `MediaCodecList` is still read through the native module. Answering
-from a hardcoded list, as the phone client does, would make the node transcode
-what the panel decodes natively — which is the failure this client exists to
-prevent.
-
-**Seamless failover is required, and not yet built here.** It already works in
-`macha-client`, which implements core's `preflightSource` and
-`addDirectSourceAlternative`; the client it is *not* possible in is the phone
-one, where `expo-video` builds its `OkHttpDataSource.Factory` internally with no
-injection point. `PlayerEngine.kt` builds its own and owns its `ExoPlayer`
-instances, so the seam is here as well.
-
-The cost that matters is not the one a cold recovery pays: a **warm standby** has
-already paid the endpoint walk, and promotion itself is milliseconds, so player
-priming is nearly all the remaining visible cost. Two ways to preflight are open
-— port the web client's fetch-based validation, which allocates no decoder, or
-prime a real second player, which proves decodability but needs a spare decoder
-instance. Promotion becomes a surface handover rather than a reload either way.
-See [`TODO/ACTIVE.md`](TODO/ACTIVE.md) §2.1.
-
-**The focus model** (`src/hooks/tvFocus.ts`) is a port of the web client's
-`useTvNavigation.ts`, scoring weights and all. Android's own focus engine would
-also move focus, but it would move it *differently*, and the requirement is that
-this client behaves like the web TV client. `tvFocus.test.ts` asserts the weights
-so a divergence fails.
-
-**The appearance** (`src/styles/theme.ts`) is ported from `macha-client`'s
-`src/styles/base.css` and is the single source; every component cites the rule it
-came from. The web client sets `html { font-size: 87.5% }`, so 1 rem is 14 px,
-and Android TV's 1920×1080 dp grid matches the TV WebView's CSS px viewport — so
-`rem()`/`vw()` reproduce the stylesheet rather than approximate it. CSS
-gradients, coloured `box-shadow` glows and `mask-image` do not survive the port
-and say so where they occur.
-
-## Building
-
-The target set is **`armeabi-v7a` only** — 32-bit ARM, no arm64. Check any new
-native dependency ships it.
+## Build
 
 ```sh
 npm install                                    # .npmrc sets legacy-peer-deps
@@ -175,67 +61,61 @@ cd android && EXPO_TV=1 ./gradlew :app:assembleRelease \
   -PreactNativeArchitectures=armeabi-v7a
 ```
 
-`assembleRelease` embeds the JS bundle and signs with the debug keystore, so the
-APK runs standalone with no Metro server.
+The release APK embeds the JS bundle and is signed with the debug keystore, so
+it runs with no Metro server.
 
-Two things that will catch you:
+- **Core:** `main` installs `@machafoundation/core` from the registry. Working
+  branches link the sibling checkout (`file:../macha-ts`): clone it beside this
+  repo and run `npm run build` there, because this client imports core's
+  `dist`.
+- **`android/` is generated** and gitignored. Manifest changes go in
+  `plugins/withAndroidTvOnly.js`, then re-run prebuild.
+- **After changing core or JS**, delete
+  `android/app/build/generated/assets/react/release/index.android.bundle`
+  before `assembleRelease`, or Gradle reuses the old bundle.
+- **Verify the artifact:** `aapt2 dump badging` should show leanback required
+  and `native-code: 'armeabi-v7a'`.
 
-- **`android/` is generated** by `expo prebuild` and is gitignored. Manifest
-  changes belong in `plugins/withAndroidTvOnly.js` or they vanish on the next
-  prebuild — and a plugin added without re-running prebuild silently does
-  nothing.
-- **`@machafoundation/core` installs from the registry, not from a sibling
-  checkout.** There is no `file:` link and no `npm link`: the development cycle
-  is deliberately the one a user gets on install, so a local `../macha-ts` has
-  no effect on what this tree compiles against. When core needs this client's
-  eyes on an unreleased change it publishes a prerelease — `npm install
-  @machafoundation/core@next` — rather than being linked in.
-
-## Checks
+## Check
 
 ```sh
 npm run typecheck
-npm test                              # focus parity, timing-budget guards
+npm test                              # runs version:check first
 npx expo export --platform android    # proves core bundles through Metro
 ```
 
-The export is not redundant with the typecheck: it is what proves core's ESM
-resolves through the RN bundler.
+## How it is put together
 
-Timing budgets live in `src/player/timingBudgets.ts` and are guarded by tests
-asserting *relationships*, not values — that a read deadline exceeds the server's
-segment hold, for instance. One test reads the constant back out of
-`PlayerEngine.kt`, so the TypeScript and Kotlin copies cannot drift apart
-silently. Follow that pattern rather than pinning numbers.
+```
+PlaybackRuntime -- PlaybackCoordinator -- ExpoVideoAdapter -- expo-video (Media3)
+     (core)              (core)            (src/player)
+```
 
-## Open questions
-
-Three things are unverified and want the television. All are recorded in
-[`docs/HISTORY.md`](docs/HISTORY.md) with what is and is not known.
-
-1. **Does the set fold down 5.1?** Core has no concept of speaker layout —
-   `choosePlaybackInstruction` decides audio on codec alone and never reads
-   `channels` — so a 5.1 E-AC-3 track is copied straight through and the downmix
-   is the device's business. That is the intent, but there is an open report
-   against core of exactly this going 5.1-into-stereo with no downmix. **If the
-   set does not fold down, that is core's gap rather than this client's.**
-2. **Does a promoted standby play *here*?** It does in `macha-client`, which
-   implements the same core hooks. Unverified on this client, and now testable
-   at all because the watchdogs make promotion reachable.
-3. **Audio focus behaviour**, which is asserted from media3's contract and not
-   yet confirmed on hardware.
+- **Playback goes through core's `PlaybackCoordinator`**, which owns failover,
+  stall recovery and standby promotion. The adapter implements core's `Player`
+  and holds no policy.
+- **The player is `expo-video`.** A native engine (`modules/macha-player`,
+  `PlayerEngine.kt`, `ExoPlayerAdapter`) is in the tree and not in use.
+- **Capabilities are read from `MediaCodecList`** through the native module,
+  never a hardcoded list, and shown on the Settings screen. An under-claim
+  makes the node transcode silently.
+- **Focus** (`src/hooks/tvFocus.ts`) is a port of the web client's scorer,
+  weights included, so navigation matches.
+- **Appearance** (`src/styles/theme.ts`) is a port of the web client's
+  `base.css`; each style cites its rule.
+- **Viewer text** is this client's, in `src/text/viewerText.ts`. Core supplies
+  facts and codes, never words.
+- **Timing budgets** (`src/player/timingBudgets.ts`) state what each is
+  calibrated against, and tests assert the relationships between them.
 
 ## Further reading
 
-- [`TODO/ACTIVE.md`](TODO/ACTIVE.md) — open work, highest first, and what is
-  blocked on the television.
-- [`TODO/COMPLETED.md`](TODO/COMPLETED.md) — what has landed, and the
-  experiments and theories that did not survive.
-- [`docs/HISTORY.md`](docs/HISTORY.md) — measurements with their provenance,
-  decisions and why, and theories that did not survive contact.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — work this client should do and has
-  deliberately not done, each entry saying what cannot be verified without
-  hardware nobody here has. Exercises for the contributor.
-- [`AGENTS.md`](AGENTS.md) — the working rules for changing this repo.
-- `macha-ts/docs/writing-a-player.md` — the contracts behind `Player`, most of
-  which are not visible in its type signature.
+- [`AGENTS.md`](AGENTS.md): the rules for changing this repo.
+- [`TODO/ACTIVE.md`](TODO/ACTIVE.md): open work, the test sets, and the traps of
+  driving them over adb.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): work deliberately not done, and what
+  each item needs.
+- [`docs/HISTORY.md`](docs/HISTORY.md): measurements, decisions and dead ends.
+- [`docs/principles-and-laws.md`](docs/principles-and-laws.md): the laws every
+  Macha project shares.
+- `macha-ts/docs/writing-a-player.md`: the contracts behind core's `Player`.
