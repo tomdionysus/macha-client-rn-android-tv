@@ -93,8 +93,9 @@ was made, on Tom's word.
 - **A misread of core sent to core:** ACTIVE said `route()` asked
   `failureBlamesEndpoint`; the call at that line was in `pinned()`. Core
   caught it. Name the function, not only the line, when reading another tree.
-- **The brevity pass wasn't purely comments:** it also deleted three unused
-  player styles, and its first commit message claimed no code changed.
+- **The brevity pass wasn't purely comments:** `08c863e` also deleted three
+  unused player styles. Its message calls that change separate; it is in the
+  same commit.
 - **zsh again:** an unquoted `$F` holding several file names is one word in
   zsh, and `--include=*.tsx` is a glob that aborts the command. Both produced
   silent wrong answers in the dead-code scan before being noticed. Quote the
