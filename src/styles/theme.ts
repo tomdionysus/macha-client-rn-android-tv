@@ -102,7 +102,7 @@ export const colour = {
   scrubberPlayed: '#620014',
 
   /** `.modal-backdrop { background: #000b }`. Its `backdrop-filter: blur(7px)` has no React Native equivalent. */
-  scrim: '#000000b8',
+  scrim: '#000000bb',
   /** `.modal-panel { background: #171719f7 }`. */
   modalSurface: '#171719f7',
   /** `.modal-danger-action { background: #39080e }`. */

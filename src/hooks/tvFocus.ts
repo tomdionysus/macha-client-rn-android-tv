@@ -99,7 +99,8 @@ export function pickTvCandidate<T extends { rect: FocusRect; rail?: boolean }>(
 
   // Left and right stay on the current row and stop at its end; changing row
   // is for Up and Down. The exception is a side rail, taken when nothing on
-  // the row lies that way. The rail is not in the web client.
+  // the row lies that way. The rail is this client's; whether the web client's
+  // strip leaves the same gap has not been read.
   if (horizontal) {
     const onRow = scored
       .filter(({ entry }) => rectGap(current.top, current.height, entry.rect.top, entry.rect.height) === 0)

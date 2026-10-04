@@ -125,6 +125,8 @@ everything this client depends on. Pushing is Tom's word.
       (focus stays on the top bar; the alphabet strip as a side rail);
     - Music (§4.6);
     - whether series/season "links" on a card mean anything beyond Back;
+    - whether "This can't be played on this television." should become the
+      web client's "This item cannot be played here." (`NOT_PLAYABLE_CODE`);
     - from 0.84.0, an `unavailable` can be the last survey's answer rather
       than the present: whether a card should show how old it is
       (`surveyed_unix_ms`), or OK may try it anyway. Both change the ruling;
@@ -301,12 +303,15 @@ DHCP and have moved; `getprop ro.product.manufacturer` must say **TCL**.
   and `App.tsx` logs `sessions-orphaned-by-previous-run` at start; nothing
   closes them (read from source). Core's `stop()` can close by id alone
   (asserted, core `61e4d74`). Next: wire the reconcile, on core's word.
+- **Settled, read 2026-10-04:** the server's transcode-entitlement release
+  (`ec5a65b`) is in server tag 0.48.1, so it is deployed; core's standby
+  window reads the node's `pipeline_idle_ms` (`macha-ts`
+  `src/playback/PlaybackCoordinator.ts`); a session with no endpoint
+  provenance is worded, never shown raw ("This stream is no longer
+  available. Start it again.", the web client's sentence).
 - **Status unclear, others':** whether core settles the close at once on a
-  `404`; whether the server's transcode-entitlement release (`ec5a65b`) is
-  deployed; whether core's standby window reads the node's
-  `pipeline_idle_ms`; whether "Playback generation … has no endpoint
-  provenance" still reaches a viewer raw; the server's AC-3-copy remux
-  stall (measured here: AAC 5.1 remuxes, AC-3 5.1 fails at 15 s with a 503).
+  `404`; the server's AC-3-copy remux stall (measured here: AAC 5.1 remuxes,
+  AC-3 5.1 fails at 15 s with a 503).
 
 ## 1. On the television
 
@@ -350,8 +355,10 @@ Every entry needs the set, and Tom's word to drive it.
   stereo-track A/B first (needs a listener).
 - **1.9** A `5xx` from one API family charges every node the walk visited:
   `route()`, `find()` and `mutation()` record failures without asking
-  `failureBlamesEndpoint` (asserted, core `a3b40ca`; reported to core;
-  status unclear at core's tip). Home then said every endpoint had failed
+  `failureBlamesEndpoint` (asserted; reported to core). At core `22e0620`
+  `route()` now asks it; `mutation()`, `find()` and the advisory walk still
+  record on a retryable failure alone (`macha-ts`
+  `src/cluster/endpointRouting.ts`). Home then said every endpoint had failed
   while only the catalogue was down (measured). What the cooldown did to the
   candidate list is unmeasured; reproducing needs the server condition.
 - **1.12** Continue Watching is not per-account: core's `signOut` clears
@@ -408,7 +415,8 @@ Every entry needs the set, and Tom's word to drive it.
 - **3.1** `addDirectSourceAlternative`: a local HTTP proxy in the app, or
   wait for the native engine? The web's rests on a Service Worker. Without
   it direct play gets a warm standby, not byte-level failover.
-- **3.2** Whether the GitHub repository is public: status unclear.
+- **3.2** The GitHub repository is public (measured 2026-10-04: the API
+  answers without credentials). Nothing to decide unless that is unwanted.
 - **3.6** Decided, not built: the client ships with no endpoints. `app.json`
   still carries one, so clearing hands it back. The work: ship `[]`, an
   `unconfigured` access state and screen, and a separate pre-fill for

@@ -74,6 +74,7 @@ describe('the live-session record', () => {
     expect(JSON.parse(storage.map.get(KEY)!)).toEqual(['b::2']);
   });
 
+  // 32 is the server's `max_sessions_per_account`; see `MAX_REMEMBERED`.
   it('never remembers more sessions than an account may have open', () => {
     const storage = fakeStorage();
     for (let i = 0; i < 50; i += 1) {

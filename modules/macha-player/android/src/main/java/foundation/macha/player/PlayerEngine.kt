@@ -317,11 +317,9 @@ class PlayerEngine(private val context: Context) {
   }
 
   /**
-   * The HTTP status behind a failure, or -1.
-   *
-   * Local stand-in: the status-to-kind mapping is protocol and belongs in
-   * `@machafoundation/core` as `playbackFailureKindForStatus(status)`. A `500`
-   * here is `segment_not_ready`, a hold rather than a failure.
+   * The HTTP status behind a failure, or -1. Reported raw: the status-to-kind
+   * mapping is core's `playbackFailureKindForStatus`, applied in
+   * `ExoPlayerAdapter.ts`.
    */
   private fun httpStatusOf(error: PlaybackException): Int {
     var cause: Throwable? = error.cause
@@ -372,7 +370,9 @@ class PlayerEngine(private val context: Context) {
 
   /**
    * Retries a held fragment on the same node with exponential backoff; no
-   * other node has that fragment. Calibrated against the 6000 ms segment hold
+   * other node has that fragment. The one protocol copy on this side: `500` is
+   * core's hold status, `segment_not_ready`, and `timingBudgets.test.ts`
+   * asserts the two agree. Calibrated against the 6000 ms segment hold
    * (asserted): the 1 s floor avoids pure load, and the 8 s ceiling keeps the
    * total inside the coordinator's recovery window.
    */

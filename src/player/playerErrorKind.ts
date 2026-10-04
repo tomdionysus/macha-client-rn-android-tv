@@ -5,6 +5,8 @@
  * node). expo-video passes only ExoPlayer's message, not its error code, so
  * this reads the sentence. Mirrors `platformKindOf` in `PlayerEngine.kt`: a
  * refused format is `unsupported`, a failure after accepting it is `media`.
+ * ExoPlayer words a renderer failure `<Renderer> error, index=…, format=…,
+ * format_supported=…` (measured on the TCL set). Platform, so not core's.
  */
 export function decoderFailureKind(message: string): 'media' | 'unsupported' | undefined {
   if (/Decoder init failed|format_supported=NO\b/.test(message)) return 'unsupported';

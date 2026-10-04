@@ -1,8 +1,8 @@
 import { machaHost, type ReadWriteStorageLike } from '@machafoundation/core';
 
 /**
- * The remembered volume level. Client-owned; the web client keeps its own copy
- * and the two stay in step. Persists `setting`, never `effective`
+ * The remembered volume level. Client-owned; the web client keeps its own
+ * copy. Persists `setting`, never `effective`
  * (`player/volume.ts`): `effective` is 0 while muted, and storing it would
  * bring the next launch up silent. Mute is in-memory only.
  */
@@ -24,7 +24,8 @@ export class VolumeStore {
 
   /**
    * Absent, empty, whitespace or unreadable all mean full volume. `Number('')`
-   * is 0, so the emptiness check stops a corrupt entry reading as a mute.
+   * is 0, so the emptiness check stops a corrupt entry reading as a mute. The
+   * web client's copy has the same rule; change both together.
    */
   load(): number {
     const raw = this.storage.getItem(this.key);

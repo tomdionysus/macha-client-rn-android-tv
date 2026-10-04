@@ -29,9 +29,10 @@ import { decoderFailureKind } from './playerErrorKind';
  * Buffer ahead as the web client does: 60 s, its hls.js `maxBufferLength`
  * (`macha-client` `WebHlsPolicy.webHlsBufferConfig`); `expo-video` defaults
  * Android to 20. The web client's 128 MB byte ceiling is not copied: `0`
- * leaves it to the platform, and the size ceiling still wins over the
- * duration on this 32-bit set. The forward buffer reached on a high-bitrate
- * title is unmeasured.
+ * leaves it to the platform. Leave `prioritizeTimeOverSizeThreshold` at its
+ * default, so the size ceiling beats the 60 s on this 32-bit set: an
+ * allocation failure mid-film is worse than a short buffer. The forward
+ * buffer reached on a high-bitrate title is unmeasured.
  */
 const BUFFER_OPTIONS: BufferOptions = {
   preferredForwardBufferDuration: 60,

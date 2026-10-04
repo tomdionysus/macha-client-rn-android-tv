@@ -3,7 +3,8 @@ import { nativeStorage } from './storage';
 
 /**
  * The viewer's quality ceiling for automatic play, per device; unset, play
- * caps at the display's class. The store is core's. A television only sets
+ * caps at the display's class. The store is core's, and its key is in core's
+ * registry, so the startup hydrate (`storage.ts`) loads it. A television only sets
  * `wifi`: core counts an unnamed connection as Wi-Fi.
  *
  * Built on first use so it cannot precede `configureMachaHost`.

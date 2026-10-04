@@ -55,6 +55,7 @@ const styles = StyleSheet.create({
   destructive: {
     backgroundColor: colour.dangerSurface,
   },
+  /** Focus is `Focusable`'s standard ring over the stronger accent fill. */
   buttonFocused: {
     backgroundColor: colour.accentSurfaceStrong,
   },

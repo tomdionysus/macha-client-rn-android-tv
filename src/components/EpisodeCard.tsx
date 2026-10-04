@@ -103,7 +103,8 @@ const styles = StyleSheet.create({
     transform: [{ scale: focusFrame.scale }],
   },
   // `.episode-still { aspect-ratio: 16/9; border-radius: .62rem }`. The
-  // border is always present, so focus changes only its colour.
+  // border is always present, so focus changes only its colour; the fill is on
+  // the image and placeholder, so the gap reads as background.
   still: {
     aspectRatio: 16 / 9,
     borderRadius: rem(0.62),
