@@ -131,7 +131,7 @@ describe('playbackNoticeText', () => {
 
   it("words core's decode fallback beside the copy refusal it mirrors", () => {
     expect(playbackNoticeText({ code: 'decode-fallback', error: new Error('MediaCodecVideoRenderer error') })).toBe(
-      'This television could not decode the original streams, so they are being converted.',
+      'Converting streams…',
     );
   });
 });
@@ -174,6 +174,11 @@ describe('errorText', () => {
     const { MachaPlaybackError } = await import('@machafoundation/core');
     const stalled = new MachaPlaybackError('Macha playback start made no progress for 17000 ms.', 504, 'start_no_progress');
     expect(errorText(stalled)).toBe('The node stopped making progress starting this stream.');
+  });
+
+  it("words core's not-playable code as the web client does", async () => {
+    const { MachaPlaybackError, NOT_PLAYABLE_CODE } = await import('@machafoundation/core');
+    expect(errorText(new MachaPlaybackError('log text', 422, NOT_PLAYABLE_CODE))).toBe('This item cannot be played here.');
   });
 });
 

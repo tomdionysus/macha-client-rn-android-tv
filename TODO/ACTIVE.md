@@ -25,10 +25,10 @@ everything this client depends on. Pushing is Tom's word.
 
 ### Where things stand
 
-- **The branch is ahead of `origin`** (`git status -sb` gives the count;
-  everything since `60d4a3a`, the 0.9.1 tag): the availability work, the
-  install record, the documentation and comment rationalisation, one ported
-  sentence and §1.9's close. Typecheck, 391 tests and the export pass.
+- **`origin` has everything to `97c90a4`**; `git status -sb` counts what is
+  ahead since. After 0.9.1 (`60d4a3a`): the availability work, the install
+  record, the documentation and comment rationalisation, three ported
+  sentences and §1.9's close. Typecheck, 392 tests and the export pass.
 - **Tag `0.9.1`** (annotated, pushed) is on `60d4a3a`, on this branch, **not
   on `main`**; versionCode 901. Its tree uses `file:../macha-ts`, so it builds
   only beside a compatible core checkout. `main` is still `263e308`, tag
@@ -44,7 +44,9 @@ everything this client depends on. Pushing is Tom's word.
   both nodes. Announced, not deployed when written: **0.83.0** (availability on
   every catalogue item, a fourth code `unavailable`) and **0.84.0**
   (availability answered from the last survey across restarts and unreachable
-  peers, so `unknown` becomes rare and a value can be stale). Everything from
+  peers, so `unknown` becomes rare and a value can be stale), and **0.87.0**
+  (a manager-only MusicBrainz tracks route; `diagnostics.repair.paced_by` and
+  `pace` on node status), which this client reads neither of. Everything from
   the server since 0.74.0 was checked against this client: nothing breaks. The
   `subsystems[].state` `starting` change does not reach this client.
 - gbni-1 **is** macnessa (`10.44.1.50`).
@@ -75,7 +77,8 @@ everything this client depends on. Pushing is Tom's word.
 
 ### Open, in order
 
-1. **Push** the commits ahead of `origin`, when Tom says.
+1. **Pushed** to `97c90a4` on Tom's word (2026-10-04); push again when he
+   says.
 2. **See the availability markers on the set**, once server 0.83.0 is
    deployed and Tom says to drive it: a yellow outline triangle (partial), a
    red outline crossed circle on a greyed card that takes no focus
@@ -122,9 +125,6 @@ everything this client depends on. Pushing is Tom's word.
 10. **§1.12:** Continue Watching is not per-account (core's storage).
 11. **§1.1** the top bar's ends.
 12. **Decided by Tom, 2026-10-04, not built:**
-    - "This can't be played on this television." becomes the web client's
-      "This item cannot be played here." (`NOT_PLAYABLE_CODE`); port from the
-      web's tree.
     - The Status screen shows each node's inter-node traffic, as the web
       client does.
     - The web client is **not** told about the two TV-only focus rules: they
@@ -186,7 +186,7 @@ direct-play reap never reaches the player (P-1 below).
 
 ### Waiting on others
 
-- **Tom:** the push (item 1), when to drive the set (not now, 2026-10-04),
+- **Tom:** each push (item 1), when to drive the set (not now, 2026-10-04),
   §3.1 and §2.11's switch.
 - **Core:** nothing outstanding. **The web client:** whether it keeps this
   client's marker colours (core will say). **The server:** deploying 0.83.0

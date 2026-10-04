@@ -123,7 +123,7 @@ export function playbackNoticeText(notice: PlaybackNotice, quality?: QualityClas
     case 'copy-refused':
       return 'This node could not copy the original streams, so they are being converted.';
     case 'decode-fallback':
-      return 'This television could not decode the original streams, so they are being converted.';
+      return 'Converting streams…';
     case 'cannot-seek':
       return 'This stream cannot seek.';
     case 'not-ready':
@@ -306,7 +306,7 @@ export function errorText(error: unknown): string {
   }
   if (error instanceof MachaConnectionError) return SERVER_UNREACHABLE_TEXT;
   if (error instanceof SessionAuthError) return SESSION_ENDED_TEXT;
-  if (playbackFailureCode(error) === NOT_PLAYABLE_CODE) return "This can't be played on this television.";
+  if (playbackFailureCode(error) === NOT_PLAYABLE_CODE) return 'This item cannot be played here.';
   // Core's own codes, checked before the status: their 504 would otherwise
   // read as `SERVER_BUSY_TEXT`. The player builds the fuller too-slow sentence.
   if (playbackFailureCode(error) === TOO_SLOW_TO_PLAY_CODE) return tooSlowToPlayText();
