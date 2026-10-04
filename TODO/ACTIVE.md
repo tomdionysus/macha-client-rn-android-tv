@@ -355,10 +355,12 @@ Every entry needs the set, and Tom's word to drive it.
   stereo-track A/B first (needs a listener).
 - **1.9** A `5xx` from one API family charges every node the walk visited:
   `route()`, `find()` and `mutation()` record failures without asking
-  `failureBlamesEndpoint` (asserted; reported to core). At core `22e0620`
-  `route()` now asks it; `mutation()`, `find()` and the advisory walk still
-  record on a retryable failure alone (`macha-ts`
-  `src/cluster/endpointRouting.ts`). Home then said every endpoint had failed
+  `failureBlamesEndpoint` (asserted; reported to core). Still so at core
+  `22e0620`: only `pinned()` asks it (`macha-ts`
+  `src/cluster/endpointRouting.ts`). The node's answer, measured against one
+  node: `503`, JSON, `{"error":"catalogue_unavailable","message":"catalogue
+  metadata durability unavailable: …"}`; that every node answered the same was
+  assumed, not measured. Core is deciding the fix from that code. Home then said every endpoint had failed
   while only the catalogue was down (measured). What the cooldown did to the
   candidate list is unmeasured; reproducing needs the server condition.
 - **1.12** Continue Watching is not per-account: core's `signOut` clears
