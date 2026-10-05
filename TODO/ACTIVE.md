@@ -101,6 +101,12 @@ everything this client depends on. Pushing is Tom's word.
    finishes on it); the three error sentences ported from the web client
    (no node answered; the server cannot be reached; the stream is no longer
    available).
+3b. **Built, unseen: the return from standby.** Tom saw the set wake into an
+   open player with nothing playing and no "..." (the session closed on
+   `background`; nothing restarted it, and "..." needs a session). Now the
+   return restarts the title where it stopped, paused, chrome up on Play
+   (`src/app/pageExit.ts`). The paused start is a local stand-in until core's
+   `play` takes one (asked). See on the set: standby during playback, wake.
 4. **The next failover: capture `playback.coordinator source-failover-start`**,
    whose `error` names what began it. The first failover seen on this client
    (2026-09-28) has no recorded cause: it scrolled off the eight-line
@@ -177,6 +183,8 @@ direct-play reap never reaches the player (P-1 below).
   audio and subtitles; Restart is a fresh automatic start.
 - **An episode's end plays the next, across seasons**, unless the next is
   unavailable.
+- **Waking from standby into the player resumes paused** (2026-10-05): at
+  the position it stopped, chrome up, focus on Play.
 - **Back returns to the card that was opened**, Home included; **only Back
   from Home exits**, with no confirmation, after storage is flushed.
 - **Focus stays on the top-bar button that chose a screen**; **a letter on

@@ -68,6 +68,7 @@ const LIVE_TRAIL_POLL_MS = 1_000;
 
 /** The scrubber, by name, so a cold left or right press can land on it. */
 const SCRUBBER_FOCUS_ID = 'player-scrubber';
+const PLAY_PAUSE_FOCUS_ID = 'player-play-pause';
 
 /** The focus scope name; while the chrome is up nothing behind it is reachable. */
 const CHROME_SCOPE = 'player-chrome';
@@ -82,6 +83,7 @@ export function PlayerScreen({
   onClose,
   episodeNav,
   onPlayEpisode,
+  returnedFromExit = 0,
 }: {
   media: MediaSummary;
   runtime: PlaybackRuntime;
@@ -89,6 +91,8 @@ export function PlayerScreen({
   /** The episodes either side, for an episode. Ignored for anything else. */
   episodeNav?: EpisodeNavigation;
   onPlayEpisode?: (episode: Episode) => void;
+  /** Counts returns from a standby that closed this playback; each shows the chrome on Play. */
+  returnedFromExit?: number;
 }): React.JSX.Element {
   const [playback, setPlayback] = useState<PlaybackCoordinatorSnapshot | undefined>(() =>
     runtime.getPlaybackSnapshot(),
@@ -192,6 +196,14 @@ export function PlayerScreen({
     tvFocus.select(SCRUBBER_FOCUS_ID);
   }, [chromeVisible]);
 
+
+  // Selected before the chrome mounts: a control registering into the
+  // selection takes it.
+  useEffect(() => {
+    if (returnedFromExit === 0) return;
+    showChrome();
+    tvFocus.select(PLAY_PAUSE_FOCUS_ID);
+  }, [returnedFromExit, showChrome]);
 
   // The options panel takes the D-pad while open.
   useEffect(() => {
@@ -559,6 +571,7 @@ export function PlayerScreen({
             <ChromeButton icon="rewind" onSelect={() => { runtime.seekBy(-10_000); showChrome(); }} />
             <ChromeButton
               icon={paused ? 'play' : 'pause'}
+              focusId={PLAY_PAUSE_FOCUS_ID}
               defaultFocus
               onSelect={() => { runtime.setPaused(!paused); showChrome(); }}
             />
@@ -589,11 +602,13 @@ export function PlayerScreen({
 function ChromeButton({
   icon,
   onSelect,
+  focusId,
   defaultFocus,
   disabled,
 }: {
   icon: PlayerIconName;
   onSelect: () => void;
+  focusId?: string;
   defaultFocus?: boolean;
   disabled?: boolean;
 }): React.JSX.Element {
@@ -601,6 +616,7 @@ function ChromeButton({
     <Focusable
       ring={false}
       scope={CHROME_SCOPE}
+      focusId={focusId}
       defaultFocus={defaultFocus}
       disabled={disabled}
       onSelect={onSelect}

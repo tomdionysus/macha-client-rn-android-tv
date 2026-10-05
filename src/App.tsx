@@ -9,7 +9,8 @@ import {
   type VersionStep,
 } from '@machafoundation/core';
 import { MachaProvider, useMacha } from './app/MachaProvider';
-import { usePlaybackRuntime } from './app/usePlaybackRuntime';
+import { usePlaybackRuntime, type PageExitHandlers } from './app/usePlaybackRuntime';
+import { pauseOnFirstSnapshot } from './app/pageExit';
 import { useContinueWatchingWriter } from './app/useContinueWatchingWriter';
 import { backAction, TOP_LEVEL } from './app/backAction';
 import { exitAfterFlush } from './app/appExit';
@@ -184,7 +185,38 @@ function Shell(): React.JSX.Element {
     [services.playbackFactsApi],
   );
 
-  const { runtime } = usePlaybackRuntime(androidTvPlatform, services.playbackResolver, runtimeOptions);
+  /**
+   * The playback a standby closed: the player stays open, and the return
+   * brings the title back where it stopped, paused, with the chrome up on
+   * Play. The handlers read `route` and the stores through this render.
+   */
+  const [returnedFromExit, setReturnedFromExit] = useState(0);
+  const pageExitHandlers: PageExitHandlers = {
+    onExit: () => recordPlayingProgress(),
+    onReturn: (request) => {
+      if (route.name !== 'player' || route.media.id !== request.media.id) return;
+      startPlayback(request.media, continueWatching.positionFor(request.media.id), undefined, true);
+      setReturnedFromExit((count) => count + 1);
+    },
+  };
+
+  const { runtime } = usePlaybackRuntime(androidTvPlatform, services.playbackResolver, runtimeOptions, pageExitHandlers);
+
+  /**
+   * The one call into `runtime.play`. A version the viewer picked is never
+   * capped or overridden; without one, core decides.
+   */
+  const startPlayback = useCallback(
+    (media: MediaSummary, startPositionMs: number, version?: VersionStep, paused = false) => {
+      void runtime.play(
+        { media, startPositionMs, returnTo: 'detail' },
+        startPreferences(startPositionMs, continueWatching.entryFor(media.id), version),
+      );
+      // After `play`, which has already withdrawn the previous generation's snapshot.
+      if (paused) pauseOnFirstSnapshot(runtime);
+    },
+    [runtime, continueWatching],
+  );
 
   /**
    * Writes the resume point during playback: `closePlayer` covers only a
@@ -323,13 +355,7 @@ function Shell(): React.JSX.Element {
         playbackLog.info('play-refused-unavailable', { mediaId: media.id });
         return;
       }
-      // A version the viewer picked is never capped or overridden; without
-      // one, core decides.
-      const start = () =>
-        void runtime.play(
-          { media, startPositionMs, returnTo: 'detail' },
-          startPreferences(startPositionMs, continueWatching.entryFor(media.id), version),
-        );
+      const start = () => startPlayback(media, startPositionMs, version);
       // An episode goes on its library trail, so Back arrives at its season.
       if (placeOnTrail({ name: 'player', media }, media, known)) {
         start();
@@ -349,7 +375,7 @@ function Shell(): React.JSX.Element {
       });
       start();
     },
-    [runtime, placeOnTrail, continueWatching],
+    [startPlayback, placeOnTrail],
   );
 
   const playingMedia = route.name === 'player' ? route.media : undefined;
@@ -409,6 +435,7 @@ function Shell(): React.JSX.Element {
         onClose={closePlayer}
         episodeNav={episodeNav}
         onPlayEpisode={switchEpisode}
+        returnedFromExit={returnedFromExit}
       />
     );
   }
