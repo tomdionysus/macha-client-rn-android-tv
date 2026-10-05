@@ -36,7 +36,9 @@ everything this client depends on. Pushing is Tom's word.
   0.21.0). Everything since 0.9.1 also reads 0.9.1 / 901: **only the md5 tells
   builds apart**; record it at every install.
 - **Core** is linked: `node_modules/@machafoundation/core` is a symlink to
-  `../macha-ts`, on its `experiment/object-ledger` at `83c53e9` (pushed). This
+  `../macha-ts`, on its `experiment/object-ledger` at `a237296`; the three
+  checks pass against its `dist`. Its keys now live under `macha.core.`, and
+  this client's hydrate filter (`startsWith('macha')`) loads old and new. This
   client needs at least `1251cb2` (`availableToPlay`, `currentAvailability`,
   `withoutAvailability`). Check `dist` carries a symbol before trusting a
   build (AGENTS.md).
@@ -439,6 +441,9 @@ Logic is core's; what is missing is presentation. §2.11 runs the other way.
   `DeviceCapabilities`, `AsyncIconButton`, `AppLogo`. Reuse `TvTextInput`
   for any text field. An `ArtworkRef` with no `url` renders as the letter
   placeholder; it needs a data URI or a cached file.
+- **4.3b Artwork hedge.** The web races a second poster source after 2 s;
+  this client tries the next only on an error. Core now owns the rule
+  (`nextArtworkSource`, `ARTWORK_HEDGE_DELAY_MS`); `LazyArtwork` should use it.
 - **4.4 Hooks.** Missing: the artwork hooks (`useArtworkUrl` and its
   helpers) and `usePollingTask`, so Status does not poll.
 - **4.5 Stores.** `ContinueWatchingStore` is used; `PlaybackQueueStore` is
