@@ -60,7 +60,7 @@ everything this client depends on. Pushing is Tom's word.
   linked core `cb55882` (its working tree had uncommitted edits; `dist/index.js`
   md5 `039d78a9`), APK md5 `7ef6221ca1454f6e874dd4cf131bac5c`, read back off
   the set. Installed over Macha playing, on Tom's word; not launched after. It
-  carries `8e044b8` and the standby return (item 3b). Diagnostics **On**, screen timeout `600000` as last recorded. It drops off
+  carries `8e044b8` and the standby return. Diagnostics **On**, screen timeout `600000` as last recorded. It drops off
   the network for hours at a time; `adb mdns services` and a ping say whether
   it is back.
 - Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1, "Corvus
@@ -101,12 +101,6 @@ everything this client depends on. Pushing is Tom's word.
    finishes on it); the three error sentences ported from the web client
    (no node answered; the server cannot be reached; the stream is no longer
    available).
-3b. **Built, unseen: the return from standby.** Tom saw the set wake into an
-   open player with nothing playing and no "..." (the session closed on
-   `background`; nothing restarted it, and "..." needs a session). Now the
-   return restarts the title where it stopped, paused, chrome up on Play
-   (`src/app/pageExit.ts`). The paused start is a local stand-in until core's
-   `play` takes one (asked). See on the set: standby during playback, wake.
 4. **The next failover: capture `playback.coordinator source-failover-start`**,
    whose `error` names what began it. The first failover seen on this client
    (2026-09-28) has no recorded cause: it scrolled off the eight-line

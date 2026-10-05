@@ -1,5 +1,21 @@
 # Completed
 
+## 2026-10-04 to 2026-10-05 — the return from standby, two ported sentences
+
+- **Waking from standby into the player** (`7a35e7d`): the set's standby
+  sends the app to the background, which closes the session to free the
+  node's transcode slot; nothing restarted it, so the set woke into an empty
+  player with no "..." (it needs a session). The return now restarts the
+  title from its resume point, paused, chrome up on Play (Tom's ruling).
+  **Measured by Tom on the set, 2026-10-05**, on APK md5 `7ef6221c…`, core
+  `cb55882`. The paused start is a local stand-in (`pauseOnFirstSnapshot`)
+  until core's `play` takes one; asked of core.
+- **Ported from the web client** (`e431885`): "Converting streams…" for the
+  decode fallback (web `bc03abd`), and "This item cannot be played here." for
+  `NOT_PLAYABLE_CODE`. Unseen on the set.
+- **Pushed** to `97c90a4` on Tom's word; Tom's answers to the open decisions
+  recorded (`97c90a4`).
+
 ## 2026-10-01 to 2026-10-04 — wording ports, comments and docs rationalised, 0.9.1 on the experiment branch, and availability
 
 **Asserted from source and tests unless it says measured.** Nothing in this
