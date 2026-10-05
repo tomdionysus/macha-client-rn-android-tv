@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MediaSummary, PlaybackRuntimeSnapshot } from '@machafoundation/core';
-import { PageExit, pauseOnFirstSnapshot } from './pageExit';
+import { PageExit } from './pageExit';
 
 const film = { id: 'film', title: 'Film', kind: 'movie' } as unknown as MediaSummary;
 const request = { media: film, startPositionMs: 0, returnTo: 'detail' };
@@ -42,42 +42,5 @@ describe('PageExit', () => {
     exit.background(runtimeIn('starting'));
     expect(exit.background(runtimeIn('playing'))).toBeUndefined();
     expect(exit.active()).toBe(request);
-  });
-});
-
-describe('pauseOnFirstSnapshot', () => {
-  function fakeRuntime(current: unknown) {
-    const listeners = new Set<(snapshot: unknown) => void>();
-    const paused: boolean[] = [];
-    return {
-      paused,
-      listeners,
-      publish: (snapshot: unknown) => listeners.forEach((listener) => listener(snapshot)),
-      runtime: {
-        subscribePlayback: (listener: (snapshot: unknown) => void) => {
-          listeners.add(listener);
-          listener(current);
-          return () => listeners.delete(listener);
-        },
-        setPaused: (value: boolean) => paused.push(value),
-      },
-    };
-  }
-
-  it('pauses the new generation on its first snapshot, once, and lets go', () => {
-    const fake = fakeRuntime(undefined);
-    pauseOnFirstSnapshot(fake.runtime as never);
-    expect(fake.paused).toEqual([]);
-    fake.publish({ intent: { paused: false } });
-    fake.publish({ intent: { paused: true } });
-    expect(fake.paused).toEqual([true]);
-    expect(fake.listeners.size).toBe(0);
-  });
-
-  it('acts on a snapshot already there when it subscribes', () => {
-    const fake = fakeRuntime({ intent: { paused: false } });
-    pauseOnFirstSnapshot(fake.runtime as never);
-    expect(fake.paused).toEqual([true]);
-    expect(fake.listeners.size).toBe(0);
   });
 });

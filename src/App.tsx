@@ -10,7 +10,6 @@ import {
 } from '@machafoundation/core';
 import { MachaProvider, useMacha } from './app/MachaProvider';
 import { usePlaybackRuntime, type PageExitHandlers } from './app/usePlaybackRuntime';
-import { pauseOnFirstSnapshot } from './app/pageExit';
 import { useContinueWatchingWriter } from './app/useContinueWatchingWriter';
 import { backAction, TOP_LEVEL } from './app/backAction';
 import { exitAfterFlush } from './app/appExit';
@@ -209,11 +208,9 @@ function Shell(): React.JSX.Element {
   const startPlayback = useCallback(
     (media: MediaSummary, startPositionMs: number, version?: VersionStep, paused = false) => {
       void runtime.play(
-        { media, startPositionMs, returnTo: 'detail' },
+        { media, startPositionMs, returnTo: 'detail', paused },
         startPreferences(startPositionMs, continueWatching.entryFor(media.id), version),
       );
-      // After `play`, which has already withdrawn the previous generation's snapshot.
-      if (paused) pauseOnFirstSnapshot(runtime);
     },
     [runtime, continueWatching],
   );

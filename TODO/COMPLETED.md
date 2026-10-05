@@ -9,7 +9,9 @@
   title from its resume point, paused, chrome up on Play (Tom's ruling).
   **Measured by Tom on the set, 2026-10-05**, on APK md5 `7ef6221c…`, core
   `cb55882`. The paused start is a local stand-in (`pauseOnFirstSnapshot`)
-  until core's `play` takes one; asked of core.
+  until core's `play` takes one; asked of core. Replaced by core's
+  `PlaybackRuntimeRequest.paused` (core `852514e`); that build is unseen on
+  the set.
 - **Ported from the web client** (`e431885`): "Converting streams…" for the
   decode fallback (web `bc03abd`), and "This item cannot be played here." for
   `NOT_PLAYABLE_CODE`. Unseen on the set.
