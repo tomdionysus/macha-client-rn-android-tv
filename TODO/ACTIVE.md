@@ -56,11 +56,11 @@ everything this client depends on. Pushing is Tom's word.
 ### The set
 
 - **`10.35.1.133`**, TCL Android 12, a 3840x2160 panel, 960x540 dp.
-  **Installed 2026-10-04 00:03:** `5c2d2cb` (0.9.1, versionCode 901) on linked
-  core `1251cb2`, md5 `ecc962a139ff34102e7451a1e1b7d72c`, read back off the
-  set. Installed over Macha playing, on Tom's word; not launched after. It does
-  **not** carry `8e044b8` (the Continue Watching remove-button focus).
-  Diagnostics **On**, screen timeout `600000` as last recorded. It drops off
+  **Installed 2026-10-05 21:28:** `7a35e7d` (0.9.1, versionCode 901) on
+  linked core `cb55882` (its working tree had uncommitted edits; `dist/index.js`
+  md5 `039d78a9`), APK md5 `7ef6221ca1454f6e874dd4cf131bac5c`, read back off
+  the set. Installed over Macha playing, on Tom's word; not launched after. It
+  carries `8e044b8` and the standby return (item 3b). Diagnostics **On**, screen timeout `600000` as last recorded. It drops off
   the network for hours at a time; `adb mdns services` and a ping say whether
   it is back.
 - Signed in as `tvtest`. Endpoints `http://10.35.1.50:7438` (fi-1, "Corvus
