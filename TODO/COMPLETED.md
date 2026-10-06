@@ -1,5 +1,16 @@
 # Completed
 
+## 2026-10-06 — card links
+
+- **An episode's series and season as links on its card** (Tom: "they
+  should go where they say"), on Home's Continue Watching and in Search, as
+  the web client's `contextLines` (`macha-client`
+  `src/components/MediaCard.tsx`). Each is its own focus target, reachable
+  only from its card: Down from the card walks the links, Up walks back
+  (`linkStep`). The series link opens the show, the season link (labelled
+  S01E03) the season, each on its library trail. A track has none: this
+  client has no artist or album screen. Unseen on the set.
+
 ## 2026-10-04 to 2026-10-05 — the return from standby, two ported sentences
 
 - **Waking from standby into the player** (`7a35e7d`): the set's standby

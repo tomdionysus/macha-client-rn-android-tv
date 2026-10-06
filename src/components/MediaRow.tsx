@@ -19,6 +19,7 @@ export function MediaRow({
   onRowFocus,
   addressable,
   onRemove,
+  onOpenLink,
   rail,
 }: {
   title?: string;
@@ -35,6 +36,8 @@ export function MediaRow({
   addressable?: boolean;
   /** Gives each card a remove button (Continue Watching). */
   onRemove?: (media: MediaSummary) => void;
+  /** Gives each episode card its series and season links; see `MediaCard`. */
+  onOpenLink?: (target: MediaSummary) => void;
   /** Scope each card's id to this row, where a title can appear in two rows; see `mediaFocusId`. */
   rail?: string;
 }): React.JSX.Element | null {
@@ -82,6 +85,7 @@ export function MediaRow({
             rail={rail}
             progress={progressFor?.(media)}
             {...(onRemove ? { onRemove: () => onRemove(media) } : {})}
+            onOpenLink={onOpenLink}
             onExtent={(box) => cards.current.set(index, { offset: box.x, length: box.width })}
             onFocusChange={(focused) => {
               if (!focused) return;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { MediaSummary } from '@machafoundation/core';
-import { cardLines } from './cardLines';
+import { cardLines, contextLinks, linkStep, type CardLink } from './cardLines';
 import { Focusable } from './Focusable';
 import { AvailabilityMarker } from './AvailabilityMarker';
 import { cardInteraction } from './availability';
@@ -25,6 +25,7 @@ export function MediaCard({
   addressable = false,
   squareInPosterHeight = false,
   onRemove,
+  onOpenLink,
   rail,
 }: {
   media: MediaSummary;
@@ -44,6 +45,11 @@ export function MediaCard({
   onExtent?: (box: { x: number; y: number; width: number; height: number }) => void;
   /** Draw a remove button over the card, as its own focus target (Continue Watching). */
   onRemove?: () => void;
+  /**
+   * Show an episode's series and season as links under its title, each its
+   * own focus target (the web client's Continue Watching and Search cards).
+   */
+  onOpenLink?: (target: MediaSummary) => void;
   /** The card's row, making its focus id unique per row; see `mediaFocusId`. */
   rail?: string;
 }): React.JSX.Element {
@@ -51,7 +57,9 @@ export function MediaCard({
   const mediaApi = services.mediaApi;
   const artwork = media.artwork?.poster ?? media.artwork?.thumbnail;
   const isSquare = media.kind === 'album' || media.kind === 'artist' || media.kind === 'track';
-  const lines = cardLines(media);
+  const links = onOpenLink ? contextLinks(media) : undefined;
+  // The links replace the lines they would repeat.
+  const lines = links ? [] : cardLines(media);
   // OK does nothing on an unavailable title; see `cardInteraction` for when
   // it may still take focus.
   const interaction = cardInteraction(media, Boolean(onRemove));
@@ -59,8 +67,11 @@ export function MediaCard({
   // The remove button's focus pairing; see `CardCloseButton`.
   const [cardFocused, setCardFocused] = useState(false);
   const [closeFocused, setCloseFocused] = useState(false);
-  const cardId = addressable || rail ? mediaFocusId(media.id, rail) : onRemove ? `card:${media.id}` : undefined;
+  const [focusedLink, setFocusedLink] = useState<number | undefined>(undefined);
+  const cardId = addressable || rail ? mediaFocusId(media.id, rail) : onRemove || links ? `card:${media.id}` : undefined;
   const closeId = `remove:${media.id}`;
+  const linkId = (index: number) => `${cardId}:link:${index}`;
+  const stepTo = (step: 'card' | number) => tvFocus.select(step === 'card' ? cardId : linkId(step));
 
   const card = (
     <Focusable
@@ -73,12 +84,17 @@ export function MediaCard({
         setCardFocused(focused);
         onFocusChange?.(focused);
       }}
-      // Up goes to the remove button; the scorer cannot reach a centre
-      // inside the card.
-      {...(onRemove
+      // Up goes to the remove button and Down to the links; the scorer
+      // cannot reach a centre inside the card.
+      {...(onRemove || links
         ? {
-            ownsDirection: (direction: string) => direction === 'up',
-            onDirection: (direction: string) => direction === 'up' && tvFocus.select(closeId),
+            ownsDirection: (direction: string) =>
+              (direction === 'up' && Boolean(onRemove)) || (links !== undefined && linkStep('card', direction, links.length) !== undefined),
+            onDirection: (direction: string) => {
+              if (direction === 'up' && onRemove) tvFocus.select(closeId);
+              const step = links && linkStep('card', direction, links.length);
+              if (step !== undefined) stepTo(step);
+            },
           }
         : {})}
       onExtent={onExtent}
@@ -129,18 +145,82 @@ export function MediaCard({
     </Focusable>
   );
 
-  if (!onRemove) return card;
+  if (!onRemove && !links) return card;
   return (
     <View>
       {card}
-      <CardCloseButton
-        focusId={closeId}
-        reachable={cardFocused || closeFocused}
-        onSelect={onRemove}
-        onFocusChange={setCloseFocused}
-        onDown={() => cardId && tvFocus.select(cardId)}
-      />
+      {links && onOpenLink ? (
+        <View style={styles.links}>
+          {links.map((link, index) => (
+            <CardLinkButton
+              key={link.target.id}
+              link={link}
+              focusId={linkId(index)}
+              reachable={cardFocused || focusedLink !== undefined}
+              onSelect={() => onOpenLink(link.target)}
+              onFocusChange={(focused) => setFocusedLink((current) => (focused ? index : current === index ? undefined : current))}
+              step={(direction) => linkStep(index, direction, links.length)}
+              onStep={stepTo}
+            />
+          ))}
+        </View>
+      ) : null}
+      {onRemove ? (
+        <CardCloseButton
+          focusId={closeId}
+          reachable={cardFocused || closeFocused}
+          onSelect={onRemove}
+          onFocusChange={setCloseFocused}
+          onDown={() => cardId && tvFocus.select(cardId)}
+        />
+      ) : null}
     </View>
+  );
+}
+
+/**
+ * `.continue-card-context-link`: one of a card's links. Like the remove
+ * button it is a focus candidate only while it, a sibling or its card has
+ * focus; Up and Down walk the card and its links (`linkStep`).
+ */
+function CardLinkButton({
+  link,
+  focusId,
+  reachable,
+  onSelect,
+  onFocusChange,
+  step,
+  onStep,
+}: {
+  link: CardLink;
+  focusId: string;
+  reachable: boolean;
+  onSelect: () => void;
+  onFocusChange: (focused: boolean) => void;
+  step: (direction: string) => 'card' | number | undefined;
+  onStep: (to: 'card' | number) => void;
+}): React.JSX.Element {
+  return (
+    <Focusable
+      ring={false}
+      focusId={focusId}
+      disabled={!reachable}
+      onFocusChange={onFocusChange}
+      ownsDirection={(direction) => step(direction) !== undefined}
+      onDirection={(direction) => {
+        const to = step(direction);
+        if (to !== undefined) onStep(to);
+      }}
+      onSelect={onSelect}
+      style={styles.link}
+      focusedStyle={styles.linkFocused}
+    >
+      {({ focused }) => (
+        <Text style={[styles.linkText, focused && styles.linkTextFocused]} numberOfLines={1}>
+          {link.label}
+        </Text>
+      )}
+    </Focusable>
   );
 }
 
@@ -181,6 +261,38 @@ function CardCloseButton({
 }
 
 const styles = StyleSheet.create({
+  // `.continue-card-context { display: grid; gap: .08rem; margin-top: .28rem }`,
+  // inset by the card's `.35rem` padding, which the links sit inside on the web.
+  links: {
+    marginTop: rem(0.28),
+    paddingHorizontal: rem(0.35),
+    gap: rem(0.08),
+  },
+  /**
+   * `.continue-card-context-link:focus-visible { text-decoration: underline;
+   * text-decoration-color: var(--focus) }`, drawn as a bottom border because
+   * Android cannot colour an underline. Always present, so focus changes only
+   * the colour.
+   */
+  link: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
+  },
+  linkFocused: {
+    borderBottomColor: colour.focus,
+  },
+  // `.continue-card-context-line { color: var(--text-dim); font-size: .82rem; line-height: 1.35 }`
+  linkText: {
+    color: colour.textDim,
+    fontSize: rem(0.82),
+    lineHeight: rem(0.82 * 1.35),
+  },
+  // `.continue-card-context-link:focus-visible { color: #dedee2 }`
+  linkTextFocused: {
+    color: '#dedee2',
+  },
   /**
    * `.card-close-button { position: absolute; width: 1.8rem; height: 1.8rem;
    * border: 1px solid #ffffff18; border-radius: .48rem; background: #08080ac9;

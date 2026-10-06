@@ -196,6 +196,7 @@ export function SearchScreen({
                 addressable
                 squareInPosterHeight
                 onSelect={() => onOpen(item)}
+                onOpenLink={onOpen}
                 onExtent={(box) => {
                 cards.current.set(index, { y: box.y, height: box.height });
                 // Focus restored by Back lands before layout; reveal once the box is known.

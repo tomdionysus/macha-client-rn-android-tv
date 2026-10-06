@@ -59,6 +59,11 @@ export function categoryLabel(key: SearchCategoryKey): string {
 
 // ── Media lines ────────────────────────────────────────────────────────────
 
+/** "Season 2" (the web client's `seasonLabel`). */
+export function seasonLabel(seasonNumber: number | undefined): string | undefined {
+  return seasonNumber === undefined ? undefined : `Season ${seasonNumber}`;
+}
+
 /** "S04E08", or "Episode 8" with no season (the web client's `episodeCode`). */
 export function episodeLabel(item: Pick<MediaSummary, 'seasonNumber' | 'episodeNumber'>): string | undefined {
   const { seasonNumber, episodeNumber } = item;

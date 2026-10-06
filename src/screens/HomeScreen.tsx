@@ -79,6 +79,7 @@ export function HomeScreen({
           items={progressItems}
           onSelect={onResume}
           onRemove={onRemoveFromContinueWatching}
+          onOpenLink={onOpen}
           progressFor={progressFor}
           defaultFocusFirst
           onRowFocus={() => revealRow('continue')}
