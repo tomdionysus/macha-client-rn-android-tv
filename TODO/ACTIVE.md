@@ -17,26 +17,22 @@ are in its second. This file is only where things stand and what is open.
 
 The object-ledger experiment is closed (Tom, 2026-10-06): everything from
 `experiment/object-ledger` is on `develop` and the experiment branch is
-deleted, here and on `origin`. `main` is still `0.9.0` and waits on a
-published core (AGENTS.md). API changes on the server's line are announced to
+deleted, here and on `origin`. Releases go to `main` with core from the
+registry (AGENTS.md). API changes on the server's line are announced to
 core and every client before they ship; check each against everything this
 client depends on. Pushing is Tom's word.
 
 ### Where things stand
 
-- **`origin/develop` has everything**; `git status -sb` counts what is
-  ahead since. After 0.9.1 (`60d4a3a`): the availability work, the install
-  record, the documentation and comment rationalisation, three ported
-  sentences, §1.9's close and the standby return. Typecheck, 397 tests and
-  the export pass.
-- **Tag `0.9.1`** (annotated, pushed) is on `60d4a3a`, in `develop`'s history
-  and **not on `main`**; versionCode 901. Its tree uses `file:../macha-ts`, so
-  it builds only beside a compatible core checkout. `main` is still `263e308`,
-  tag `0.9.0`, core `^0.21.0` from the registry (latest published core is still
-  0.21.0). Everything since 0.9.1 also reads 0.9.1 / 901: **only the md5 tells
-  builds apart**; record it at every install.
+- **Release `0.10.0`** (tag annotated, pushed) is `0b12173` on `main`:
+  versionCode 1000, core `^0.22.0` from the registry, APK md5
+  `8f48712b65d0e3384e9d94735ef425b5` (built from `main`, not installed). It
+  carries the availability work, the standby return, the card links and three
+  ported sentences. `develop` is `main` plus the core link; between releases
+  every build reads 0.10.0 / 1000, so **only the md5 tells builds apart**;
+  record it at every install. Typecheck, 402 tests and the export pass.
 - **Core** is linked: `node_modules/@machafoundation/core` is a symlink to
-  `../macha-ts` on its `develop` at `6281778`; the three checks pass
+  `../macha-ts` on its `develop` at `e34c22a`; the three checks pass
   against its `dist`. Its keys now live under `macha.core.`, and
   this client's hydrate filter (`startsWith('macha')`) loads old and new. This
   client needs at least `1251cb2` (`availableToPlay`, `currentAvailability`,
