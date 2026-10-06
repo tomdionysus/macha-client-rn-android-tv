@@ -36,7 +36,7 @@ client depends on. Pushing is Tom's word.
   0.21.0). Everything since 0.9.1 also reads 0.9.1 / 901: **only the md5 tells
   builds apart**; record it at every install.
 - **Core** is linked: `node_modules/@machafoundation/core` is a symlink to
-  `../macha-ts` at `852514e` (the paused start); the three checks pass
+  `../macha-ts` on its `develop` at `6281778`; the three checks pass
   against its `dist`. Its keys now live under `macha.core.`, and
   this client's hydrate filter (`startsWith('macha')`) loads old and new. This
   client needs at least `1251cb2` (`availableToPlay`, `currentAvailability`,
