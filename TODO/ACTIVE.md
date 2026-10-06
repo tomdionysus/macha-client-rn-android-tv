@@ -13,31 +13,31 @@ conventions and traps live in [`../AGENTS.md`](../AGENTS.md).
 (2026-10-01 to 2026-10-04), and the records behind every numbered item below
 are in its second. This file is only where things stand and what is open.
 
-### Work only on `experiment/object-ledger`
+### Work on `develop`
 
-**Not `main`, not `develop`**, until the server's experiment ends: the
-server's operator instruction, relayed by the Macha Server session, and Tom
-confirmed it for this repo on 2026-10-02 by tagging 0.9.1 here rather than on
-`main`. The branch was cut from `develop` at `3f7bad0` and is pushed
-(`origin/experiment/object-ledger`). API changes on the server's line are
-announced to core and every client before they ship; check each against
-everything this client depends on. Pushing is Tom's word.
+The object-ledger experiment is closed (Tom, 2026-10-06): everything from
+`experiment/object-ledger` is on `develop` and the experiment branch is
+deleted, here and on `origin`. `main` is still `0.9.0` and waits on a
+published core (AGENTS.md). API changes on the server's line are announced to
+core and every client before they ship; check each against everything this
+client depends on. Pushing is Tom's word.
 
 ### Where things stand
 
-- **`origin` has everything to `97c90a4`**; `git status -sb` counts what is
+- **`origin/develop` has everything**; `git status -sb` counts what is
   ahead since. After 0.9.1 (`60d4a3a`): the availability work, the install
   record, the documentation and comment rationalisation, three ported
-  sentences and §1.9's close. Typecheck, 392 tests and the export pass.
-- **Tag `0.9.1`** (annotated, pushed) is on `60d4a3a`, on this branch, **not
-  on `main`**; versionCode 901. Its tree uses `file:../macha-ts`, so it builds
-  only beside a compatible core checkout. `main` is still `263e308`, tag
-  `0.9.0`, core `^0.21.0` from the registry (latest published core is still
+  sentences, §1.9's close and the standby return. Typecheck, 397 tests and
+  the export pass.
+- **Tag `0.9.1`** (annotated, pushed) is on `60d4a3a`, in `develop`'s history
+  and **not on `main`**; versionCode 901. Its tree uses `file:../macha-ts`, so
+  it builds only beside a compatible core checkout. `main` is still `263e308`,
+  tag `0.9.0`, core `^0.21.0` from the registry (latest published core is still
   0.21.0). Everything since 0.9.1 also reads 0.9.1 / 901: **only the md5 tells
   builds apart**; record it at every install.
 - **Core** is linked: `node_modules/@machafoundation/core` is a symlink to
-  `../macha-ts`, on its `experiment/object-ledger` at `a237296`; the three
-  checks pass against its `dist`. Its keys now live under `macha.core.`, and
+  `../macha-ts` at `852514e` (the paused start); the three checks pass
+  against its `dist`. Its keys now live under `macha.core.`, and
   this client's hydrate filter (`startsWith('macha')`) loads old and new. This
   client needs at least `1251cb2` (`availableToPlay`, `currentAvailability`,
   `withoutAvailability`). Check `dist` carries a symbol before trusting a
